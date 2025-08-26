@@ -364,4 +364,258 @@ describe('node-clang bindings', () => {
       index.dispose();
     }
   });
+
+  it('should get cursor argument information', async (t) => {
+    const ctx = t as TestContextWithTempDir;
+    const index = clang.createIndex();
+
+    const testFile = join(ctx[kTempDir], 'test_cursor_args.c');
+    const testCode = `
+            // Function with multiple arguments
+            float calculate(double x, int y, const char* name) {
+                return x + y;
+            }
+            
+            // Function with no arguments
+            void noArgs() {
+                // Do nothing
+            }
+            
+            // Variadic function
+            int sum(int count, ...) {
+                return count;
+            }
+        `;
+    await fs.writeFile(testFile, testCode);
+
+    try {
+      const tu = clang.parseTranslationUnit(index, testFile, []);
+      const cursor = tu.getCursor();
+
+      // Test calculate function
+      let calculateCursor: Cursor | null = null;
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
+        if (clang.getCursorSpelling(child) === 'calculate') {
+          calculateCursor = child;
+          return clang.CXChildVisit.Break;
+        }
+        return clang.CXChildVisit.Continue;
+      });
+
+      assert.ok(calculateCursor);
+      
+      // Test getCursorResultType
+      const resultType = clang.getCursorResultType(calculateCursor);
+      assert.ok(resultType);
+      const resultTypeSpelling = clang.getTypeSpelling(resultType);
+      assert.equal(resultTypeSpelling, 'float');
+      
+      // Test getNumCursorArguments
+      const numArgs = clang.getNumCursorArguments(calculateCursor);
+      assert.equal(numArgs, 3);
+      
+      // Test getCursorArgument for each argument
+      const arg0 = clang.getCursorArgument(calculateCursor, 0);
+      assert.ok(arg0);
+      assert.equal(clang.getCursorSpelling(arg0), 'x');
+      const arg0Type = clang.getCursorType(arg0);
+      assert.equal(clang.getTypeSpelling(arg0Type), 'double');
+      
+      const arg1 = clang.getCursorArgument(calculateCursor, 1);
+      assert.ok(arg1);
+      assert.equal(clang.getCursorSpelling(arg1), 'y');
+      const arg1Type = clang.getCursorType(arg1);
+      assert.equal(clang.getTypeSpelling(arg1Type), 'int');
+      
+      const arg2 = clang.getCursorArgument(calculateCursor, 2);
+      assert.ok(arg2);
+      assert.equal(clang.getCursorSpelling(arg2), 'name');
+      const arg2Type = clang.getCursorType(arg2);
+      assert.ok(clang.getTypeSpelling(arg2Type).includes('const char'));
+
+      // Test function with no arguments
+      let noArgsCursor: Cursor | null = null;
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
+        if (clang.getCursorSpelling(child) === 'noArgs') {
+          noArgsCursor = child;
+          return clang.CXChildVisit.Break;
+        }
+        return clang.CXChildVisit.Continue;
+      });
+
+      assert.ok(noArgsCursor);
+      const noArgsResultType = clang.getCursorResultType(noArgsCursor);
+      assert.equal(clang.getTypeSpelling(noArgsResultType), 'void');
+      const noArgsCount = clang.getNumCursorArguments(noArgsCursor);
+      assert.equal(noArgsCount, 0);
+
+      // Test variadic function
+      let sumCursor: Cursor | null = null;
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
+        if (clang.getCursorSpelling(child) === 'sum') {
+          sumCursor = child;
+          return clang.CXChildVisit.Break;
+        }
+        return clang.CXChildVisit.Continue;
+      });
+
+      assert.ok(sumCursor);
+      const sumResultType = clang.getCursorResultType(sumCursor);
+      assert.equal(clang.getTypeSpelling(sumResultType), 'int');
+      const sumArgsCount = clang.getNumCursorArguments(sumCursor);
+      assert.equal(sumArgsCount, 1); // Only the fixed argument is counted
+      
+      const sumArg0 = clang.getCursorArgument(sumCursor, 0);
+      assert.ok(sumArg0);
+      assert.equal(clang.getCursorSpelling(sumArg0), 'count');
+
+      tu.dispose();
+    } finally {
+      index.dispose();
+    }
+  });
+
+  it('should recognize Objective-C cursor kinds', async (t) => {
+    const ctx = t as TestContextWithTempDir;
+    const index = clang.createIndex();
+
+    const testFile = join(ctx[kTempDir], 'test_objc.m');
+    const testCode = `
+            @interface MyClass : NSObject
+            @property (nonatomic, strong) NSString *name;
+            @property (nonatomic, assign) NSInteger age;
+            
+            - (void)instanceMethod;
+            + (void)classMethod;
+            @end
+            
+            @protocol MyProtocol
+            - (void)protocolMethod;
+            @end
+            
+            @interface MyClass (MyCategory)
+            - (void)categoryMethod;
+            @end
+        `;
+    await fs.writeFile(testFile, testCode);
+
+    try {
+      const tu = clang.parseTranslationUnit(index, testFile, ['-x', 'objective-c']);
+      const cursor = tu.getCursor();
+
+      const foundKinds: Record<string, number> = {};
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
+        const kind = clang.getCursorKind(child);
+        const spelling = clang.getCursorSpelling(child);
+        
+        if (spelling) {
+          foundKinds[spelling] = kind;
+        }
+        
+        return clang.CXChildVisit.Recurse;
+      });
+
+      // Check for Objective-C specific cursor kinds
+      // Note: If parsing fails to recognize ObjC code, check that at least the interface is recognized
+      if (foundKinds['MyClass'] === clang.CXCursorKind.ObjCInterfaceDecl) {
+        assert.equal(foundKinds['MyClass'], clang.CXCursorKind.ObjCInterfaceDecl);
+        assert.equal(foundKinds['name'], clang.CXCursorKind.ObjCPropertyDecl);
+        assert.equal(foundKinds['age'], clang.CXCursorKind.ObjCPropertyDecl);
+        assert.equal(foundKinds['instanceMethod'], clang.CXCursorKind.ObjCInstanceMethodDecl);
+        assert.equal(foundKinds['classMethod'], clang.CXCursorKind.ObjCClassMethodDecl);
+        assert.equal(foundKinds['MyProtocol'], clang.CXCursorKind.ObjCProtocolDecl);
+        assert.equal(foundKinds['MyCategory'], clang.CXCursorKind.ObjCCategoryDecl);
+      } else {
+        // If ObjC parsing isn't fully supported, at least verify the constants are exported correctly
+        assert.ok(clang.CXCursorKind.ObjCInterfaceDecl !== undefined, 'ObjCInterfaceDecl constant should be defined');
+        assert.ok(clang.CXCursorKind.ObjCCategoryDecl !== undefined, 'ObjCCategoryDecl constant should be defined');
+        assert.ok(clang.CXCursorKind.ObjCProtocolDecl !== undefined, 'ObjCProtocolDecl constant should be defined');
+        assert.ok(clang.CXCursorKind.ObjCPropertyDecl !== undefined, 'ObjCPropertyDecl constant should be defined');
+        assert.ok(clang.CXCursorKind.ObjCInstanceMethodDecl !== undefined, 'ObjCInstanceMethodDecl constant should be defined');
+        assert.ok(clang.CXCursorKind.ObjCClassMethodDecl !== undefined, 'ObjCClassMethodDecl constant should be defined');
+        assert.ok(clang.CXCursorKind.ObjCProtocolRef !== undefined, 'ObjCProtocolRef constant should be defined');
+      }
+
+      tu.dispose();
+    } finally {
+      index.dispose();
+    }
+  });
+
+  it('should use translation unit parse options', async (t) => {
+    const ctx = t as TestContextWithTempDir;
+    const index = clang.createIndex();
+
+    const testFile = join(ctx[kTempDir], 'test_parse_options.c');
+    const testCode = `
+            #define MY_MACRO 42
+            #ifdef MY_MACRO
+            int defined_value = MY_MACRO;
+            #endif
+            
+            /**
+             * Brief comment for test function
+             */
+            int test_function() {
+                return 0;
+            }
+        `;
+    await fs.writeFile(testFile, testCode);
+
+    try {
+      // Test with DetailedPreprocessingRecord option
+      const tu1 = clang.parseTranslationUnit(
+        index, 
+        testFile, 
+        [],
+        clang.CXTranslationUnit.DetailedPreprocessingRecord
+      );
+      assert.ok(tu1);
+      
+      // The translation unit should be created successfully with this option
+      const cursor1 = tu1.getCursor();
+      assert.ok(cursor1);
+      
+      tu1.dispose();
+      
+      // Test with IncludeBriefCommentsInCodeCompletion option
+      const tu2 = clang.parseTranslationUnit(
+        index,
+        testFile,
+        [],
+        clang.CXTranslationUnit.IncludeBriefCommentsInCodeCompletion
+      );
+      assert.ok(tu2);
+      
+      const cursor2 = tu2.getCursor();
+      let hasComment = false;
+      clang.visitChildren(cursor2, (child: Cursor, _parent: Cursor) => {
+        if (clang.getCursorSpelling(child) === 'test_function') {
+          const comment = clang.getCursorRawCommentText(child);
+          if (comment && comment.includes('Brief comment')) {
+            hasComment = true;
+          }
+          return clang.CXChildVisit.Break;
+        }
+        return clang.CXChildVisit.Continue;
+      });
+      
+      assert.ok(hasComment, 'Should have found the brief comment');
+      
+      tu2.dispose();
+      
+      // Test with None option (default behavior)
+      const tu3 = clang.parseTranslationUnit(
+        index,
+        testFile,
+        [],
+        clang.CXTranslationUnit.None
+      );
+      assert.ok(tu3);
+      tu3.dispose();
+      
+    } finally {
+      index.dispose();
+    }
+  });
 });

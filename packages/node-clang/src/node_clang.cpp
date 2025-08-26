@@ -424,6 +424,69 @@ Napi::Value GetTypedefDeclUnderlyingType(const Napi::CallbackInfo& info) {
     return result;
 }
 
+// Get cursor result type (for functions/methods)
+Napi::Value GetCursorResultType(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!info[0].IsObject()) {
+        Napi::TypeError::New(env, "Expected cursor object").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    Napi::Object cursorObj = info[0].As<Napi::Object>();
+    CXCursor* cursor = cursorObj.Get("_cursor").As<Napi::External<CXCursor>>().Data();
+    
+    CXType type = clang_getCursorType(*cursor);
+    CXType resultType = clang_getResultType(type);
+    
+    Napi::Object result = Napi::Object::New(env);
+    result.Set("_type", Napi::External<CXType>::New(env, new CXType(resultType)));
+    
+    return result;
+}
+
+// Get number of arguments for a cursor
+Napi::Value GetNumCursorArguments(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!info[0].IsObject()) {
+        Napi::TypeError::New(env, "Expected cursor object").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    Napi::Object cursorObj = info[0].As<Napi::Object>();
+    CXCursor* cursor = cursorObj.Get("_cursor").As<Napi::External<CXCursor>>().Data();
+    
+    int numArgs = clang_Cursor_getNumArguments(*cursor);
+    return Napi::Number::New(env, numArgs);
+}
+
+// Get argument cursor at index
+Napi::Value GetCursorArgument(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!info[0].IsObject() || !info[1].IsNumber()) {
+        Napi::TypeError::New(env, "Expected cursor object and index number").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    Napi::Object cursorObj = info[0].As<Napi::Object>();
+    CXCursor* cursor = cursorObj.Get("_cursor").As<Napi::External<CXCursor>>().Data();
+    unsigned index = info[1].As<Napi::Number>().Uint32Value();
+    
+    CXCursor argCursor = clang_Cursor_getArgument(*cursor, index);
+    
+    Napi::Object result = Napi::Object::New(env);
+    result.Set("_cursor", Napi::External<CXCursor>::New(env, new CXCursor(argCursor)));
+    
+    // Store the TU reference if available
+    if (cursorObj.Has("_tu")) {
+        result.Set("_tu", cursorObj.Get("_tu"));
+    }
+    
+    return result;
+}
+
 // Visitor support
 struct VisitorData {
     Napi::FunctionReference callback;
@@ -505,6 +568,11 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     // Typedef functions
     exports.Set("getTypedefDeclUnderlyingType", Napi::Function::New(env, GetTypedefDeclUnderlyingType));
     
+    // Cursor argument functions
+    exports.Set("getCursorResultType", Napi::Function::New(env, GetCursorResultType));
+    exports.Set("getNumCursorArguments", Napi::Function::New(env, GetNumCursorArguments));
+    exports.Set("getCursorArgument", Napi::Function::New(env, GetCursorArgument));
+    
     // Export CXChildVisitResult enum values
     exports.Set("CXChildVisit_Break", Napi::Number::New(env, CXChildVisit_Break));
     exports.Set("CXChildVisit_Continue", Napi::Number::New(env, CXChildVisit_Continue));
@@ -523,6 +591,20 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("CXCursor_TypedefDecl", Napi::Number::New(env, CXCursor_TypedefDecl));
     exports.Set("CXCursor_CXXMethod", Napi::Number::New(env, CXCursor_CXXMethod));
     exports.Set("CXCursor_EnumConstantDecl", Napi::Number::New(env, CXCursor_EnumConstantDecl));
+    
+    // Objective-C cursor kinds
+    exports.Set("CXCursor_ObjCInterfaceDecl", Napi::Number::New(env, CXCursor_ObjCInterfaceDecl));
+    exports.Set("CXCursor_ObjCCategoryDecl", Napi::Number::New(env, CXCursor_ObjCCategoryDecl));
+    exports.Set("CXCursor_ObjCProtocolDecl", Napi::Number::New(env, CXCursor_ObjCProtocolDecl));
+    exports.Set("CXCursor_ObjCPropertyDecl", Napi::Number::New(env, CXCursor_ObjCPropertyDecl));
+    exports.Set("CXCursor_ObjCInstanceMethodDecl", Napi::Number::New(env, CXCursor_ObjCInstanceMethodDecl));
+    exports.Set("CXCursor_ObjCClassMethodDecl", Napi::Number::New(env, CXCursor_ObjCClassMethodDecl));
+    exports.Set("CXCursor_ObjCProtocolRef", Napi::Number::New(env, CXCursor_ObjCProtocolRef));
+    
+    // Parse options
+    exports.Set("CXTranslationUnit_None", Napi::Number::New(env, CXTranslationUnit_None));
+    exports.Set("CXTranslationUnit_DetailedPreprocessingRecord", Napi::Number::New(env, CXTranslationUnit_DetailedPreprocessingRecord));
+    exports.Set("CXTranslationUnit_IncludeBriefCommentsInCodeCompletion", Napi::Number::New(env, CXTranslationUnit_IncludeBriefCommentsInCodeCompletion));
     
     return exports;
 }

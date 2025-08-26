@@ -20,7 +20,8 @@
   },
   "homepage": "https://github.com/vdeturckheim/raw-bindings#readme",
   "workspaces": [
-    "packages/node-clang"
+    "packages/node-clang",
+    "packages/h-parser"
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.2.2"

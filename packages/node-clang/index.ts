@@ -66,6 +66,11 @@ const addon = nodeGypBuild(import.meta.dirname) as {
   // Typedef functions
   getTypedefDeclUnderlyingType(cursor: Cursor): Type;
 
+  // Cursor argument functions
+  getCursorResultType(cursor: Cursor): Type;
+  getNumCursorArguments(cursor: Cursor): number;
+  getCursorArgument(cursor: Cursor, index: number): Cursor;
+
   // Constants
   CXChildVisit_Break: number;
   CXChildVisit_Continue: number;
@@ -83,6 +88,20 @@ const addon = nodeGypBuild(import.meta.dirname) as {
   CXCursor_TypedefDecl: number;
   CXCursor_CXXMethod: number;
   CXCursor_EnumConstantDecl: number;
+  
+  // Objective-C cursor kinds
+  CXCursor_ObjCInterfaceDecl: number;
+  CXCursor_ObjCCategoryDecl: number;
+  CXCursor_ObjCProtocolDecl: number;
+  CXCursor_ObjCPropertyDecl: number;
+  CXCursor_ObjCInstanceMethodDecl: number;
+  CXCursor_ObjCClassMethodDecl: number;
+  CXCursor_ObjCProtocolRef: number;
+  
+  // Parse options
+  CXTranslationUnit_None: number;
+  CXTranslationUnit_DetailedPreprocessingRecord: number;
+  CXTranslationUnit_IncludeBriefCommentsInCodeCompletion: number;
 
   // Classes
   ClangIndex: new (
@@ -119,6 +138,11 @@ export const getEnumConstantDeclValue = addon.getEnumConstantDeclValue;
 // Typedef functions
 export const getTypedefDeclUnderlyingType = addon.getTypedefDeclUnderlyingType;
 
+// Cursor argument functions
+export const getCursorResultType = addon.getCursorResultType;
+export const getNumCursorArguments = addon.getNumCursorArguments;
+export const getCursorArgument = addon.getCursorArgument;
+
 // Constants
 export const CXChildVisit = {
   Break: addon.CXChildVisit_Break,
@@ -139,6 +163,21 @@ export const CXCursorKind = {
   TypedefDecl: addon.CXCursor_TypedefDecl,
   CXXMethod: addon.CXCursor_CXXMethod,
   EnumConstantDecl: addon.CXCursor_EnumConstantDecl,
+  // Objective-C kinds
+  ObjCInterfaceDecl: addon.CXCursor_ObjCInterfaceDecl,
+  ObjCCategoryDecl: addon.CXCursor_ObjCCategoryDecl,
+  ObjCProtocolDecl: addon.CXCursor_ObjCProtocolDecl,
+  ObjCPropertyDecl: addon.CXCursor_ObjCPropertyDecl,
+  ObjCInstanceMethodDecl: addon.CXCursor_ObjCInstanceMethodDecl,
+  ObjCClassMethodDecl: addon.CXCursor_ObjCClassMethodDecl,
+  ObjCProtocolRef: addon.CXCursor_ObjCProtocolRef,
+} as const;
+
+// Parse options
+export const CXTranslationUnit = {
+  None: addon.CXTranslationUnit_None,
+  DetailedPreprocessingRecord: addon.CXTranslationUnit_DetailedPreprocessingRecord,
+  IncludeBriefCommentsInCodeCompletion: addon.CXTranslationUnit_IncludeBriefCommentsInCodeCompletion,
 } as const;
 
 // Re-export classes from addon
@@ -162,8 +201,12 @@ export default {
   getCursorRawCommentText,
   getEnumConstantDeclValue,
   getTypedefDeclUnderlyingType,
+  getCursorResultType,
+  getNumCursorArguments,
+  getCursorArgument,
   CXChildVisit,
   CXCursorKind,
+  CXTranslationUnit,
   ClangIndex,
   ClangTranslationUnit,
 };

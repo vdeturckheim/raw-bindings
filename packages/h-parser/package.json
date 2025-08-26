@@ -1,0 +1,19 @@
+{
+  "name": "h-parser",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "parse c/cpp header files into a structured format",
+  "main": "index.ts",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "node-clang": "file:../node-clang"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  },
+  "author": "vdeturckheim",
+  "license": "MIT"
+}
