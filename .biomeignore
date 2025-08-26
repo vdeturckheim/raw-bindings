@@ -1,0 +1,6 @@
+node_modules/
+build/
+dist/
+*.min.js
+packages/*/build/
+packages/*/node_modules/

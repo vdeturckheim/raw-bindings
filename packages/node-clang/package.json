@@ -1,0 +1,28 @@
+{
+  "name": "node-clang",
+  "version": "0.0.0",
+  "description": "node.js bindings to libclang",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "install": "cmake-js compile",
+    "build": "cmake-js build",
+    "build:debug": "cmake-js build --debug",
+    "rebuild": "cmake-js rebuild",
+    "clean": "cmake-js clean",
+    "test": "node --test"
+  },
+  "keywords": [
+    "clang",
+    "libclang"
+  ],
+  "author": "vdeturckheim",
+  "license": "MIT",
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "cmake-js": "^7.3.1",
+    "node-addon-api": "^8.5.0",
+    "node-gyp-build": "^4.8.4"
+  }
+}
