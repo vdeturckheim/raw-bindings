@@ -3,15 +3,22 @@ import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, it } from 'node:test';
-import * as clang from './index.js';
+import type { Cursor } from './index.ts';
+import * as clang from './index.ts';
 
 const kTempDir = Symbol('kTempDir');
+
+interface TestContextWithTempDir extends TestContext {
+  [kTempDir]: string;
+}
 
 describe('node-clang bindings', () => {
   beforeEach(async (t) => {
     const baseDir = tmpdir();
     const prefix = 'node-clang-test-';
-    t[kTempDir] = await fs.mkdtemp(join(baseDir, prefix));
+    (t as TestContextWithTempDir)[kTempDir] = await fs.mkdtemp(
+      join(baseDir, prefix),
+    );
   });
 
   it('should create and dispose index', () => {
@@ -28,10 +35,11 @@ describe('node-clang bindings', () => {
   });
 
   it('should parse a simple C file', async (t) => {
+    const ctx = t as TestContextWithTempDir;
     const index = clang.createIndex();
 
     // Create a test file
-    const testFile = join(t[kTempDir], 'test_clang.c');
+    const testFile = join(ctx[kTempDir], 'test_clang.c');
     const testCode = `
             // This is a test function
             int add(int a, int b) {
@@ -49,7 +57,7 @@ describe('node-clang bindings', () => {
                 BLUE = 2
             };
         `;
-    await fs.writeFile(index, testCode);
+    await fs.writeFile(testFile, testCode);
 
     try {
       const tu = clang.parseTranslationUnit(index, testFile, []);
@@ -62,10 +70,11 @@ describe('node-clang bindings', () => {
     }
   });
 
-  it('should get translation unit cursor and visit children', async () => {
+  it('should get translation unit cursor and visit children', async (t) => {
+    const ctx = t as TestContextWithTempDir;
     const index = clang.createIndex();
 
-    const testFile = join(tmpdir(), 'test_visitor.c');
+    const testFile = join(ctx[kTempDir], 'test_visitor.c');
     const testCode = `
             int globalVar = 42;
             
@@ -73,7 +82,7 @@ describe('node-clang bindings', () => {
                 int localVar = 10;
             }
         `;
-    await fs.writeFile(index, testCode);
+    await fs.writeFile(testFile, testCode);
 
     try {
       const tu = clang.parseTranslationUnit(index, testFile, []);
@@ -82,8 +91,13 @@ describe('node-clang bindings', () => {
       assert.ok(cursor);
       assert.ok(cursor._cursor);
 
-      const declarations = [];
-      clang.visitChildren(cursor, (child, parent) => {
+      interface Declaration {
+        kind: number;
+        spelling: string;
+      }
+
+      const declarations: Declaration[] = [];
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
         const kind = clang.getCursorKind(child);
         const spelling = clang.getCursorSpelling(child);
 
@@ -104,19 +118,20 @@ describe('node-clang bindings', () => {
     }
   });
 
-  it('should get cursor location information', async () => {
+  it('should get cursor location information', async (t) => {
+    const ctx = t as TestContextWithTempDir;
     const index = clang.createIndex();
 
-    const testFile = join(tmpdir(), 'test_location.c');
+    const testFile = join(ctx[kTempDir], 'test_location.c');
     const testCode = `int myFunction() { return 0; }`;
-    await fs.writeFile(index, testCode);
+    await fs.writeFile(testFile, testCode);
 
     try {
       const tu = clang.parseTranslationUnit(index, testFile, []);
       const cursor = tu.getCursor();
 
-      let functionCursor = null;
-      clang.visitChildren(cursor, (child, parent) => {
+      let functionCursor: Cursor | null = null;
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
         if (clang.getCursorSpelling(child) === 'myFunction') {
           functionCursor = child;
           return clang.CXChildVisit.Break;
@@ -129,7 +144,7 @@ describe('node-clang bindings', () => {
 
       assert.ok(location);
       assert.equal(location.line, 1);
-      assert.ok(location.file.includes('test_location.c'));
+      assert.ok(location.file?.includes('test_location.c'));
 
       tu.dispose();
     } finally {
@@ -137,23 +152,24 @@ describe('node-clang bindings', () => {
     }
   });
 
-  it('should get type information', () => {
+  it('should get type information', async (t) => {
+    const ctx = t as TestContextWithTempDir;
     const index = clang.createIndex();
 
-    const testFile = join(tmpdir(), 'test_types.c');
+    const testFile = join(ctx[kTempDir], 'test_types.c');
     const testCode = `
             float calculate(double x, int y) {
                 return x + y;
             }
         `;
-    writeFileSync(testFile, testCode);
+    await fs.writeFile(testFile, testCode);
 
     try {
       const tu = clang.parseTranslationUnit(index, testFile, []);
       const cursor = tu.getCursor();
 
-      let functionCursor = null;
-      clang.visitChildren(cursor, (child, parent) => {
+      let functionCursor: Cursor | null = null;
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
         if (clang.getCursorSpelling(child) === 'calculate') {
           functionCursor = child;
           return clang.CXChildVisit.Break;
@@ -190,14 +206,14 @@ describe('node-clang bindings', () => {
       tu.dispose();
     } finally {
       index.dispose();
-      unlinkSync(testFile);
     }
   });
 
-  it('should get enum constant values', () => {
+  it('should get enum constant values', async (t) => {
+    const ctx = t as TestContextWithTempDir;
     const index = clang.createIndex();
 
-    const testFile = join(tmpdir(), 'test_enum.c');
+    const testFile = join(ctx[kTempDir], 'test_enum.c');
     const testCode = `
             enum Status {
                 SUCCESS = 0,
@@ -205,14 +221,14 @@ describe('node-clang bindings', () => {
                 PENDING = 42
             };
         `;
-    writeFileSync(testFile, testCode);
+    await fs.writeFile(testFile, testCode);
 
     try {
       const tu = clang.parseTranslationUnit(index, testFile, []);
       const cursor = tu.getCursor();
 
-      const enumValues = {};
-      clang.visitChildren(cursor, (child, parent) => {
+      const enumValues: Record<string, number> = {};
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
         const kind = clang.getCursorKind(child);
         if (kind === clang.CXCursorKind.EnumConstantDecl) {
           const name = clang.getCursorSpelling(child);
@@ -229,26 +245,26 @@ describe('node-clang bindings', () => {
       tu.dispose();
     } finally {
       index.dispose();
-      unlinkSync(testFile);
     }
   });
 
-  it('should get typedef underlying type', () => {
+  it('should get typedef underlying type', async (t) => {
+    const ctx = t as TestContextWithTempDir;
     const index = clang.createIndex();
 
-    const testFile = join(tmpdir(), 'test_typedef.c');
+    const testFile = join(ctx[kTempDir], 'test_typedef.c');
     const testCode = `
             typedef unsigned long size_t;
             typedef int* IntPtr;
         `;
-    writeFileSync(testFile, testCode);
+    await fs.writeFile(testFile, testCode);
 
     try {
       const tu = clang.parseTranslationUnit(index, testFile, []);
       const cursor = tu.getCursor();
 
-      const typedefs = {};
-      clang.visitChildren(cursor, (child, parent) => {
+      const typedefs: Record<string, string> = {};
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
         const kind = clang.getCursorKind(child);
         if (kind === clang.CXCursorKind.TypedefDecl) {
           const name = clang.getCursorSpelling(child);
@@ -266,14 +282,14 @@ describe('node-clang bindings', () => {
       tu.dispose();
     } finally {
       index.dispose();
-      unlinkSync(testFile);
     }
   });
 
-  it('should get raw comment text', () => {
+  it('should get raw comment text', async (t) => {
+    const ctx = t as TestContextWithTempDir;
     const index = clang.createIndex();
 
-    const testFile = join(tmpdir(), 'test_comments.c');
+    const testFile = join(ctx[kTempDir], 'test_comments.c');
     const testCode = `
             /**
              * This function adds two numbers
@@ -285,14 +301,14 @@ describe('node-clang bindings', () => {
                 return a + b;
             }
         `;
-    writeFileSync(testFile, testCode);
+    await fs.writeFile(testFile, testCode);
 
     try {
       const tu = clang.parseTranslationUnit(index, testFile, []);
       const cursor = tu.getCursor();
 
-      let comment = null;
-      clang.visitChildren(cursor, (child, parent) => {
+      let comment: string | null = null;
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
         if (clang.getCursorSpelling(child) === 'add') {
           comment = clang.getCursorRawCommentText(child);
           return clang.CXChildVisit.Break;
@@ -308,27 +324,27 @@ describe('node-clang bindings', () => {
       tu.dispose();
     } finally {
       index.dispose();
-      unlinkSync(testFile);
     }
   });
 
-  it('should handle visitor break correctly', () => {
+  it('should handle visitor break correctly', async (t) => {
+    const ctx = t as TestContextWithTempDir;
     const index = clang.createIndex();
 
-    const testFile = join(tmpdir(), 'test_break.c');
+    const testFile = join(ctx[kTempDir], 'test_break.c');
     const testCode = `
             int a;
             int b;
             int c;
         `;
-    writeFileSync(testFile, testCode);
+    await fs.writeFile(testFile, testCode);
 
     try {
       const tu = clang.parseTranslationUnit(index, testFile, []);
       const cursor = tu.getCursor();
 
-      const found = [];
-      clang.visitChildren(cursor, (child, parent) => {
+      const found: string[] = [];
+      clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
         const spelling = clang.getCursorSpelling(child);
         if (spelling) {
           found.push(spelling);
@@ -346,7 +362,6 @@ describe('node-clang bindings', () => {
       tu.dispose();
     } finally {
       index.dispose();
-      unlinkSync(testFile);
     }
   });
 });

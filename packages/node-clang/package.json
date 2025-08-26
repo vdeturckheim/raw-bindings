@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "description": "node.js bindings to libclang",
   "type": "module",
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "index.ts",
+  "types": "index.ts",
   "scripts": {
     "install": "cmake-js compile",
     "build": "cmake-js build",

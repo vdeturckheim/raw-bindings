@@ -4,14 +4,10 @@
   "description": "raw bindings for node.js",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "format": "biome format --write .",
-    "format:cpp": "find packages -name '*.cpp' -o -name '*.h' -o -name '*.hpp' | xargs clang-format -i",
     "lint": "biome lint .",
-    "lint:cpp": "node scripts/lint-cpp.js",
-    "lint:cpp:fix": "npm run format:cpp",
     "check": "biome check . && npm run lint:cpp",
-    "fix": "biome check --write . && npm run format:cpp"
+    "fix": "biome check --write . "
   },
   "repository": {
     "type": "git",
