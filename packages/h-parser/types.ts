@@ -84,6 +84,10 @@ export interface HeaderAST {
   typedefs: Typedef[];
   functions?: Function[];
   classes?: Interface[]; // For C++ classes
+  // Convenience aliases for better API
+  objc_interfaces: Interface[];
+  objc_protocols: Protocol[];
+  objc_categories: any[];
 }
 
 export interface ParseOptions {
@@ -91,6 +95,7 @@ export interface ParseOptions {
   language?: 'c' | 'c++' | 'objective-c' | 'objective-c++';
   systemRoot?: string;
   includePaths?: string[];
+  additionalIncludePaths?: string[];  // Alias for includePaths for convenience
   frameworkPaths?: string[];
   frameworks?: string[];
   defines?: string[];

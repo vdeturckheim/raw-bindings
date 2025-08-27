@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseHeader, parseHeaderToJSON } from './index.ts';
-import type { HeaderAST } from './types.ts';
+import { parseHeader, parseHeaderToJSON } from '../index.ts';
+import type { HeaderAST } from '../types.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

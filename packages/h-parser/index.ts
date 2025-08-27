@@ -306,7 +306,11 @@ export function parseHeader(headerPath: string, options: ParseOptions = {}): Hea
         structs: [],
         typedefs: [],
         functions: [],
-        classes: []
+        classes: [],
+        // Convenience aliases
+        objc_interfaces: [],
+        objc_protocols: [],
+        objc_categories: []
       };
       
       // Get root cursor
@@ -340,15 +344,13 @@ export function parseHeader(headerPath: string, options: ParseOptions = {}): Hea
               break;
             
             case clang.CXCursorKind.EnumDecl:
-              if (spelling) {
-                ast.enums.push(collectEnum(node));
-              }
+              // Parse both named and anonymous enums
+              ast.enums.push(collectEnum(node));
               break;
             
             case clang.CXCursorKind.StructDecl:
-              if (spelling) {
-                ast.structs.push(collectStruct(node));
-              }
+              // Parse both named and anonymous structs
+              ast.structs.push(collectStruct(node));
               break;
             
             case clang.CXCursorKind.TypedefDecl:
@@ -372,6 +374,10 @@ export function parseHeader(headerPath: string, options: ParseOptions = {}): Hea
       
       // Start visiting from root
       visitNode(cursor);
+      
+      // Update convenience aliases
+      ast.objc_interfaces = ast.interfaces;
+      ast.objc_protocols = ast.protocols;
       
       return ast;
       

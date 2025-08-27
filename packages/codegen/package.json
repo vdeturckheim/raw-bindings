@@ -1,15 +1,18 @@
 {
-  "name": "h-parser",
+  "name": "codegen",
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "description": "parse c/cpp header files into a structured format",
+  "description": "codegen of addon from parsed headers",
   "main": "index.ts",
+  "bin": {
+    "codegen": "./cli.ts"
+  },
   "scripts": {
-    "test": "node --test test/**/*.test.ts"
+    "test": "node --test"
   },
   "dependencies": {
-    "node-clang": "file:../node-clang"
+    "h-parser": "file:../h-parser"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

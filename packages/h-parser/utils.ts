@@ -1,5 +1,18 @@
 import * as clang from 'node-clang';
+import { execSync } from 'child_process';
 import type { TypeInfo } from './types.ts';
+
+/**
+ * Get the macOS SDK path using xcrun
+ */
+export function getSDKPath(): string | null {
+  try {
+    const sdkPath = execSync('xcrun --show-sdk-path', { encoding: 'utf-8' }).trim();
+    return sdkPath || null;
+  } catch (error) {
+    return null;
+  }
+}
 
 /**
  * Clean documentation comment by removing comment markers
@@ -137,6 +150,13 @@ export function buildCompilerArgs(options: import('./types.ts').ParseOptions = {
   // Include paths
   if (options.includePaths) {
     for (const path of options.includePaths) {
+      args.push('-I', path);
+    }
+  }
+  
+  // Additional include paths (alias for includePaths)
+  if (options.additionalIncludePaths) {
+    for (const path of options.additionalIncludePaths) {
       args.push('-I', path);
     }
   }

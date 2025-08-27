@@ -21,7 +21,8 @@
   "homepage": "https://github.com/vdeturckheim/raw-bindings#readme",
   "workspaces": [
     "packages/node-clang",
-    "packages/h-parser"
+    "packages/h-parser",
+    "packages/codegen"
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.2.2"
