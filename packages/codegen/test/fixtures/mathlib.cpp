@@ -1,5 +1,7 @@
 #include "mathlib.h"
 #include <cmath>
+#include <cstring>
+#include <cstdlib>
 
 // Constants
 const double PI = 3.14159265358979323846;
@@ -85,4 +87,139 @@ double calculate(double a, double b, MathOperation op) {
         default:
             return 0;
     }
+}
+
+// Circle functions
+Circle create_circle(Point2D center, double radius) {
+    Circle c;
+    c.center = center;
+    c.radius = radius;
+    return c;
+}
+
+double circle_area(Circle c) {
+    return PI * c.radius * c.radius;
+}
+
+int circle_contains_point(Circle c, Point2D p) {
+    double dist = distance(c.center, p);
+    return dist <= c.radius ? 1 : 0;
+}
+
+// Union functions
+NumberUnion create_int_union(int value) {
+    NumberUnion u;
+    u.i = value;
+    return u;
+}
+
+NumberUnion create_double_union(double value) {
+    NumberUnion u;
+    u.d = value;
+    return u;
+}
+
+int get_int_from_union(NumberUnion u) {
+    return u.i;
+}
+
+double get_double_from_union(NumberUnion u) {
+    return u.d;
+}
+
+// DataArray functions
+DataArray create_data_array(const char* name) {
+    DataArray arr;
+    strncpy(arr.name, name ? name : "unnamed", 31);
+    arr.name[31] = '\0';
+    arr.count = 0;
+    for (int i = 0; i < 10; i++) {
+        arr.values[i] = 0.0;
+    }
+    return arr;
+}
+
+void add_value_to_array(DataArray* arr, double value) {
+    if (arr && arr->count < 10) {
+        arr->values[arr->count] = value;
+        arr->count++;
+    }
+}
+
+double sum_array_values(DataArray* arr) {
+    if (!arr) return 0.0;
+    double sum = 0.0;
+    for (int i = 0; i < arr->count; i++) {
+        sum += arr->values[i];
+    }
+    return sum;
+}
+
+// Opaque context implementation
+struct OpaqueContext {
+    int internal_value;
+    void* internal_data;
+};
+
+ContextHandle create_context(void) {
+    ContextHandle ctx = (ContextHandle)malloc(sizeof(struct OpaqueContext));
+    if (ctx) {
+        ctx->internal_value = 42;
+        ctx->internal_data = nullptr;
+    }
+    return ctx;
+}
+
+void destroy_context(ContextHandle ctx) {
+    if (ctx) {
+        free(ctx);
+    }
+}
+
+int context_do_something(ContextHandle ctx, int value) {
+    if (!ctx) return -1;
+    return ctx->internal_value + value;
+}
+
+// Typedef'd type functions
+Scalar scalar_multiply(Scalar a, Scalar b) {
+    return a * b;
+}
+
+Integer integer_add(Integer a, Integer b) {
+    return a + b;
+}
+
+// Complex message functions
+ComplexMessage create_message(const char* text) {
+    ComplexMessage msg;
+    msg.message = text;
+    msg.data = nullptr;
+    msg.size = text ? strlen(text) : 0;
+    msg.flags = 0;
+    return msg;
+}
+
+const char* get_message_text(ComplexMessage* msg) {
+    return msg ? msg->message : nullptr;
+}
+
+// Example transform function for testing
+static double example_transform(double x) {
+    return x * x;  // Square function
+}
+
+// Function pointer operations
+double apply_transform(Transform t, double x) {
+    if (t.transform) {
+        return t.transform(x + t.parameter);
+    }
+    return x;
+}
+
+Transform create_transform(MathFunc func, double param) {
+    Transform t;
+    t.transform = func ? func : example_transform;
+    t.parameter = param;
+    return t;
 }

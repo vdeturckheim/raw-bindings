@@ -1,6 +1,12 @@
 import type { TypeMapping } from './types.ts';
 
 export class TypeMapper {
+  private static knownStructTypes: Set<string> = new Set();
+  
+  static setKnownStructTypes(structNames: string[]) {
+    this.knownStructTypes = new Set(structNames);
+  }
+  
   private static readonly primitiveTypes: Map<string, TypeMapping> = new Map([
     [
       'void',
@@ -135,6 +141,17 @@ export class TypeMapper {
         napiType: 'Napi::Number',
         tsType: 'number',
         needsConversion: true,
+      },
+    ],
+    [
+      'char *',
+      {
+        cType: 'char *',
+        napiType: 'Napi::String',
+        tsType: 'string',
+        needsConversion: true,
+        conversionTo: '$VAR.As<Napi::String>().Utf8Value().c_str()',
+        conversionFrom: 'Napi::String::New(env, $VAR)',
       },
     ],
     [
@@ -335,8 +352,23 @@ export class TypeMapper {
     // Not an enum (though enums are handled as numbers)
     if (cleanType.startsWith('enum ')) return false;
 
+    // Check if it's in our known struct types
+    if (TypeMapper.knownStructTypes.has(cleanType)) return true;
+
+    // Handle common size_t type
+    if (cleanType === 'size_t') return false;
+
     // Likely a struct/class or typedef
     return true;
+  }
+  
+  static isArrayType(cType: string): boolean {
+    return cType.includes('[') && cType.includes(']');
+  }
+  
+  static getArrayElementType(cType: string): string {
+    if (!this.isArrayType(cType)) return cType;
+    return cType.substring(0, cType.indexOf('['));
   }
 
   static sanitizeIdentifier(name: string): string {

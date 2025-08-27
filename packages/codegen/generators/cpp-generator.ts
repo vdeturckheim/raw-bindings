@@ -23,6 +23,10 @@ export class CppGenerator {
   generate(): string {
     const sections: string[] = [];
 
+    // Initialize TypeMapper with known struct types
+    const structNames = this.ast.structs.map(s => s.name);
+    TypeMapper.setKnownStructTypes(structNames);
+
     // Headers
     sections.push(this.generateHeaders());
 
@@ -57,6 +61,7 @@ export class CppGenerator {
       '#include <string>',
       '#include <vector>',
       '#include <memory>',
+      '#include <cstring>',  // for strncpy
     ];
 
     // Include the original header
@@ -147,7 +152,25 @@ static void* unwrapPointer(Napi::Object obj) {
         continue;
       }
 
-      const safeName = TypeMapper.sanitizeIdentifier(struct.name);
+      // Handle anonymous structs with better naming
+      let structName = struct.name;
+      let actualTypeName = struct.name;
+      
+      if (structName.includes('(unnamed at ') || structName.includes('__') || structName.includes('/')) {
+        // Look for a typedef that might reference this struct
+        const typedef = this.ast.typedefs?.find(t => t.underlying === struct.name || t.spelling === struct.name);
+        if (typedef) {
+          actualTypeName = typedef.name;
+          structName = typedef.name;
+        } else {
+          // Use a generic name for function generation, but we can't use the struct
+          structName = `AnonymousStruct_${this.generatedStructs.size}`;
+          // Skip generating this struct since we can't reference it properly
+          continue;
+        }
+      }
+
+      const safeName = TypeMapper.sanitizeIdentifier(structName);
       const createFunctionName = `Create_${safeName}`;
       const getFieldFunctionName = `Get_${safeName}_Field`;
 
@@ -169,7 +192,7 @@ static void* unwrapPointer(Napi::Object obj) {
       lines.push(`    Napi::Env env = info.Env();`);
       lines.push(`    `);
       lines.push(`    // Allocate struct`);
-      lines.push(`    ${struct.name}* ptr = new ${struct.name}();`);
+      lines.push(`    ${actualTypeName}* ptr = new ${actualTypeName}();`);
       lines.push(`    `);
       lines.push(`    // Initialize from JavaScript object if provided`);
       lines.push(`    if (info.Length() > 0 && info[0].IsObject()) {`);
@@ -178,37 +201,52 @@ static void* unwrapPointer(Napi::Object obj) {
       for (const field of struct.fields) {
         lines.push(`        if (obj.Has("${field.name}")) {`);
 
-        const mapping = TypeMapper.getMapping(field.type);
-        if (mapping.needsConversion) {
-          // Cast to appropriate Napi type first
-          let napiValue = `obj.Get("${field.name}")`;
-          if (mapping.napiType === 'Napi::String') {
-            napiValue = `${napiValue}.As<Napi::String>()`;
-          } else if (mapping.napiType === 'Napi::Number') {
-            napiValue = `${napiValue}.As<Napi::Number>()`;
-          } else if (mapping.napiType === 'Napi::Boolean') {
-            napiValue = `${napiValue}.As<Napi::Boolean>()`;
-          } else if (mapping.napiType === 'Napi::BigInt') {
-            napiValue = `${napiValue}.As<Napi::BigInt>()`;
+        // Handle different field types appropriately
+        if (TypeMapper.isArrayType(field.type)) {
+          // Handle arrays specially
+          const elementType = TypeMapper.getArrayElementType(field.type);
+          if (elementType === 'char') {
+            // String arrays - copy as C strings
+            lines.push(`            std::string ${field.name}_str = obj.Get("${field.name}").As<Napi::String>().Utf8Value();`);
+            lines.push(`            strncpy(ptr->${field.name}, ${field.name}_str.c_str(), sizeof(ptr->${field.name}) - 1);`);
+            lines.push(`            ptr->${field.name}[sizeof(ptr->${field.name}) - 1] = '\\0';`);
+          } else {
+            // Numeric arrays - copy from JS array
+            lines.push(`            Napi::Array ${field.name}_arr = obj.Get("${field.name}").As<Napi::Array>();`);
+            lines.push(`            for (size_t i = 0; i < ${field.name}_arr.Length() && i < sizeof(ptr->${field.name})/sizeof(ptr->${field.name}[0]); i++) {`);
+            lines.push(`                ptr->${field.name}[i] = ${TypeMapper.getNapiToC(`${field.name}_arr.Get(i)`, elementType)};`);
+            lines.push(`            }`);
           }
-
-          // Special handling for const char* fields
-          if (field.type === 'const char *' || field.type === 'const char*') {
+        } else if (TypeMapper.isStructType(field.type)) {
+          // Handle nested structs - unwrap pointer and copy struct
+          lines.push(`            ${field.type}* ${field.name}_ptr = static_cast<${field.type}*>(unwrapPointer(obj.Get("${field.name}").As<Napi::Object>()));`);
+          lines.push(`            if (${field.name}_ptr) {`);
+          lines.push(`                ptr->${field.name} = *${field.name}_ptr;`);
+          lines.push(`            }`);
+        } else if (TypeMapper.isStringType(field.type)) {
+          // Special handling for string fields - store the string and keep it alive
+          lines.push(`            // Note: String lifetime management needed for production use`);
+          lines.push(`            std::string ${field.name}_str = obj.Get("${field.name}").As<Napi::String>().Utf8Value();`);
+          lines.push(`            ptr->${field.name} = ${field.name}_str.c_str();`);
+        } else if (field.type === 'void *' || field.type === 'void*') {
+          // Handle void* fields specifically
+          lines.push(`            if (obj.Get("${field.name}").IsExternal()) {`);
+          lines.push(`                ptr->${field.name} = obj.Get("${field.name}").As<Napi::External<void>>().Data();`);
+          lines.push(`            } else {`);
+          lines.push(`                ptr->${field.name} = nullptr;`);
+          lines.push(`            }`);
+        } else {
+          // Handle regular types
+          const mapping = TypeMapper.getMapping(field.type);
+          if (mapping.needsConversion) {
             lines.push(
-              `            std::string ${field.name}_str = ${napiValue}.Utf8Value();`,
-            );
-            lines.push(
-              `            ptr->${field.name} = ${field.name}_str.c_str();`,
+              `            ptr->${field.name} = ${TypeMapper.getNapiToC(`obj.Get("${field.name}")`, field.type)};`,
             );
           } else {
             lines.push(
-              `            ptr->${field.name} = ${TypeMapper.getNapiToC(napiValue, field.type)};`,
+              `            ptr->${field.name} = obj.Get("${field.name}");`,
             );
           }
-        } else {
-          lines.push(
-            `            ptr->${field.name} = obj.Get("${field.name}");`,
-          );
         }
 
         lines.push(`        }`);
@@ -216,7 +254,7 @@ static void* unwrapPointer(Napi::Object obj) {
 
       lines.push(`    }`);
       lines.push(`    `);
-      lines.push(`    return wrapPointer(env, ptr, "${struct.name}");`);
+      lines.push(`    return wrapPointer(env, ptr, "${structName}");`);
       lines.push(`}`);
       lines.push('');
 
@@ -236,7 +274,7 @@ static void* unwrapPointer(Napi::Object obj) {
       lines.push(`    }`);
       lines.push(`    `);
       lines.push(
-        `    ${struct.name}* ptr = static_cast<${struct.name}*>(unwrapPointer(info[0].As<Napi::Object>()));`,
+        `    ${actualTypeName}* ptr = static_cast<${actualTypeName}*>(unwrapPointer(info[0].As<Napi::Object>()));`,
       );
       lines.push(
         `    std::string fieldName = info[1].As<Napi::String>().Utf8Value();`,
@@ -245,9 +283,33 @@ static void* unwrapPointer(Napi::Object obj) {
 
       for (const field of struct.fields) {
         lines.push(`    if (fieldName == "${field.name}") {`);
-        lines.push(
-          `        return ${TypeMapper.getCToNapi(`ptr->${field.name}`, field.type)};`,
-        );
+        
+        // Handle different field types in getters
+        if (TypeMapper.isArrayType(field.type)) {
+          const elementType = TypeMapper.getArrayElementType(field.type);
+          if (elementType === 'char') {
+            // Return string arrays as strings
+            lines.push(`        return Napi::String::New(env, ptr->${field.name});`);
+          } else {
+            // Return numeric arrays as JS arrays
+            lines.push(`        Napi::Array arr = Napi::Array::New(env);`);
+            lines.push(`        size_t arraySize = sizeof(ptr->${field.name})/sizeof(ptr->${field.name}[0]);`);
+            lines.push(`        for (size_t i = 0; i < arraySize; i++) {`);
+            lines.push(`            arr.Set(i, ${TypeMapper.getCToNapi(`ptr->${field.name}[i]`, elementType)});`);
+            lines.push(`        }`);
+            lines.push(`        return arr;`);
+          }
+        } else if (TypeMapper.isStructType(field.type)) {
+          // Return nested structs as new wrapped pointers
+          lines.push(`        ${field.type}* fieldPtr = new ${field.type}(ptr->${field.name});`);
+          lines.push(`        return wrapPointer(env, fieldPtr, "${field.type}");`);
+        } else {
+          // Handle regular types
+          lines.push(
+            `        return ${TypeMapper.getCToNapi(`ptr->${field.name}`, field.type)};`,
+          );
+        }
+        
         lines.push(`    }`);
       }
 
@@ -391,11 +453,24 @@ static void* unwrapPointer(Napi::Object obj) {
         continue;
       }
 
-      const safeName = TypeMapper.sanitizeIdentifier(struct.name);
+      // Handle anonymous structs with better naming (same logic as above)
+      let structName = struct.name;
+      if (structName.includes('(unnamed at ') || structName.includes('__') || structName.includes('/')) {
+        // Look for a typedef that might reference this struct
+        const typedef = this.ast.typedefs?.find(t => t.underlying === struct.name || t.spelling === struct.name);
+        if (typedef) {
+          structName = typedef.name;
+        } else {
+          // Skip if we can't find a proper name
+          continue;
+        }
+      }
+
+      const safeName = TypeMapper.sanitizeIdentifier(structName);
       const createFunctionName = `Create_${safeName}`;
       const getFieldFunctionName = `Get_${safeName}_Field`;
-      const createName = `create_${struct.name}`;
-      const getName = `get_${struct.name}_field`;
+      const createName = `create_${structName}`;
+      const getName = `get_${structName}_field`;
 
       // Only export if we generated it and haven't exported yet
       if (

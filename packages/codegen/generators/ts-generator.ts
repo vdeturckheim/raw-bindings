@@ -53,11 +53,24 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
     for (const struct of this.ast.structs) {
       if (!struct.name) continue;
 
+      // Handle anonymous structs with better naming
+      let structName = struct.name;
+      if (structName.includes('(unnamed at ') || structName.includes('__') || structName.includes('/')) {
+        // Look for a typedef that might reference this struct
+        const typedef = this.ast.typedefs?.find(t => t.underlying === struct.name || t.spelling === struct.name);
+        if (typedef) {
+          structName = typedef.name;
+        } else {
+          // Skip if we can't find a proper name
+          continue;
+        }
+      }
+
       // Skip if we've already processed this struct
-      if (seenStructNames.has(struct.name)) {
+      if (seenStructNames.has(structName)) {
         continue;
       }
-      seenStructNames.add(struct.name);
+      seenStructNames.add(structName);
 
       if (struct.documentation) {
         lines.push(`/**`);
@@ -65,14 +78,14 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
         lines.push(` */`);
       }
 
-      lines.push(`export interface ${struct.name} {`);
+      lines.push(`export interface ${structName} {`);
       lines.push(`  _ptr: unknown;`);
-      lines.push(`  _type: '${struct.name}';`);
+      lines.push(`  _type: '${structName}';`);
       lines.push(`}`);
       lines.push('');
 
       // Create init interface for struct creation
-      lines.push(`export interface ${struct.name}Init {`);
+      lines.push(`export interface ${structName}Init {`);
       for (const field of struct.fields) {
         const tsType = TypeMapper.getTsType(field.type);
         lines.push(`  ${field.name}?: ${tsType};`);
@@ -194,23 +207,36 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
     for (const struct of this.ast.structs) {
       if (!struct.name) continue;
 
+      // Handle anonymous structs with better naming
+      let structName = struct.name;
+      if (structName.includes('(unnamed at ') || structName.includes('__') || structName.includes('/')) {
+        // Look for a typedef that might reference this struct
+        const typedef = this.ast.typedefs?.find(t => t.underlying === struct.name || t.spelling === struct.name);
+        if (typedef) {
+          structName = typedef.name;
+        } else {
+          // Skip if we can't find a proper name
+          continue;
+        }
+      }
+
       // Skip if we've already processed this struct
-      if (seenStructNames.has(struct.name)) {
+      if (seenStructNames.has(structName)) {
         continue;
       }
-      seenStructNames.add(struct.name);
+      seenStructNames.add(structName);
 
       // Create function
       if (struct.documentation) {
         lines.push(`/**`);
-        lines.push(` * Create a new ${struct.name} instance`);
+        lines.push(` * Create a new ${structName} instance`);
         lines.push(` * ${struct.documentation}`);
         lines.push(` */`);
       }
       lines.push(
-        `export function create${struct.name}(init?: ${struct.name}Init): ${struct.name} {`,
+        `export function create${structName}(init?: ${structName}Init): ${structName} {`,
       );
-      lines.push(`  return addon.create_${struct.name}(init);`);
+      lines.push(`  return addon.create_${structName}(init);`);
       lines.push(`}`);
       lines.push('');
 
@@ -220,13 +246,13 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
         const tsType = TypeMapper.getTsType(field.type);
 
         lines.push(`/**`);
-        lines.push(` * Get ${field.name} field from ${struct.name}`);
+        lines.push(` * Get ${field.name} field from ${structName}`);
         lines.push(` */`);
         lines.push(
-          `export function get${struct.name}_${fieldName}(struct: ${struct.name}): ${tsType} {`,
+          `export function get${structName}_${fieldName}(struct: ${structName}): ${tsType} {`,
         );
         lines.push(
-          `  return addon.get_${struct.name}_field(struct, '${field.name}');`,
+          `  return addon.get_${structName}_field(struct, '${field.name}');`,
         );
         lines.push(`}`);
         lines.push('');
