@@ -62,7 +62,7 @@ function generateFilesFromAST(
   options: GeneratorOptions
 ): GeneratedFiles {
   // Initialize generators
-  const cppGen = new CppGenerator(ast, options.packageName);
+  const cppGen = new CppGenerator(ast, options.packageName, options.headerIncludePath);
   const tsGen = new TsGenerator(ast, options.packageName);
   const buildGen = new BuildGenerator(options);
 

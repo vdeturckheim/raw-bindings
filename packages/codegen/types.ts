@@ -14,6 +14,7 @@ export interface GeneratorOptions {
   frameworks?: string[];
   frameworkPaths?: string[];
   defines?: string[];
+  headerIncludePath?: string;
 }
 
 export interface GeneratedFiles {

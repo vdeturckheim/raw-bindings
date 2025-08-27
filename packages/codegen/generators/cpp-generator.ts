@@ -5,10 +5,15 @@ export class CppGenerator {
   private includes: Set<string> = new Set();
   private ast: HeaderAST;
   private libraryName: string;
+  private headerIncludePath?: string;
+  private generatedConstants: Set<string> = new Set();
+  private generatedFunctions: Set<string> = new Set();
+  private generatedStructs: Set<string> = new Set();
 
-  constructor(ast: HeaderAST, libraryName: string = 'binding') {
+  constructor(ast: HeaderAST, libraryName: string = 'binding', headerIncludePath?: string) {
     this.ast = ast;
     this.libraryName = libraryName;
+    this.headerIncludePath = headerIncludePath;
   }
 
   generate(): string {
@@ -51,7 +56,9 @@ export class CppGenerator {
     ];
 
     // Include the original header
-    if (this.ast.header) {
+    if (this.headerIncludePath) {
+      headers.push(`#include <${this.headerIncludePath}>`);
+    } else if (this.ast.header) {
       headers.push(`#include <${this.ast.header}>`);
     }
 
@@ -61,6 +68,11 @@ export class CppGenerator {
     }
 
     return headers.join('\n');
+  }
+
+  private formatComment(comment: string): string {
+    // Split comment into lines and ensure each line starts with //
+    return comment.split('\n').map(line => `// ${line}`).join('\n');
   }
 
   private generateHelpers(): string {
@@ -86,16 +98,24 @@ static void* unwrapPointer(Napi::Object obj) {
 
     for (const enumDef of this.ast.enums) {
       if (enumDef.documentation) {
-        lines.push(`// ${enumDef.documentation}`);
+        lines.push(this.formatComment(enumDef.documentation));
       }
       lines.push(`// enum ${enumDef.name}`);
       
       for (const constant of enumDef.constants) {
         const safeName = TypeMapper.sanitizeIdentifier(constant.name);
-        if (constant.documentation) {
-          lines.push(`// ${constant.documentation}`);
+        const functionName = `Get_${safeName}`;
+        
+        // Skip if we've already generated this constant
+        if (this.generatedConstants.has(functionName)) {
+          continue;
         }
-        lines.push(`static Napi::Value Get_${safeName}(const Napi::CallbackInfo& info) {`);
+        this.generatedConstants.add(functionName);
+        
+        if (constant.documentation) {
+          lines.push(this.formatComment(constant.documentation));
+        }
+        lines.push(`static Napi::Value ${functionName}(const Napi::CallbackInfo& info) {`);
         lines.push(`    return Napi::Number::New(info.Env(), ${constant.name});`);
         lines.push(`}`);
         lines.push('');
@@ -111,14 +131,28 @@ static void* unwrapPointer(Napi::Object obj) {
     for (const struct of this.ast.structs) {
       if (!struct.name) continue;
       
+      // Skip opaque pointer types (ending with Impl or that are forward declarations)
+      if (struct.name.endsWith('Impl') || struct.fields.length === 0) {
+        continue;
+      }
+      
       const safeName = TypeMapper.sanitizeIdentifier(struct.name);
+      const createFunctionName = `Create_${safeName}`;
+      const getFieldFunctionName = `Get_${safeName}_Field`;
+      
+      // Skip if already generated
+      if (this.generatedStructs.has(createFunctionName)) {
+        continue;
+      }
+      this.generatedStructs.add(createFunctionName);
+      this.generatedStructs.add(getFieldFunctionName);
       
       if (struct.documentation) {
-        lines.push(`// ${struct.documentation}`);
+        lines.push(this.formatComment(struct.documentation));
       }
 
       // Create struct wrapper
-      lines.push(`static Napi::Value Create_${safeName}(const Napi::CallbackInfo& info) {`);
+      lines.push(`static Napi::Value ${createFunctionName}(const Napi::CallbackInfo& info) {`);
       lines.push(`    Napi::Env env = info.Env();`);
       lines.push(`    `);
       lines.push(`    // Allocate struct`);
@@ -134,7 +168,25 @@ static void* unwrapPointer(Napi::Object obj) {
         
         const mapping = TypeMapper.getMapping(field.type);
         if (mapping.needsConversion) {
-          lines.push(`            ptr->${field.name} = ${TypeMapper.getNapiToC(`obj.Get("${field.name}")`, field.type)};`);
+          // Cast to appropriate Napi type first
+          let napiValue = `obj.Get("${field.name}")`;
+          if (mapping.napiType === 'Napi::String') {
+            napiValue = `${napiValue}.As<Napi::String>()`;
+          } else if (mapping.napiType === 'Napi::Number') {
+            napiValue = `${napiValue}.As<Napi::Number>()`;
+          } else if (mapping.napiType === 'Napi::Boolean') {
+            napiValue = `${napiValue}.As<Napi::Boolean>()`;
+          } else if (mapping.napiType === 'Napi::BigInt') {
+            napiValue = `${napiValue}.As<Napi::BigInt>()`;
+          }
+          
+          // Special handling for const char* fields
+          if (field.type === 'const char *' || field.type === 'const char*') {
+            lines.push(`            std::string ${field.name}_str = ${napiValue}.Utf8Value();`);
+            lines.push(`            ptr->${field.name} = ${field.name}_str.c_str();`);
+          } else {
+            lines.push(`            ptr->${field.name} = ${TypeMapper.getNapiToC(napiValue, field.type)};`);
+          }
         } else {
           lines.push(`            ptr->${field.name} = obj.Get("${field.name}");`);
         }
@@ -149,7 +201,7 @@ static void* unwrapPointer(Napi::Object obj) {
       lines.push('');
 
       // Getter for struct fields
-      lines.push(`static Napi::Value Get_${safeName}_Field(const Napi::CallbackInfo& info) {`);
+      lines.push(`static Napi::Value ${getFieldFunctionName}(const Napi::CallbackInfo& info) {`);
       lines.push(`    Napi::Env env = info.Env();`);
       lines.push(`    `);
       lines.push(`    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {`);
@@ -181,12 +233,19 @@ static void* unwrapPointer(Napi::Object obj) {
 
     for (const func of this.ast.functions || []) {
       const safeName = TypeMapper.sanitizeIdentifier(func.name);
+      const wrapperName = `${safeName}_wrapper`;
+      
+      // Skip if we've already generated this function
+      if (this.generatedFunctions.has(wrapperName)) {
+        continue;
+      }
+      this.generatedFunctions.add(wrapperName);
       
       if (func.documentation) {
-        lines.push(`// ${func.documentation}`);
+        lines.push(this.formatComment(func.documentation));
       }
 
-      lines.push(`static Napi::Value ${safeName}_wrapper(const Napi::CallbackInfo& info) {`);
+      lines.push(`static Napi::Value ${wrapperName}(const Napi::CallbackInfo& info) {`);
       lines.push(`    Napi::Env env = info.Env();`);
       lines.push(`    `);
 
@@ -208,7 +267,10 @@ static void* unwrapPointer(Napi::Object obj) {
         lines.push(`    // Parameter: ${paramName} (${paramType})`);
         
         const mapping = TypeMapper.getMapping(paramType);
-        if (TypeMapper.isPointerType(paramType) && !TypeMapper.isStringType(paramType)) {
+        if (TypeMapper.isStructType(paramType)) {
+          // Struct passed by value - unwrap the pointer and dereference
+          lines.push(`    ${paramType} ${paramName} = *static_cast<${paramType}*>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
+        } else if (TypeMapper.isPointerType(paramType) && !TypeMapper.isStringType(paramType)) {
           lines.push(`    ${paramType} ${paramName} = static_cast<${paramType}>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
         } else if (mapping.needsConversion) {
           lines.push(`    auto ${paramName} = ${TypeMapper.getNapiToC(`info[${i}]`, paramType)};`);
@@ -226,6 +288,11 @@ static void* unwrapPointer(Napi::Object obj) {
       if (TypeMapper.isVoidType(returnType)) {
         lines.push(`    ${func.name}(${paramNames});`);
         lines.push(`    return env.Undefined();`);
+      } else if (TypeMapper.isStructType(returnType)) {
+        // Struct returned by value - allocate on heap and wrap as pointer
+        lines.push(`    ${returnType} result = ${func.name}(${paramNames});`);
+        lines.push(`    ${returnType}* resultPtr = new ${returnType}(result);`);
+        lines.push(`    return wrapPointer(env, resultPtr, "${returnType}");`);
       } else {
         lines.push(`    auto result = ${func.name}(${paramNames});`);
         lines.push(`    return ${TypeMapper.getCToNapi('result', returnType)};`);
@@ -243,26 +310,56 @@ static void* unwrapPointer(Napi::Object obj) {
       `static Napi::Object Init(Napi::Env env, Napi::Object exports) {`
     ];
 
+    // Track exported names to avoid duplicates
+    const exportedNames = new Set<string>();
+
     // Export enum constants
     for (const enumDef of this.ast.enums) {
       for (const constant of enumDef.constants) {
         const safeName = TypeMapper.sanitizeIdentifier(constant.name);
-        lines.push(`    exports.Set("${constant.name}", Napi::Function::New(env, Get_${safeName}));`);
+        const functionName = `Get_${safeName}`;
+        
+        // Only export if we actually generated this constant
+        if (this.generatedConstants.has(functionName) && !exportedNames.has(constant.name)) {
+          lines.push(`    exports.Set("${constant.name}", Napi::Function::New(env, ${functionName}));`);
+          exportedNames.add(constant.name);
+        }
       }
     }
 
     // Export struct creators
     for (const struct of this.ast.structs) {
       if (!struct.name) continue;
+      
+      // Skip opaque pointer types
+      if (struct.name.endsWith('Impl') || struct.fields.length === 0) {
+        continue;
+      }
+      
       const safeName = TypeMapper.sanitizeIdentifier(struct.name);
-      lines.push(`    exports.Set("create_${struct.name}", Napi::Function::New(env, Create_${safeName}));`);
-      lines.push(`    exports.Set("get_${struct.name}_field", Napi::Function::New(env, Get_${safeName}_Field));`);
+      const createFunctionName = `Create_${safeName}`;
+      const getFieldFunctionName = `Get_${safeName}_Field`;
+      const createName = `create_${struct.name}`;
+      const getName = `get_${struct.name}_field`;
+      
+      // Only export if we generated it and haven't exported yet
+      if (this.generatedStructs.has(createFunctionName) && !exportedNames.has(createName)) {
+        lines.push(`    exports.Set("${createName}", Napi::Function::New(env, ${createFunctionName}));`);
+        exportedNames.add(createName);
+      }
+      if (this.generatedStructs.has(getFieldFunctionName) && !exportedNames.has(getName)) {
+        lines.push(`    exports.Set("${getName}", Napi::Function::New(env, ${getFieldFunctionName}));`);
+        exportedNames.add(getName);
+      }
     }
 
     // Export functions
     for (const func of this.ast.functions || []) {
       const safeName = TypeMapper.sanitizeIdentifier(func.name);
-      lines.push(`    exports.Set("${func.name}", Napi::Function::New(env, ${safeName}_wrapper));`);
+      if (!exportedNames.has(func.name)) {
+        lines.push(`    exports.Set("${func.name}", Napi::Function::New(env, ${safeName}_wrapper));`);
+        exportedNames.add(func.name);
+      }
     }
 
     lines.push(`    return exports;`);

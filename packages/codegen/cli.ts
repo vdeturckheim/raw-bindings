@@ -46,6 +46,10 @@ const { values, positionals } = parseArgs({
       type: 'string',
       multiple: true
     },
+    'header-include': {
+      type: 'string',
+      short: 'H'
+    },
     define: {
       type: 'string',
       short: 'D',
@@ -75,6 +79,7 @@ Options:
   -L, --library-path <p>  Library search path (can be specified multiple times)
   -F, --framework <f>     Framework to link (macOS) (can be specified multiple times)
   --framework-path <p>    Framework search path (macOS) (can be specified multiple times)
+  -H, --header-include <p> Path to use in #include directive (e.g., clang-c/Index.h)
   -D, --define <macro>    Define preprocessor macro (can be specified multiple times)
 
 Examples:
@@ -112,7 +117,8 @@ async function main() {
     libraries: values.library ? [values.library as string] : [],
     frameworks: values.framework as string[] || [],
     frameworkPaths: values['framework-path'] as string[] || [],
-    defines: values.define as string[] || []
+    defines: values.define as string[] || [],
+    headerIncludePath: values['header-include'] as string
   };
 
   try {

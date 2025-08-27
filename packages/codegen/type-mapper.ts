@@ -119,23 +119,23 @@ export class TypeMapper {
     // Default conversions
     if (mapping.napiType === 'Napi::Number') {
       if (cType.includes('float') || cType.includes('double')) {
-        return `${napiVar}.DoubleValue()`;
+        return `${napiVar}.As<Napi::Number>().DoubleValue()`;
       }
       if (cType.includes('unsigned')) {
-        return `${napiVar}.Uint32Value()`;
+        return `${napiVar}.As<Napi::Number>().Uint32Value()`;
       }
-      return `${napiVar}.Int32Value()`;
+      return `${napiVar}.As<Napi::Number>().Int32Value()`;
     }
 
     if (mapping.napiType === 'Napi::Boolean') {
-      return `${napiVar}.Value()`;
+      return `${napiVar}.As<Napi::Boolean>().Value()`;
     }
 
     if (mapping.napiType === 'Napi::BigInt') {
       if (cType.includes('unsigned')) {
-        return `${napiVar}.Uint64Value()`;
+        return `${napiVar}.As<Napi::BigInt>().Uint64Value()`;
       }
-      return `${napiVar}.Int64Value()`;
+      return `${napiVar}.As<Napi::BigInt>().Int64Value()`;
     }
 
     return napiVar;
@@ -182,6 +182,26 @@ export class TypeMapper {
 
   static isVoidType(cType: string): boolean {
     return cType === 'void';
+  }
+
+  static isStructType(cType: string): boolean {
+    // A struct type is one that is not a primitive, not a pointer, and not void
+    const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '');
+    
+    // Not a pointer
+    if (cleanType.includes('*')) return false;
+    
+    // Not a primitive
+    if (this.primitiveTypes.has(cleanType)) return false;
+    
+    // Not void
+    if (cleanType === 'void') return false;
+    
+    // Not an enum (though enums are handled as numbers)
+    if (cleanType.startsWith('enum ')) return false;
+    
+    // Likely a struct/class or typedef
+    return true;
   }
 
   static sanitizeIdentifier(name: string): string {

@@ -48,9 +48,18 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
   private generateStructInterfaces(): string {
     const lines: string[] = ['// Struct type definitions'];
+    
+    // Deduplicate structs by name
+    const seenStructNames = new Set<string>();
 
     for (const struct of this.ast.structs) {
       if (!struct.name) continue;
+      
+      // Skip if we've already processed this struct
+      if (seenStructNames.has(struct.name)) {
+        continue;
+      }
+      seenStructNames.add(struct.name);
 
       if (struct.documentation) {
         lines.push(`/**`);
@@ -79,27 +88,38 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
   private generateEnumExports(): string {
     const lines: string[] = ['// Enum constants'];
+    
+    // Deduplicate enums by name
+    const seenEnumNames = new Set<string>();
 
     for (const enumDef of this.ast.enums) {
+      const enumName = enumDef.name || 'UnnamedEnum';
+      
+      // Skip if we've already processed this enum
+      if (seenEnumNames.has(enumName)) {
+        continue;
+      }
+      seenEnumNames.add(enumName);
       if (enumDef.documentation) {
         lines.push(`/**`);
         lines.push(` * ${enumDef.documentation}`);
         lines.push(` */`);
       }
 
-      lines.push(`export enum ${enumDef.name || 'UnnamedEnum'} {`);
+      // Export as a const object instead of enum for better compatibility
+      lines.push(`export const ${enumName} = {`);
       for (const constant of enumDef.constants) {
         if (constant.documentation) {
           lines.push(`  /** ${constant.documentation} */`);
         }
         const safeName = TypeMapper.sanitizeIdentifier(constant.name);
         if (constant.value !== null) {
-          lines.push(`  ${safeName} = ${constant.value},`);
+          lines.push(`  ${safeName}: ${constant.value},`);
         } else {
-          lines.push(`  ${safeName} = addon.${constant.name}(),`);
+          lines.push(`  ${safeName}: addon.${constant.name}(),`);
         }
       }
-      lines.push(`}`);
+      lines.push(`} as const;`);
       lines.push('');
 
       // Also export individual constants for compatibility
@@ -108,7 +128,7 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
         if (constant.documentation) {
           lines.push(`/** ${constant.documentation} */`);
         }
-        lines.push(`export const ${constant.name}: number = ${enumDef.name || 'UnnamedEnum'}.${safeName};`);
+        lines.push(`export const ${constant.name}: number = ${enumName}.${safeName};`);
       }
       lines.push('');
     }
@@ -163,9 +183,18 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
   private generateStructHelpers(): string {
     const lines: string[] = ['// Struct helper functions'];
+    
+    // Deduplicate structs by name
+    const seenStructNames = new Set<string>();
 
     for (const struct of this.ast.structs) {
       if (!struct.name) continue;
+      
+      // Skip if we've already processed this struct
+      if (seenStructNames.has(struct.name)) {
+        continue;
+      }
+      seenStructNames.add(struct.name);
 
       const safeName = TypeMapper.sanitizeIdentifier(struct.name);
 
