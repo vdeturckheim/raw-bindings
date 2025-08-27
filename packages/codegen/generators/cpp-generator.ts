@@ -6,6 +6,7 @@ export class CppGenerator {
   private ast: HeaderAST;
   private libraryName: string;
   private headerIncludePath: string | undefined;
+  private headerIncludePaths: string[] = [];
   private generatedConstants: Set<string> = new Set();
   private generatedFunctions: Set<string> = new Set();
   private generatedStructs: Set<string> = new Set();
@@ -14,10 +15,12 @@ export class CppGenerator {
     ast: HeaderAST,
     libraryName: string = 'binding',
     headerIncludePath?: string,
+    headerIncludePaths?: string[],
   ) {
     this.ast = ast;
     this.libraryName = libraryName;
     this.headerIncludePath = headerIncludePath || undefined;
+    this.headerIncludePaths = headerIncludePaths || [];
   }
 
   generate(): string {
@@ -26,6 +29,11 @@ export class CppGenerator {
     // Initialize TypeMapper with known struct types
     const structNames = this.ast.structs.map(s => s.name);
     TypeMapper.setKnownStructTypes(structNames);
+    
+    // Initialize TypeMapper with typedef information
+    if (this.ast.typedefs) {
+      TypeMapper.setTypedefs(this.ast.typedefs);
+    }
 
     // Headers
     sections.push(this.generateHeaders());
@@ -64,8 +72,14 @@ export class CppGenerator {
       '#include <cstring>',  // for strncpy
     ];
 
-    // Include the original header
-    if (this.headerIncludePath) {
+    // Include headers from multiple header paths if available
+    if (this.headerIncludePaths.length > 0) {
+      for (const headerPath of this.headerIncludePaths) {
+        headers.push(`#include <${headerPath}>`);
+      }
+    }
+    // Fallback to single header path
+    else if (this.headerIncludePath) {
       headers.push(`#include <${this.headerIncludePath}>`);
     } else if (this.ast.header) {
       headers.push(`#include <${this.ast.header}>`);
@@ -94,6 +108,20 @@ static Napi::Object wrapPointer(Napi::Env env, void* ptr, const std::string& typ
     obj.Set("_ptr", Napi::External<void>::New(env, ptr));
     obj.Set("_type", Napi::String::New(env, typeName));
     return obj;
+}
+
+// Overload for const pointers
+static Napi::Object wrapPointer(Napi::Env env, const void* ptr, const std::string& typeName) {
+    Napi::Object obj = Napi::Object::New(env);
+    obj.Set("_ptr", Napi::External<void>::New(env, const_cast<void*>(ptr)));
+    obj.Set("_type", Napi::String::New(env, typeName));
+    obj.Set("_const", Napi::Boolean::New(env, true));
+    return obj;
+}
+
+// Helper function to wrap const pointers as JavaScript objects (kept for compatibility)
+static Napi::Object wrapConstPointer(Napi::Env env, const void* ptr, const std::string& typeName) {
+    return wrapPointer(env, ptr, typeName);
 }
 
 // Helper to unwrap pointer from JavaScript object
@@ -199,6 +227,11 @@ static void* unwrapPointer(Napi::Object obj) {
       lines.push(`        Napi::Object obj = info[0].As<Napi::Object>();`);
 
       for (const field of struct.fields) {
+        // Skip fields with empty names (anonymous union members)
+        if (!field.name || field.name.trim() === '') {
+          continue;
+        }
+        
         lines.push(`        if (obj.Has("${field.name}")) {`);
 
         // Handle different field types appropriately
@@ -214,7 +247,15 @@ static void* unwrapPointer(Napi::Object obj) {
             // Numeric arrays - copy from JS array
             lines.push(`            Napi::Array ${field.name}_arr = obj.Get("${field.name}").As<Napi::Array>();`);
             lines.push(`            for (size_t i = 0; i < ${field.name}_arr.Length() && i < sizeof(ptr->${field.name})/sizeof(ptr->${field.name}[0]); i++) {`);
-            lines.push(`                ptr->${field.name}[i] = ${TypeMapper.getNapiToC(`${field.name}_arr.Get(i)`, elementType)};`);
+            if (elementType === 'void *' || elementType === 'const void *') {
+              lines.push(`                if (${field.name}_arr.Get(i).IsExternal()) {`);
+              lines.push(`                    ptr->${field.name}[i] = ${field.name}_arr.Get(i).As<Napi::External<void>>().Data();`);
+              lines.push(`                } else {`);
+              lines.push(`                    ptr->${field.name}[i] = nullptr;`);
+              lines.push(`                }`);
+            } else {
+              lines.push(`                ptr->${field.name}[i] = ${TypeMapper.getNapiToC(`${field.name}_arr.Get(i)`, elementType)};`);
+            }
             lines.push(`            }`);
           }
         } else if (TypeMapper.isStructType(field.type)) {
@@ -223,6 +264,12 @@ static void* unwrapPointer(Napi::Object obj) {
           lines.push(`            if (${field.name}_ptr) {`);
           lines.push(`                ptr->${field.name} = *${field.name}_ptr;`);
           lines.push(`            }`);
+        } else if (TypeMapper.isEnumType(field.type)) {
+          // Handle enum types with explicit casting
+          lines.push(`            ptr->${field.name} = static_cast<${field.type}>(obj.Get("${field.name}").As<Napi::Number>().Int32Value());`);
+        } else if (TypeMapper.isFunctionPointerType(field.type)) {
+          // Skip function pointer fields - they can't be assigned from JavaScript safely
+          lines.push(`            // Note: Function pointer field ${field.name} skipped - not assignable from JavaScript`);
         } else if (TypeMapper.isStringType(field.type)) {
           // Special handling for string fields - store the string and keep it alive
           lines.push(`            // Note: String lifetime management needed for production use`);
@@ -235,8 +282,18 @@ static void* unwrapPointer(Napi::Object obj) {
           lines.push(`            } else {`);
           lines.push(`                ptr->${field.name} = nullptr;`);
           lines.push(`            }`);
+        } else if (field.type.includes('*')) {
+          // Handle ALL pointer types (including ones not caught by isPointerType)
+          lines.push(`            if (obj.Get("${field.name}").IsObject()) {`);
+          lines.push(`                ptr->${field.name} = static_cast<${field.type}>(unwrapPointer(obj.Get("${field.name}").As<Napi::Object>()));`);
+          lines.push(`            } else if (obj.Get("${field.name}").IsNull() || obj.Get("${field.name}").IsUndefined()) {`);
+          lines.push(`                ptr->${field.name} = nullptr;`);
+          lines.push(`            } else {`);
+          lines.push(`                // Invalid value for pointer field`);
+          lines.push(`                ptr->${field.name} = nullptr;`);
+          lines.push(`            }`);
         } else {
-          // Handle regular types
+          // Handle regular types (non-pointers)
           const mapping = TypeMapper.getMapping(field.type);
           if (mapping.needsConversion) {
             lines.push(
@@ -282,6 +339,11 @@ static void* unwrapPointer(Napi::Object obj) {
       lines.push(`    `);
 
       for (const field of struct.fields) {
+        // Skip fields with empty names (anonymous union members)
+        if (!field.name || field.name.trim() === '') {
+          continue;
+        }
+        
         lines.push(`    if (fieldName == "${field.name}") {`);
         
         // Handle different field types in getters
@@ -295,7 +357,11 @@ static void* unwrapPointer(Napi::Object obj) {
             lines.push(`        Napi::Array arr = Napi::Array::New(env);`);
             lines.push(`        size_t arraySize = sizeof(ptr->${field.name})/sizeof(ptr->${field.name}[0]);`);
             lines.push(`        for (size_t i = 0; i < arraySize; i++) {`);
-            lines.push(`            arr.Set(i, ${TypeMapper.getCToNapi(`ptr->${field.name}[i]`, elementType)});`);
+            if (elementType === 'void *' || elementType === 'const void *') {
+              lines.push(`            arr.Set(i, Napi::External<void>::New(env, const_cast<void*>(ptr->${field.name}[i])));`);
+            } else {
+              lines.push(`            arr.Set(i, ${TypeMapper.getCToNapi(`ptr->${field.name}[i]`, elementType)});`);
+            }
             lines.push(`        }`);
             lines.push(`        return arr;`);
           }
@@ -303,6 +369,20 @@ static void* unwrapPointer(Napi::Object obj) {
           // Return nested structs as new wrapped pointers
           lines.push(`        ${field.type}* fieldPtr = new ${field.type}(ptr->${field.name});`);
           lines.push(`        return wrapPointer(env, fieldPtr, "${field.type}");`);
+        } else if (TypeMapper.isFunctionPointerType(field.type)) {
+          // Handle function pointers - return as external pointer
+          lines.push(`        return Napi::External<void>::New(env, reinterpret_cast<void*>(ptr->${field.name}));`);
+        } else if (TypeMapper.isPointerType(field.type) && field.type.includes('const')) {
+          // Handle const pointers specially
+          const baseType = field.type.replace(/\s*\*\s*$/, '').replace(/^const\s+/, '');
+          lines.push(`        return wrapConstPointer(env, ptr->${field.name}, "${baseType}");`);
+        } else if (TypeMapper.isPointerType(field.type)) {
+          // Handle regular pointers
+          const baseType = field.type.replace(/\s*\*\s*$/, '');
+          lines.push(`        return wrapPointer(env, ptr->${field.name}, "${baseType}");`);
+        } else if (TypeMapper.isEnumType(field.type)) {
+          // Handle enum fields - return as number
+          lines.push(`        return Napi::Number::New(env, static_cast<int>(ptr->${field.name}));`);
         } else {
           // Handle regular types
           lines.push(
@@ -356,6 +436,56 @@ static void* unwrapPointer(Napi::Object obj) {
         lines.push(`    `);
       }
 
+      // Special complete handling for clang_visitChildren
+      if (func.name === 'clang_visitChildren') {
+        // Handle all three parameters specially
+        lines.push(`    // Parameter: parent (CXCursor)`);
+        lines.push(`    CXCursor parent = *static_cast<CXCursor*>(unwrapPointer(info[0].As<Napi::Object>()));`);
+        lines.push(`    `);
+        lines.push(`    // Parameter: visitor (JavaScript callback function)`);
+        lines.push(`    if (!info[1].IsFunction()) {`);
+        lines.push(`        Napi::TypeError::New(env, "Expected function for visitor parameter").ThrowAsJavaScriptException();`);
+        lines.push(`        return env.Undefined();`);
+        lines.push(`    }`);
+        lines.push(`    Napi::Function jsVisitor = info[1].As<Napi::Function>();`);
+        lines.push(`    `);
+        lines.push(`    // Parameter: client_data (ignored - we use our own)`);
+        lines.push(`    // Note: We ignore the JavaScript client_data and use our own for the callback`);
+        lines.push(`    `);
+        lines.push(`    // Create C++ visitor function`);
+        lines.push(`    auto visitor = [](CXCursor cursor, CXCursor parent, CXClientData client_data) -> enum CXChildVisitResult {`);
+        lines.push(`        auto* callbackData = static_cast<std::pair<Napi::Function*, Napi::Env*>*>(client_data);`);
+        lines.push(`        Napi::Function* jsFunc = callbackData->first;`);
+        lines.push(`        Napi::Env* env = callbackData->second;`);
+        lines.push(`        `);
+        lines.push(`        // Wrap cursors for JavaScript`);
+        lines.push(`        CXCursor* cursorPtr = new CXCursor(cursor);`);
+        lines.push(`        Napi::Object cursorObj = wrapPointer(*env, cursorPtr, "CXCursor");`);
+        lines.push(`        `);
+        lines.push(`        CXCursor* parentPtr = new CXCursor(parent);`);
+        lines.push(`        Napi::Object parentObj = wrapPointer(*env, parentPtr, "CXCursor");`);
+        lines.push(`        `);
+        lines.push(`        // Call JavaScript function`);
+        lines.push(`        Napi::Value result = jsFunc->Call({cursorObj, parentObj});`);
+        lines.push(`        `);
+        lines.push(`        // Convert result to enum`);
+        lines.push(`        if (result.IsNumber()) {`);
+        lines.push(`            return static_cast<enum CXChildVisitResult>(result.As<Napi::Number>().Int32Value());`);
+        lines.push(`        }`);
+        lines.push(`        return CXChildVisit_Break; // Default to break on error`);
+        lines.push(`    };`);
+        lines.push(`    `);
+        lines.push(`    // Create callback data`);
+        lines.push(`    std::pair<Napi::Function*, Napi::Env*> callbackData(&jsVisitor, &env);`);
+        lines.push(`    `);
+        lines.push(`    // Call clang_visitChildren with our lambda`);
+        lines.push(`    auto result = clang_visitChildren(parent, visitor, &callbackData);`);
+        lines.push(`    return Napi::Number::New(env, result);`);
+        lines.push(`}`);
+        lines.push('');
+        continue; // Skip the rest of function generation
+      }
+
       // Convert parameters
       for (let i = 0; i < func.params.length; i++) {
         const param = func.params[i];
@@ -371,12 +501,84 @@ static void* unwrapPointer(Napi::Object obj) {
           lines.push(
             `    ${paramType} ${paramName} = *static_cast<${paramType}*>(unwrapPointer(info[${i}].As<Napi::Object>()));`,
           );
+        } else if (TypeMapper.isEnumType(paramType)) {
+          // Enum parameters need explicit casting
+          lines.push(
+            `    ${paramType} ${paramName} = static_cast<${paramType}>(info[${i}].As<Napi::Number>().Int32Value());`,
+          );
+        } else if (TypeMapper.isFunctionPointerType(paramType)) {
+          // Handle other function pointers the old way
+          const typedefType = paramType.replace(/\(\*\)/, `(*${paramName}_t)`);
+          lines.push(`    typedef ${typedefType};`);
+          lines.push(
+            `    ${paramName}_t ${paramName} = reinterpret_cast<${paramName}_t>(unwrapPointer(info[${i}].As<Napi::Object>()));`,
+          );
+        } else if (TypeMapper.isStructPointer(paramType)) {
+          // Handle struct pointers (including const)
+          // Allow null/undefined for optional struct pointers
+          lines.push(`    ${paramType} ${paramName} = nullptr;`);
+          lines.push(`    if (!info[${i}].IsNull() && !info[${i}].IsUndefined() && info[${i}].IsObject()) {`);
+          lines.push(`        ${paramName} = static_cast<${paramType}>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
+          lines.push(`    }`);
+        } else if (paramType === 'size_t *' || paramType === 'int *') {
+          // Handle size_t and int pointers first - can be passed as wrapped pointers
+          // Note: h-parser sometimes resolves size_t* to int* on some platforms
+          // Special case: clang_getFileContents expects size_t* for the size parameter
+          if (paramType === 'int *' && func.name === 'clang_getFileContents' && paramName === 'size') {
+            // clang_getFileContents actually expects size_t* for the size parameter
+            lines.push(`    size_t * ${paramName} = static_cast<size_t *>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
+          } else if (paramType === 'size_t *') {
+            lines.push(`    size_t * ${paramName} = static_cast<size_t *>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
+          } else {
+            lines.push(`    int * ${paramName} = static_cast<int *>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
+          }
+        } else if (paramType === 'const char *const *' || paramType === 'const char * const *' || paramType === 'char **') {
+          // Handle string array parameters (usually for command-line args)
+          // These can be null or a JavaScript array of strings
+          lines.push(`    ${paramType} ${paramName} = nullptr;`);
+          lines.push(`    std::vector<std::string> ${paramName}_strings;`);
+          lines.push(`    std::vector<const char*> ${paramName}_cstrs;`);
+          lines.push(`    if (!info[${i}].IsNull() && !info[${i}].IsUndefined()) {`);
+          lines.push(`        if (info[${i}].IsArray()) {`);
+          lines.push(`            Napi::Array arr = info[${i}].As<Napi::Array>();`);
+          lines.push(`            for (uint32_t j = 0; j < arr.Length(); j++) {`);
+          lines.push(`                ${paramName}_strings.push_back(arr.Get(j).As<Napi::String>().Utf8Value());`);
+          lines.push(`            }`);
+          lines.push(`            for (const auto& s : ${paramName}_strings) {`);
+          lines.push(`                ${paramName}_cstrs.push_back(s.c_str());`);
+          lines.push(`            }`);
+          lines.push(`            ${paramName} = ${paramName}_cstrs.data();`);
+          lines.push(`        } else if (info[${i}].IsObject()) {`);
+          lines.push(`            // Assume it's a wrapped pointer`);
+          lines.push(`            ${paramName} = *static_cast<${paramType}*>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
+          lines.push(`        }`);
+          lines.push(`    }`);
         } else if (
           TypeMapper.isPointerType(paramType) &&
           !TypeMapper.isStringType(paramType)
         ) {
+          // Handle pointer types (including typedef pointers)
+          // Need to dereference because unwrapPointer returns a pointer to the stored pointer
           lines.push(
-            `    ${paramType} ${paramName} = static_cast<${paramType}>(unwrapPointer(info[${i}].As<Napi::Object>()));`,
+            `    ${paramType} ${paramName} = *static_cast<${paramType}*>(unwrapPointer(info[${i}].As<Napi::Object>()));`,
+          );
+        } else if (paramType.endsWith(' *') && TypeMapper.isEnumType(paramType.replace(' *', ''))) {
+          // Handle enum pointers
+          const enumType = paramType.replace(' *', '');
+          lines.push(`    ${enumType} ${paramName}_val = static_cast<${enumType}>(info[${i}].As<Napi::Number>().Int32Value());`);
+          lines.push(`    ${enumType}* ${paramName} = &${paramName}_val;`);
+        } else if (paramType === 'size_t') {
+          // Handle size_t as number
+          lines.push(
+            `    size_t ${paramName} = info[${i}].As<Napi::Number>().Uint32Value();`,
+          );
+        } else if (TypeMapper.isStringType(paramType)) {
+          // Handle string parameters - need to keep the string alive
+          lines.push(
+            `    std::string ${paramName}_str = info[${i}].As<Napi::String>().Utf8Value();`,
+          );
+          lines.push(
+            `    const char* ${paramName} = ${paramName}_str.c_str();`,
           );
         } else if (mapping.needsConversion) {
           lines.push(
@@ -388,6 +590,9 @@ static void* unwrapPointer(Napi::Object obj) {
       }
 
       lines.push(`    `);
+
+      // Special handling for clang_visitChildren - all parameters have been processed above
+      // No need to process anymore, just generate the call
 
       // Call the function
       const returnType = func.return.spelling;
@@ -403,11 +608,23 @@ static void* unwrapPointer(Napi::Object obj) {
         lines.push(`    ${returnType} result = ${func.name}(${paramNames});`);
         lines.push(`    ${returnType}* resultPtr = new ${returnType}(result);`);
         lines.push(`    return wrapPointer(env, resultPtr, "${returnType}");`);
+      } else if (TypeMapper.isPointerType(returnType)) {
+        // Handle pointer types (including typedefs to pointers like CXTranslationUnit)
+        lines.push(`    ${returnType} result = ${func.name}(${paramNames});`);
+        // For typedef pointers, we need to create a heap-allocated copy to match unwrap expectations
+        lines.push(`    ${returnType}* resultPtr = new ${returnType};`);
+        lines.push(`    *resultPtr = result;`);
+        lines.push(`    return wrapPointer(env, resultPtr, "${returnType}");`);
       } else {
         lines.push(`    auto result = ${func.name}(${paramNames});`);
-        lines.push(
-          `    return ${TypeMapper.getCToNapi('result', returnType)};`,
-        );
+        if (TypeMapper.isEnumType(returnType)) {
+          // Return enums as numbers
+          lines.push(`    return Napi::Number::New(env, static_cast<int>(result));`);
+        } else {
+          lines.push(
+            `    return ${TypeMapper.getCToNapi('result', returnType)};`,
+          );
+        }
       }
 
       lines.push(`}`);

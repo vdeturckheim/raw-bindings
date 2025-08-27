@@ -52,6 +52,9 @@ const addon = nodeGypBuild(import.meta.dirname) as {
 
   // Type functions
   getTypeSpelling(type: Type): string;
+  getTypeKind(type: Type): number;
+  getPointeeType(type: Type): Type;
+  getCanonicalType(type: Type): Type;
   getTypeNullability(type: Type): number;
   getResultType(type: Type): Type;
   getNumArgTypes(type: Type): number;
@@ -102,6 +105,41 @@ const addon = nodeGypBuild(import.meta.dirname) as {
   CXTranslationUnit_None: number;
   CXTranslationUnit_DetailedPreprocessingRecord: number;
   CXTranslationUnit_IncludeBriefCommentsInCodeCompletion: number;
+  
+  // Type kind constants
+  CXType_Invalid: number;
+  CXType_Unexposed: number;
+  CXType_Void: number;
+  CXType_Bool: number;
+  CXType_Char_U: number;
+  CXType_UChar: number;
+  CXType_UShort: number;
+  CXType_UInt: number;
+  CXType_ULong: number;
+  CXType_ULongLong: number;
+  CXType_Char_S: number;
+  CXType_SChar: number;
+  CXType_Short: number;
+  CXType_Int: number;
+  CXType_Long: number;
+  CXType_LongLong: number;
+  CXType_Float: number;
+  CXType_Double: number;
+  CXType_LongDouble: number;
+  CXType_Pointer: number;
+  CXType_BlockPointer: number;
+  CXType_LValueReference: number;
+  CXType_RValueReference: number;
+  CXType_Record: number;
+  CXType_Enum: number;
+  CXType_Typedef: number;
+  CXType_FunctionProto: number;
+  CXType_FunctionNoProto: number;
+  CXType_ConstantArray: number;
+  CXType_IncompleteArray: number;
+  CXType_VariableArray: number;
+  CXType_DependentSizedArray: number;
+  CXType_Elaborated: number;
 
   // Classes
   ClangIndex: new (
@@ -124,6 +162,9 @@ export const visitChildren = addon.visitChildren;
 
 // Type functions
 export const getTypeSpelling = addon.getTypeSpelling;
+export const getTypeKind = addon.getTypeKind;
+export const getPointeeType = addon.getPointeeType;
+export const getCanonicalType = addon.getCanonicalType;
 export const getTypeNullability = addon.getTypeNullability;
 export const getResultType = addon.getResultType;
 export const getNumArgTypes = addon.getNumArgTypes;
@@ -182,6 +223,43 @@ export const CXTranslationUnit = {
     addon.CXTranslationUnit_IncludeBriefCommentsInCodeCompletion,
 } as const;
 
+// Type kinds
+export const CXTypeKind = {
+  Invalid: addon.CXType_Invalid,
+  Unexposed: addon.CXType_Unexposed,
+  Void: addon.CXType_Void,
+  Bool: addon.CXType_Bool,
+  Char_U: addon.CXType_Char_U,
+  UChar: addon.CXType_UChar,
+  UShort: addon.CXType_UShort,
+  UInt: addon.CXType_UInt,
+  ULong: addon.CXType_ULong,
+  ULongLong: addon.CXType_ULongLong,
+  Char_S: addon.CXType_Char_S,
+  SChar: addon.CXType_SChar,
+  Short: addon.CXType_Short,
+  Int: addon.CXType_Int,
+  Long: addon.CXType_Long,
+  LongLong: addon.CXType_LongLong,
+  Float: addon.CXType_Float,
+  Double: addon.CXType_Double,
+  LongDouble: addon.CXType_LongDouble,
+  Pointer: addon.CXType_Pointer,
+  BlockPointer: addon.CXType_BlockPointer,
+  LValueReference: addon.CXType_LValueReference,
+  RValueReference: addon.CXType_RValueReference,
+  Record: addon.CXType_Record,
+  Enum: addon.CXType_Enum,
+  Typedef: addon.CXType_Typedef,
+  FunctionProto: addon.CXType_FunctionProto,
+  FunctionNoProto: addon.CXType_FunctionNoProto,
+  ConstantArray: addon.CXType_ConstantArray,
+  IncompleteArray: addon.CXType_IncompleteArray,
+  VariableArray: addon.CXType_VariableArray,
+  DependentSizedArray: addon.CXType_DependentSizedArray,
+  Elaborated: addon.CXType_Elaborated,
+} as const;
+
 // Re-export classes from addon
 export const ClangIndex = addon.ClangIndex;
 export const ClangTranslationUnit = addon.ClangTranslationUnit;
@@ -196,6 +274,9 @@ export default {
   getCursorType,
   visitChildren,
   getTypeSpelling,
+  getTypeKind,
+  getPointeeType,
+  getCanonicalType,
   getTypeNullability,
   getResultType,
   getNumArgTypes,
@@ -208,6 +289,7 @@ export default {
   getCursorArgument,
   CXChildVisit,
   CXCursorKind,
+  CXTypeKind,
   CXTranslationUnit,
   ClangIndex,
   ClangTranslationUnit,

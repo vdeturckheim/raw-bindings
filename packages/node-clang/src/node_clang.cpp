@@ -296,6 +296,58 @@ Napi::Value GetTypeSpelling(const Napi::CallbackInfo& info) {
     return CXStringToNapi(env, clang_getTypeSpelling(*type));
 }
 
+Napi::Value GetTypeKind(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!info[0].IsObject()) {
+        Napi::TypeError::New(env, "Expected type object").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    Napi::Object typeObj = info[0].As<Napi::Object>();
+    CXType* type = typeObj.Get("_type").As<Napi::External<CXType>>().Data();
+    
+    return Napi::Number::New(env, type->kind);
+}
+
+Napi::Value GetPointeeType(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!info[0].IsObject()) {
+        Napi::TypeError::New(env, "Expected type object").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    Napi::Object typeObj = info[0].As<Napi::Object>();
+    CXType* type = typeObj.Get("_type").As<Napi::External<CXType>>().Data();
+    
+    CXType pointeeType = clang_getPointeeType(*type);
+    
+    Napi::Object result = Napi::Object::New(env);
+    result.Set("_type", Napi::External<CXType>::New(env, new CXType(pointeeType)));
+    
+    return result;
+}
+
+Napi::Value GetCanonicalType(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!info[0].IsObject()) {
+        Napi::TypeError::New(env, "Expected type object").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    Napi::Object typeObj = info[0].As<Napi::Object>();
+    CXType* type = typeObj.Get("_type").As<Napi::External<CXType>>().Data();
+    
+    CXType canonicalType = clang_getCanonicalType(*type);
+    
+    Napi::Object result = Napi::Object::New(env);
+    result.Set("_type", Napi::External<CXType>::New(env, new CXType(canonicalType)));
+    
+    return result;
+}
+
 Napi::Value GetTypeNullability(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     
@@ -554,6 +606,9 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     
     // Type functions
     exports.Set("getTypeSpelling", Napi::Function::New(env, GetTypeSpelling));
+    exports.Set("getTypeKind", Napi::Function::New(env, GetTypeKind));
+    exports.Set("getPointeeType", Napi::Function::New(env, GetPointeeType));
+    exports.Set("getCanonicalType", Napi::Function::New(env, GetCanonicalType));
     exports.Set("getTypeNullability", Napi::Function::New(env, GetTypeNullability));
     exports.Set("getResultType", Napi::Function::New(env, GetResultType));
     exports.Set("getNumArgTypes", Napi::Function::New(env, GetNumArgTypes));
@@ -605,6 +660,41 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("CXTranslationUnit_None", Napi::Number::New(env, CXTranslationUnit_None));
     exports.Set("CXTranslationUnit_DetailedPreprocessingRecord", Napi::Number::New(env, CXTranslationUnit_DetailedPreprocessingRecord));
     exports.Set("CXTranslationUnit_IncludeBriefCommentsInCodeCompletion", Napi::Number::New(env, CXTranslationUnit_IncludeBriefCommentsInCodeCompletion));
+    
+    // Export CXTypeKind enum values (common ones)
+    exports.Set("CXType_Invalid", Napi::Number::New(env, CXType_Invalid));
+    exports.Set("CXType_Unexposed", Napi::Number::New(env, CXType_Unexposed));
+    exports.Set("CXType_Void", Napi::Number::New(env, CXType_Void));
+    exports.Set("CXType_Bool", Napi::Number::New(env, CXType_Bool));
+    exports.Set("CXType_Char_U", Napi::Number::New(env, CXType_Char_U));
+    exports.Set("CXType_UChar", Napi::Number::New(env, CXType_UChar));
+    exports.Set("CXType_UShort", Napi::Number::New(env, CXType_UShort));
+    exports.Set("CXType_UInt", Napi::Number::New(env, CXType_UInt));
+    exports.Set("CXType_ULong", Napi::Number::New(env, CXType_ULong));
+    exports.Set("CXType_ULongLong", Napi::Number::New(env, CXType_ULongLong));
+    exports.Set("CXType_Char_S", Napi::Number::New(env, CXType_Char_S));
+    exports.Set("CXType_SChar", Napi::Number::New(env, CXType_SChar));
+    exports.Set("CXType_Short", Napi::Number::New(env, CXType_Short));
+    exports.Set("CXType_Int", Napi::Number::New(env, CXType_Int));
+    exports.Set("CXType_Long", Napi::Number::New(env, CXType_Long));
+    exports.Set("CXType_LongLong", Napi::Number::New(env, CXType_LongLong));
+    exports.Set("CXType_Float", Napi::Number::New(env, CXType_Float));
+    exports.Set("CXType_Double", Napi::Number::New(env, CXType_Double));
+    exports.Set("CXType_LongDouble", Napi::Number::New(env, CXType_LongDouble));
+    exports.Set("CXType_Pointer", Napi::Number::New(env, CXType_Pointer));
+    exports.Set("CXType_BlockPointer", Napi::Number::New(env, CXType_BlockPointer));
+    exports.Set("CXType_LValueReference", Napi::Number::New(env, CXType_LValueReference));
+    exports.Set("CXType_RValueReference", Napi::Number::New(env, CXType_RValueReference));
+    exports.Set("CXType_Record", Napi::Number::New(env, CXType_Record));
+    exports.Set("CXType_Enum", Napi::Number::New(env, CXType_Enum));
+    exports.Set("CXType_Typedef", Napi::Number::New(env, CXType_Typedef));
+    exports.Set("CXType_FunctionProto", Napi::Number::New(env, CXType_FunctionProto));
+    exports.Set("CXType_FunctionNoProto", Napi::Number::New(env, CXType_FunctionNoProto));
+    exports.Set("CXType_ConstantArray", Napi::Number::New(env, CXType_ConstantArray));
+    exports.Set("CXType_IncompleteArray", Napi::Number::New(env, CXType_IncompleteArray));
+    exports.Set("CXType_VariableArray", Napi::Number::New(env, CXType_VariableArray));
+    exports.Set("CXType_DependentSizedArray", Napi::Number::New(env, CXType_DependentSizedArray));
+    exports.Set("CXType_Elaborated", Napi::Number::New(env, CXType_Elaborated));
     
     return exports;
 }

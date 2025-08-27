@@ -2,9 +2,14 @@ import type { TypeMapping } from './types.ts';
 
 export class TypeMapper {
   private static knownStructTypes: Set<string> = new Set();
+  private static typedefMap: Map<string, string> = new Map();
   
   static setKnownStructTypes(structNames: string[]) {
     this.knownStructTypes = new Set(structNames);
+  }
+  
+  static setTypedefs(typedefs: Array<{ name: string; underlying: string }>) {
+    this.typedefMap = new Map(typedefs.map(t => [t.name, t.underlying]));
   }
   
   private static readonly primitiveTypes: Map<string, TypeMapping> = new Map([
@@ -325,6 +330,14 @@ export class TypeMapper {
 
   static isPointerType(cType: string): boolean {
     const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '');
+    
+    // Check if it's a typedef that resolves to a pointer
+    if (this.typedefMap.has(cleanType)) {
+      const underlying = this.typedefMap.get(cleanType)!;
+      // Recursively check if the underlying type is a pointer
+      return this.isPointerType(underlying);
+    }
+    
     return cleanType.includes('*') && !TypeMapper.isStringType(cType);
   }
 
@@ -336,12 +349,58 @@ export class TypeMapper {
     return cType === 'void';
   }
 
+  static isEnumType(cType: string): boolean {
+    const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '');
+    
+    // Pointers are never enums
+    if (cleanType.includes('*')) return false;
+    
+    // Check if it's a typedef that resolves to a pointer (never an enum)
+    if (this.typedefMap.has(cleanType)) {
+      const underlying = this.typedefMap.get(cleanType)!;
+      if (this.isPointerType(underlying)) {
+        return false;
+      }
+    }
+    
+    // Check for explicit enum prefix
+    if (cleanType.startsWith('enum ')) return true;
+    
+    // Check for common libclang enum patterns
+    if (cleanType.startsWith('CX') && (
+      cleanType.includes('Kind') ||
+      cleanType.includes('Result') ||
+      cleanType.includes('Flag') ||
+      cleanType.includes('Option') ||
+      cleanType.includes('Property') ||
+      cleanType === 'CXIdxAttrKind' ||
+      cleanType === 'CXTUResourceUsageKind'
+    )) return true;
+    
+    // Check for other C enum patterns
+    if (cleanType.startsWith('CX_')) return true;
+    
+    return false;
+  }
+
+  static isFunctionPointerType(cType: string): boolean {
+    return cType.includes('(*') && cType.includes(')');
+  }
+
   static isStructType(cType: string): boolean {
     // A struct type is one that is not a primitive, not a pointer, and not void
     const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '');
 
     // Not a pointer
     if (cleanType.includes('*')) return false;
+
+    // Check if it's a typedef that resolves to a pointer - NOT a struct!
+    if (this.typedefMap.has(cleanType)) {
+      const underlying = this.typedefMap.get(cleanType)!;
+      if (this.isPointerType(underlying)) {
+        return false;  // It's a typedef to a pointer, not a struct
+      }
+    }
 
     // Not a primitive
     if (TypeMapper.primitiveTypes.has(cleanType)) return false;
@@ -350,16 +409,25 @@ export class TypeMapper {
     if (cleanType === 'void') return false;
 
     // Not an enum (though enums are handled as numbers)
-    if (cleanType.startsWith('enum ')) return false;
+    if (this.isEnumType(cleanType)) return false;
 
     // Check if it's in our known struct types
     if (TypeMapper.knownStructTypes.has(cleanType)) return true;
 
     // Handle common size_t type
     if (cleanType === 'size_t') return false;
+    
+    // If it starts with uppercase letter, likely a struct/typedef (C convention)
+    if (/^[A-Z]/.test(cleanType)) return true;
 
     // Likely a struct/class or typedef
     return true;
+  }
+  
+  static isStructPointer(cType: string): boolean {
+    if (!cType.includes('*')) return false;
+    const baseType = cType.replace(/\s*\*\s*$/, '').replace(/^const\s+/, '').trim();
+    return this.isStructType(baseType);
   }
   
   static isArrayType(cType: string): boolean {

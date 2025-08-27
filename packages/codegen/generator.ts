@@ -6,28 +6,111 @@ import { CppGenerator } from './generators/cpp-generator.ts';
 import { TsGenerator } from './generators/ts-generator.ts';
 import type { GeneratedFiles, GeneratorOptions } from './types.ts';
 
+function combineASTs(asts: HeaderAST[], headerPaths: string[]): HeaderAST {
+  // Use the first AST as base and merge others into it
+  const combined: HeaderAST = {
+    header: headerPaths.map(path => path.split('/').pop() || '').join('+'),
+    interfaces: [],
+    protocols: [],
+    enums: [],
+    structs: [],
+    typedefs: [],
+    functions: [],
+    classes: [],
+    // Convenience aliases
+    objc_interfaces: [],
+    objc_protocols: [],
+    objc_categories: [],
+  };
+
+  // Combine all declarations from all ASTs
+  for (const ast of asts) {
+    combined.interfaces.push(...(ast.interfaces || []));
+    combined.protocols.push(...(ast.protocols || []));
+    combined.enums.push(...(ast.enums || []));
+    combined.structs.push(...(ast.structs || []));
+    combined.typedefs.push(...(ast.typedefs || []));
+    combined.functions.push(...(ast.functions || []));
+    combined.classes.push(...(ast.classes || []));
+    combined.objc_interfaces.push(...(ast.objc_interfaces || []));
+    combined.objc_protocols.push(...(ast.objc_protocols || []));
+    combined.objc_categories.push(...(ast.objc_categories || []));
+  }
+
+  console.log(`🔗 Combined ${asts.length} ASTs:`);
+  console.log(`   Functions: ${combined.functions.length}`);
+  console.log(`   Enums: ${combined.enums.length}`);
+  console.log(`   Structs: ${combined.structs.length}`);
+  console.log(`   Typedefs: ${combined.typedefs.length}`);
+  console.log(`   Interfaces: ${combined.interfaces.length}`);
+
+  return combined;
+}
+
 export async function generateBindings(
-  headerPath: string,
+  headerPaths: string[],
   options: GeneratorOptions,
 ): Promise<void> {
-  // Parse the header file
-  const ast = parseHeader(headerPath, {
-    language: options.defines?.includes('__cplusplus') ? 'c++' : 'c',
+  // Parse options for header files
+  const parseOptions = {
+    language: options.defines?.includes('__cplusplus') ? 'c++' : 'c' as const,
     includePaths: options.includePaths || [],
     frameworkPaths: options.frameworkPaths || [],
     frameworks: options.frameworks || [],
     defines: options.defines || [],
     includeDocumentation: true,
     detailedProcessing: true,
+  };
+
+  // Parse all header files and combine ASTs
+  let combinedAST: HeaderAST;
+
+  if (headerPaths.length === 1) {
+    // Single header file - parse normally
+    combinedAST = parseHeader(headerPaths[0], parseOptions);
+  } else {
+    // Multiple header files - parse each and combine ASTs
+    console.log(`📚 Parsing ${headerPaths.length} header files...`);
+    
+    const asts = headerPaths.map((headerPath, index) => {
+      console.log(`  ${index + 1}. ${headerPath}`);
+      return parseHeader(headerPath, parseOptions);
+    });
+
+    // Combine all ASTs into one
+    combinedAST = combineASTs(asts, headerPaths);
+  }
+
+  // Extract header include paths from the actual header paths
+  const headerIncludePaths = headerPaths.map(headerPath => {
+    // Convert absolute path to include path format
+    // e.g., "/opt/homebrew/include/clang-c/Index.h" -> "clang-c/Index.h"
+    if (options.includePaths) {
+      for (const includePath of options.includePaths) {
+        if (headerPath.startsWith(includePath + '/')) {
+          return headerPath.slice(includePath.length + 1);
+        }
+      }
+    }
+    // Fallback - use just the filename
+    return headerPath.split('/').pop() || headerPath;
   });
 
+  // Create updated options with header include paths
+  const updatedOptions: GeneratorOptions = {
+    ...options,
+    headerIncludePath: headerIncludePaths[0], // Keep backward compatibility 
+    headerIncludePaths: headerIncludePaths,
+  };
+
   // Generate all files
-  const files = generateFilesFromAST(ast, options);
+  const files = generateFilesFromAST(combinedAST, updatedOptions);
 
   // Write all files
   await writeGeneratedFiles(options.outputDir, files);
 
-  console.log(`✅ Generated bindings for ${headerPath}`);
+  console.log(`✅ Generated bindings for ${headerPaths.length} header file(s)`);
+  headerPaths.forEach(path => console.log(`   - ${path}`));
   console.log(`   Output directory: ${options.outputDir}`);
   console.log(`   Package name: ${options.packageName}`);
   console.log('');
@@ -66,6 +149,7 @@ function generateFilesFromAST(
     ast,
     options.packageName,
     options.headerIncludePath,
+    options.headerIncludePaths,
   );
   const tsGen = new TsGenerator(ast, options.packageName);
   const buildGen = new BuildGenerator(options);

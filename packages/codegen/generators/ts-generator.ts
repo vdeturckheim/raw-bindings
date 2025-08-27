@@ -87,6 +87,10 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
       // Create init interface for struct creation
       lines.push(`export interface ${structName}Init {`);
       for (const field of struct.fields) {
+        // Skip fields with empty names (anonymous union members)
+        if (!field.name || field.name.trim() === '') {
+          continue;
+        }
         const tsType = TypeMapper.getTsType(field.type);
         lines.push(`  ${field.name}?: ${tsType};`);
       }
@@ -242,6 +246,10 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
       // Field getters
       for (const field of struct.fields) {
+        // Skip fields with empty names (anonymous union members)
+        if (!field.name || field.name.trim() === '') {
+          continue;
+        }
         const fieldName = TypeMapper.sanitizeIdentifier(field.name);
         const tsType = TypeMapper.getTsType(field.type);
 
@@ -260,15 +268,19 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
       // Convenience getter for all fields
       lines.push(`/**`);
-      lines.push(` * Get all fields from ${struct.name} as an object`);
+      lines.push(` * Get all fields from ${structName} as an object`);
       lines.push(` */`);
       lines.push(
-        `export function get${struct.name}Fields(struct: ${struct.name}): ${struct.name}Init {`,
+        `export function get${structName}Fields(struct: ${structName}): ${structName}Init {`,
       );
       lines.push(`  return {`);
       for (const field of struct.fields) {
+        // Skip fields with empty names (anonymous union members)
+        if (!field.name || field.name.trim() === '') {
+          continue;
+        }
         lines.push(
-          `    ${field.name}: addon.get_${struct.name}_field(struct, '${field.name}'),`,
+          `    ${field.name}: addon.get_${structName}_field(struct, '${field.name}'),`,
         );
       }
       lines.push(`  };`);

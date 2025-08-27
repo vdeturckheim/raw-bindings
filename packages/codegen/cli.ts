@@ -65,7 +65,7 @@ const { values, positionals } = parseArgs({
 
 function showHelp() {
   console.log(`
-Usage: codegen [options] <header-file>
+Usage: codegen [options] <header-file> [additional-header-files...]
 
 Generate Node.js bindings from C/C++/Objective-C header files
 
@@ -86,8 +86,11 @@ Examples:
   # Generate bindings for a simple C library
   codegen -n mylib -o ./mylib-binding /usr/include/mylib.h
 
-  # Generate bindings for libclang
-  codegen -n clang-bindings -l clang -I /opt/homebrew/opt/llvm/include -L /opt/homebrew/opt/llvm/lib /opt/homebrew/opt/llvm/include/clang-c/Index.h
+  # Generate bindings for libclang with multiple headers
+  codegen -n clang-bindings -l clang -I /opt/homebrew/opt/llvm/include -L /opt/homebrew/opt/llvm/lib \\
+    /opt/homebrew/opt/llvm/include/clang-c/Index.h \\
+    /opt/homebrew/opt/llvm/include/clang-c/CXString.h \\
+    /opt/homebrew/opt/llvm/include/clang-c/CXSourceLocation.h
 
   # Generate bindings for an Objective-C framework
   codegen -n myframework -F CoreFoundation --framework-path /System/Library/Frameworks /path/to/header.h
@@ -100,7 +103,7 @@ async function main() {
     process.exit(values.help ? 0 : 1);
   }
 
-  const headerPath = resolve(positionals[0] as string);
+  const headerPaths = positionals.map(path => resolve(path as string));
 
   if (!values.name) {
     console.error('Error: Package name is required (use -n or --name)');
@@ -122,7 +125,7 @@ async function main() {
   };
 
   try {
-    await generateBindings(headerPath, options);
+    await generateBindings(headerPaths, options);
   } catch (error) {
     console.error('Error generating bindings:', error);
     process.exit(1);

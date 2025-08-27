@@ -3,6 +3,12 @@
 export interface TypeInfo {
   spelling: string;
   nullability?: 'nonnull' | 'nullable' | 'unspecified' | 'nullable_result';
+  kind?: number; // CXTypeKind enum value
+  canonicalKind?: number; // CXTypeKind of the canonical type (for typedefs)
+  isPointer?: boolean;
+  isConst?: boolean;
+  isFunctionPointer?: boolean;
+  pointeeType?: TypeInfo; // For pointer types, the type being pointed to
 }
 
 export interface MethodParam {
