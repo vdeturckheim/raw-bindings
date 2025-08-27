@@ -1,5 +1,5 @@
+import { execSync } from 'node:child_process';
 import * as clang from 'node-clang';
-import { execSync } from 'child_process';
 import type { TypeInfo } from './types.ts';
 
 /**
@@ -7,9 +7,11 @@ import type { TypeInfo } from './types.ts';
  */
 export function getSDKPath(): string | null {
   try {
-    const sdkPath = execSync('xcrun --show-sdk-path', { encoding: 'utf-8' }).trim();
+    const sdkPath = execSync('xcrun --show-sdk-path', {
+      encoding: 'utf-8',
+    }).trim();
     return sdkPath || null;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -25,7 +27,7 @@ export function cleanDocumentation(comment: string | null): string | undefined {
 
   for (let line of lines) {
     line = line.trim();
-    
+
     // Remove /// markers
     if (line.startsWith('///')) {
       cleanedLines.push(line.slice(3).trim());
@@ -68,20 +70,23 @@ export function cleanDocumentation(comment: string | null): string | undefined {
  */
 export function getTypeInfo(type: clang.Type): TypeInfo {
   const info: TypeInfo = {
-    spelling: clang.getTypeSpelling(type)
+    spelling: clang.getTypeSpelling(type),
   };
 
   // Get nullability if available
   const nullability = clang.getTypeNullability(type);
-  const nullabilityMap: Record<number, TypeInfo['nullability']> = {
+  const nullabilityMap: Record<number, TypeInfo['nullability'] | undefined> = {
     0: 'nonnull',
     1: 'nullable',
     2: 'unspecified',
-    3: 'nullable_result'
+    3: 'nullable_result',
   };
 
   if (nullability in nullabilityMap) {
-    info.nullability = nullabilityMap[nullability];
+    const value = nullabilityMap[nullability];
+    if (value !== undefined) {
+      info.nullability = value;
+    }
   }
 
   return info;
@@ -92,7 +97,7 @@ export function getTypeInfo(type: clang.Type): TypeInfo {
  */
 export function getCursorKindName(cursor: clang.Cursor): string {
   const kind = clang.getCursorKind(cursor);
-  
+
   // Map numeric kinds to string names
   const kindMap: Record<number, string> = {
     [clang.CXCursorKind.UnexposedDecl]: 'UNEXPOSED_DECL',
@@ -113,7 +118,7 @@ export function getCursorKindName(cursor: clang.Cursor): string {
     [clang.CXCursorKind.ObjCPropertyDecl]: 'OBJC_PROPERTY_DECL',
     [clang.CXCursorKind.ObjCInstanceMethodDecl]: 'OBJC_INSTANCE_METHOD_DECL',
     [clang.CXCursorKind.ObjCClassMethodDecl]: 'OBJC_CLASS_METHOD_DECL',
-    [clang.CXCursorKind.ObjCProtocolRef]: 'OBJC_PROTOCOL_REF'
+    [clang.CXCursorKind.ObjCProtocolRef]: 'OBJC_PROTOCOL_REF',
   };
 
   return kindMap[kind] || `UNKNOWN_${kind}`;
@@ -122,7 +127,10 @@ export function getCursorKindName(cursor: clang.Cursor): string {
 /**
  * Check if cursor is from a specific file
  */
-export function isCursorFromFile(cursor: clang.Cursor, filePath: string): boolean {
+export function isCursorFromFile(
+  cursor: clang.Cursor,
+  filePath: string,
+): boolean {
   const location = clang.getCursorLocation(cursor);
   return location.file === filePath;
 }
@@ -130,7 +138,9 @@ export function isCursorFromFile(cursor: clang.Cursor, filePath: string): boolea
 /**
  * Build compiler arguments based on parse options
  */
-export function buildCompilerArgs(options: import('./types.ts').ParseOptions = {}): string[] {
+export function buildCompilerArgs(
+  options: import('./types.ts').ParseOptions = {},
+): string[] {
   const args: string[] = [];
 
   // Language specification
@@ -153,7 +163,7 @@ export function buildCompilerArgs(options: import('./types.ts').ParseOptions = {
       args.push('-I', path);
     }
   }
-  
+
   // Additional include paths (alias for includePaths)
   if (options.additionalIncludePaths) {
     for (const path of options.additionalIncludePaths) {
@@ -193,7 +203,9 @@ export function buildCompilerArgs(options: import('./types.ts').ParseOptions = {
 /**
  * Build parse options flags for libclang
  */
-export function buildParseOptions(options: import('./types.ts').ParseOptions = {}): number {
+export function buildParseOptions(
+  options: import('./types.ts').ParseOptions = {},
+): number {
   let flags = clang.CXTranslationUnit.None;
 
   if (options.detailedProcessing !== false) {

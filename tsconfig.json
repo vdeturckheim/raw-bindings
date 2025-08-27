@@ -1,61 +1,46 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    // Language and Environment
-    "target": "ES2023", // Node 24 supports ES2023 features
-    "lib": ["ES2023"], // Use ES2023 standard library
-    "module": "NodeNext", // Modern Node.js module resolution
-    "moduleResolution": "NodeNext", // Node.js ESM/CJS resolution algorithm
-    "moduleDetection": "force", // Treat all files as modules
-
-    // Emit
-    "declaration": true, // Generate .d.ts files
-    "declarationMap": true, // Generate sourcemaps for .d.ts files
-    "sourceMap": true, // Generate sourcemaps
-    "outDir": "./dist", // Output directory (packages can override)
-    "removeComments": true, // Remove comments in output
-    "importHelpers": true, // Import emit helpers from tslib
-    "newLine": "lf", // Use Unix line endings
-
-    // Interop Constraints
-    "esModuleInterop": true, // Enable interop between ESM and CJS
-    "allowSyntheticDefaultImports": true, // Allow default imports from modules with no default export
-    "forceConsistentCasingInFileNames": true, // Ensure consistent casing in imports
-    "isolatedModules": true, // Ensure each file can be transpiled independently
-    "verbatimModuleSyntax": true, // Use Node.js's native ESM support
-
-    // Type Checking
-    "strict": true, // Enable all strict type checking options
-    "noUnusedLocals": true, // Error on unused local variables
-    "noUnusedParameters": true, // Error on unused parameters
-    "noImplicitReturns": true, // Error on missing returns
-    "noFallthroughCasesInSwitch": true, // Error on fallthrough cases in switch
-    "noUncheckedIndexedAccess": true, // Add undefined to index signatures
-    "noImplicitOverride": true, // Require override modifier
-    "noPropertyAccessFromIndexSignature": true, // Require indexed access for index signatures
-    "exactOptionalPropertyTypes": true, // Differentiate between undefined and optional
-    "allowUnusedLabels": false, // Error on unused labels
-    "allowUnreachableCode": false, // Error on unreachable code
-
-    // JavaScript Support
-    "allowJs": true, // Allow JavaScript files
-    "checkJs": false, // Type check JavaScript files (packages can enable)
-
-    // Resolution
-    "resolveJsonModule": true, // Allow importing .json files
-    "allowArbitraryExtensions": true, // Allow importing any file extension with declaration
-
-    // Advanced
-    "skipLibCheck": true, // Skip type checking of declaration files
-    "experimentalDecorators": true, // Enable decorators (for packages that need them)
-    "emitDecoratorMetadata": true, // Emit design-type metadata for decorators
-    "useDefineForClassFields": true, // Use ECMAScript standard class fields
-
-    // Output Formatting
-    "pretty": true, // Stylize errors and messages
-
-    // Watch Options
-    "assumeChangesOnlyAffectDirectDependencies": true // Speed up incremental builds
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "moduleDetection": "force",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "removeComments": true,
+    "importHelpers": true,
+    "newLine": "lf",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "exactOptionalPropertyTypes": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+    "allowJs": true,
+    "checkJs": false,
+    "resolveJsonModule": true,
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": true,
+    "pretty": true,
+    "assumeChangesOnlyAffectDirectDependencies": true
   },
   "exclude": [
     "**/node_modules",

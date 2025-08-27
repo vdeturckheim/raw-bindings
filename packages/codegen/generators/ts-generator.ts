@@ -1,13 +1,11 @@
-import type { HeaderAST, Function, Enum, Struct } from 'h-parser';
+import type { HeaderAST } from 'h-parser';
 import { TypeMapper } from '../type-mapper.ts';
 
 export class TsGenerator {
   private ast: HeaderAST;
-  private packageName: string;
 
-  constructor(ast: HeaderAST, packageName: string) {
+  constructor(ast: HeaderAST, _packageName: string) {
     this.ast = ast;
-    this.packageName = packageName;
   }
 
   generate(): string {
@@ -48,13 +46,13 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
   private generateStructInterfaces(): string {
     const lines: string[] = ['// Struct type definitions'];
-    
+
     // Deduplicate structs by name
     const seenStructNames = new Set<string>();
 
     for (const struct of this.ast.structs) {
       if (!struct.name) continue;
-      
+
       // Skip if we've already processed this struct
       if (seenStructNames.has(struct.name)) {
         continue;
@@ -88,13 +86,13 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
   private generateEnumExports(): string {
     const lines: string[] = ['// Enum constants'];
-    
+
     // Deduplicate enums by name
     const seenEnumNames = new Set<string>();
 
     for (const enumDef of this.ast.enums) {
       const enumName = enumDef.name || 'UnnamedEnum';
-      
+
       // Skip if we've already processed this enum
       if (seenEnumNames.has(enumName)) {
         continue;
@@ -128,7 +126,9 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
         if (constant.documentation) {
           lines.push(`/** ${constant.documentation} */`);
         }
-        lines.push(`export const ${constant.name}: number = ${enumName}.${safeName};`);
+        lines.push(
+          `export const ${constant.name}: number = ${enumName}.${safeName};`,
+        );
       }
       lines.push('');
     }
@@ -143,37 +143,41 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
       if (func.documentation) {
         lines.push(`/**`);
         lines.push(` * ${func.documentation}`);
-        
+
         // Add parameter documentation if available
         for (const param of func.params) {
           const paramName = param.name || 'arg';
           lines.push(` * @param ${paramName} - ${param.type.spelling}`);
         }
-        
+
         if (!TypeMapper.isVoidType(func.return.spelling)) {
           lines.push(` * @returns ${func.return.spelling}`);
         }
-        
+
         lines.push(` */`);
       }
 
-      const paramList = func.params.map((param, i) => {
-        const paramName = param.name || `arg${i}`;
-        const tsType = TypeMapper.getTsType(param.type.spelling);
-        return `${paramName}: ${tsType}`;
-      }).join(', ');
+      const paramList = func.params
+        .map((param, i) => {
+          const paramName = param.name || `arg${i}`;
+          const tsType = TypeMapper.getTsType(param.type.spelling);
+          return `${paramName}: ${tsType}`;
+        })
+        .join(', ');
 
       const returnType = TypeMapper.getTsType(func.return.spelling);
 
       lines.push(`export function ${func.name}(${paramList}): ${returnType} {`);
-      
-      const args = func.params.map((param, i) => param.name || `arg${i}`).join(', ');
+
+      const args = func.params
+        .map((param, i) => param.name || `arg${i}`)
+        .join(', ');
       if (TypeMapper.isVoidType(func.return.spelling)) {
         lines.push(`  addon.${func.name}(${args});`);
       } else {
         lines.push(`  return addon.${func.name}(${args});`);
       }
-      
+
       lines.push(`}`);
       lines.push('');
     }
@@ -183,20 +187,18 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
   private generateStructHelpers(): string {
     const lines: string[] = ['// Struct helper functions'];
-    
+
     // Deduplicate structs by name
     const seenStructNames = new Set<string>();
 
     for (const struct of this.ast.structs) {
       if (!struct.name) continue;
-      
+
       // Skip if we've already processed this struct
       if (seenStructNames.has(struct.name)) {
         continue;
       }
       seenStructNames.add(struct.name);
-
-      const safeName = TypeMapper.sanitizeIdentifier(struct.name);
 
       // Create function
       if (struct.documentation) {
@@ -205,7 +207,9 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
         lines.push(` * ${struct.documentation}`);
         lines.push(` */`);
       }
-      lines.push(`export function create${struct.name}(init?: ${struct.name}Init): ${struct.name} {`);
+      lines.push(
+        `export function create${struct.name}(init?: ${struct.name}Init): ${struct.name} {`,
+      );
       lines.push(`  return addon.create_${struct.name}(init);`);
       lines.push(`}`);
       lines.push('');
@@ -214,12 +218,16 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
       for (const field of struct.fields) {
         const fieldName = TypeMapper.sanitizeIdentifier(field.name);
         const tsType = TypeMapper.getTsType(field.type);
-        
+
         lines.push(`/**`);
         lines.push(` * Get ${field.name} field from ${struct.name}`);
         lines.push(` */`);
-        lines.push(`export function get${struct.name}_${fieldName}(struct: ${struct.name}): ${tsType} {`);
-        lines.push(`  return addon.get_${struct.name}_field(struct, '${field.name}');`);
+        lines.push(
+          `export function get${struct.name}_${fieldName}(struct: ${struct.name}): ${tsType} {`,
+        );
+        lines.push(
+          `  return addon.get_${struct.name}_field(struct, '${field.name}');`,
+        );
         lines.push(`}`);
         lines.push('');
       }
@@ -228,10 +236,14 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
       lines.push(`/**`);
       lines.push(` * Get all fields from ${struct.name} as an object`);
       lines.push(` */`);
-      lines.push(`export function get${struct.name}Fields(struct: ${struct.name}): ${struct.name}Init {`);
+      lines.push(
+        `export function get${struct.name}Fields(struct: ${struct.name}): ${struct.name}Init {`,
+      );
       lines.push(`  return {`);
       for (const field of struct.fields) {
-        lines.push(`    ${field.name}: addon.get_${struct.name}_field(struct, '${field.name}'),`);
+        lines.push(
+          `    ${field.name}: addon.get_${struct.name}_field(struct, '${field.name}'),`,
+        );
       }
       lines.push(`  };`);
       lines.push(`}`);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { TestContext } from 'node:test';
 import { beforeEach, describe, it } from 'node:test';
 import type { Cursor } from './index.ts';
 import * as clang from './index.ts';
@@ -16,7 +17,7 @@ describe('node-clang bindings', () => {
   beforeEach(async (t) => {
     const baseDir = tmpdir();
     const prefix = 'node-clang-test-';
-    (t as TestContextWithTempDir)[kTempDir] = await fs.mkdtemp(
+    (t as unknown as TestContextWithTempDir)[kTempDir] = await fs.mkdtemp(
       join(baseDir, prefix),
     );
   });
@@ -35,7 +36,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should parse a simple C file', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     // Create a test file
@@ -71,7 +72,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should get translation unit cursor and visit children', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_visitor.c');
@@ -119,7 +120,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should get cursor location information', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_location.c');
@@ -153,7 +154,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should get type information', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_types.c');
@@ -210,7 +211,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should get enum constant values', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_enum.c');
@@ -249,7 +250,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should get typedef underlying type', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_typedef.c');
@@ -286,7 +287,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should get raw comment text', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_comments.c');
@@ -317,9 +318,12 @@ describe('node-clang bindings', () => {
       });
 
       assert.ok(comment);
-      assert.ok(comment.includes('This function adds two numbers'));
-      assert.ok(comment.includes('@param a First number'));
-      assert.ok(comment.includes('@return The sum of a and b'));
+      if (comment) {
+        const commentStr = comment as string;
+        assert.ok(commentStr.includes('This function adds two numbers'));
+        assert.ok(commentStr.includes('@param a First number'));
+        assert.ok(commentStr.includes('@return The sum of a and b'));
+      }
 
       tu.dispose();
     } finally {
@@ -328,7 +332,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should handle visitor break correctly', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_break.c');
@@ -366,7 +370,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should get cursor argument information', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_cursor_args.c');
@@ -403,30 +407,30 @@ describe('node-clang bindings', () => {
       });
 
       assert.ok(calculateCursor);
-      
+
       // Test getCursorResultType
       const resultType = clang.getCursorResultType(calculateCursor);
       assert.ok(resultType);
       const resultTypeSpelling = clang.getTypeSpelling(resultType);
       assert.equal(resultTypeSpelling, 'float');
-      
+
       // Test getNumCursorArguments
       const numArgs = clang.getNumCursorArguments(calculateCursor);
       assert.equal(numArgs, 3);
-      
+
       // Test getCursorArgument for each argument
       const arg0 = clang.getCursorArgument(calculateCursor, 0);
       assert.ok(arg0);
       assert.equal(clang.getCursorSpelling(arg0), 'x');
       const arg0Type = clang.getCursorType(arg0);
       assert.equal(clang.getTypeSpelling(arg0Type), 'double');
-      
+
       const arg1 = clang.getCursorArgument(calculateCursor, 1);
       assert.ok(arg1);
       assert.equal(clang.getCursorSpelling(arg1), 'y');
       const arg1Type = clang.getCursorType(arg1);
       assert.equal(clang.getTypeSpelling(arg1Type), 'int');
-      
+
       const arg2 = clang.getCursorArgument(calculateCursor, 2);
       assert.ok(arg2);
       assert.equal(clang.getCursorSpelling(arg2), 'name');
@@ -464,7 +468,7 @@ describe('node-clang bindings', () => {
       assert.equal(clang.getTypeSpelling(sumResultType), 'int');
       const sumArgsCount = clang.getNumCursorArguments(sumCursor);
       assert.equal(sumArgsCount, 1); // Only the fixed argument is counted
-      
+
       const sumArg0 = clang.getCursorArgument(sumCursor, 0);
       assert.ok(sumArg0);
       assert.equal(clang.getCursorSpelling(sumArg0), 'count');
@@ -476,7 +480,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should recognize Objective-C cursor kinds', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_objc.m');
@@ -500,40 +504,76 @@ describe('node-clang bindings', () => {
     await fs.writeFile(testFile, testCode);
 
     try {
-      const tu = clang.parseTranslationUnit(index, testFile, ['-x', 'objective-c']);
+      const tu = clang.parseTranslationUnit(index, testFile, [
+        '-x',
+        'objective-c',
+      ]);
       const cursor = tu.getCursor();
 
       const foundKinds: Record<string, number> = {};
       clang.visitChildren(cursor, (child: Cursor, _parent: Cursor) => {
         const kind = clang.getCursorKind(child);
         const spelling = clang.getCursorSpelling(child);
-        
+
         if (spelling) {
           foundKinds[spelling] = kind;
         }
-        
+
         return clang.CXChildVisit.Recurse;
       });
 
       // Check for Objective-C specific cursor kinds
       // Note: If parsing fails to recognize ObjC code, check that at least the interface is recognized
-      if (foundKinds['MyClass'] === clang.CXCursorKind.ObjCInterfaceDecl) {
-        assert.equal(foundKinds['MyClass'], clang.CXCursorKind.ObjCInterfaceDecl);
-        assert.equal(foundKinds['name'], clang.CXCursorKind.ObjCPropertyDecl);
-        assert.equal(foundKinds['age'], clang.CXCursorKind.ObjCPropertyDecl);
-        assert.equal(foundKinds['instanceMethod'], clang.CXCursorKind.ObjCInstanceMethodDecl);
-        assert.equal(foundKinds['classMethod'], clang.CXCursorKind.ObjCClassMethodDecl);
-        assert.equal(foundKinds['MyProtocol'], clang.CXCursorKind.ObjCProtocolDecl);
-        assert.equal(foundKinds['MyCategory'], clang.CXCursorKind.ObjCCategoryDecl);
+      if (foundKinds.MyClass === clang.CXCursorKind.ObjCInterfaceDecl) {
+        assert.equal(foundKinds.MyClass, clang.CXCursorKind.ObjCInterfaceDecl);
+        assert.equal(foundKinds.name, clang.CXCursorKind.ObjCPropertyDecl);
+        assert.equal(foundKinds.age, clang.CXCursorKind.ObjCPropertyDecl);
+        assert.equal(
+          foundKinds.instanceMethod,
+          clang.CXCursorKind.ObjCInstanceMethodDecl,
+        );
+        assert.equal(
+          foundKinds.classMethod,
+          clang.CXCursorKind.ObjCClassMethodDecl,
+        );
+        assert.equal(
+          foundKinds.MyProtocol,
+          clang.CXCursorKind.ObjCProtocolDecl,
+        );
+        assert.equal(
+          foundKinds.MyCategory,
+          clang.CXCursorKind.ObjCCategoryDecl,
+        );
       } else {
         // If ObjC parsing isn't fully supported, at least verify the constants are exported correctly
-        assert.ok(clang.CXCursorKind.ObjCInterfaceDecl !== undefined, 'ObjCInterfaceDecl constant should be defined');
-        assert.ok(clang.CXCursorKind.ObjCCategoryDecl !== undefined, 'ObjCCategoryDecl constant should be defined');
-        assert.ok(clang.CXCursorKind.ObjCProtocolDecl !== undefined, 'ObjCProtocolDecl constant should be defined');
-        assert.ok(clang.CXCursorKind.ObjCPropertyDecl !== undefined, 'ObjCPropertyDecl constant should be defined');
-        assert.ok(clang.CXCursorKind.ObjCInstanceMethodDecl !== undefined, 'ObjCInstanceMethodDecl constant should be defined');
-        assert.ok(clang.CXCursorKind.ObjCClassMethodDecl !== undefined, 'ObjCClassMethodDecl constant should be defined');
-        assert.ok(clang.CXCursorKind.ObjCProtocolRef !== undefined, 'ObjCProtocolRef constant should be defined');
+        assert.ok(
+          clang.CXCursorKind.ObjCInterfaceDecl !== undefined,
+          'ObjCInterfaceDecl constant should be defined',
+        );
+        assert.ok(
+          clang.CXCursorKind.ObjCCategoryDecl !== undefined,
+          'ObjCCategoryDecl constant should be defined',
+        );
+        assert.ok(
+          clang.CXCursorKind.ObjCProtocolDecl !== undefined,
+          'ObjCProtocolDecl constant should be defined',
+        );
+        assert.ok(
+          clang.CXCursorKind.ObjCPropertyDecl !== undefined,
+          'ObjCPropertyDecl constant should be defined',
+        );
+        assert.ok(
+          clang.CXCursorKind.ObjCInstanceMethodDecl !== undefined,
+          'ObjCInstanceMethodDecl constant should be defined',
+        );
+        assert.ok(
+          clang.CXCursorKind.ObjCClassMethodDecl !== undefined,
+          'ObjCClassMethodDecl constant should be defined',
+        );
+        assert.ok(
+          clang.CXCursorKind.ObjCProtocolRef !== undefined,
+          'ObjCProtocolRef constant should be defined',
+        );
       }
 
       tu.dispose();
@@ -543,7 +583,7 @@ describe('node-clang bindings', () => {
   });
 
   it('should use translation unit parse options', async (t) => {
-    const ctx = t as TestContextWithTempDir;
+    const ctx = t as unknown as TestContextWithTempDir;
     const index = clang.createIndex();
 
     const testFile = join(ctx[kTempDir], 'test_parse_options.c');
@@ -565,55 +605,54 @@ describe('node-clang bindings', () => {
     try {
       // Test with DetailedPreprocessingRecord option
       const tu1 = clang.parseTranslationUnit(
-        index, 
-        testFile, 
+        index,
+        testFile,
         [],
-        clang.CXTranslationUnit.DetailedPreprocessingRecord
+        clang.CXTranslationUnit.DetailedPreprocessingRecord,
       );
       assert.ok(tu1);
-      
+
       // The translation unit should be created successfully with this option
       const cursor1 = tu1.getCursor();
       assert.ok(cursor1);
-      
+
       tu1.dispose();
-      
+
       // Test with IncludeBriefCommentsInCodeCompletion option
       const tu2 = clang.parseTranslationUnit(
         index,
         testFile,
         [],
-        clang.CXTranslationUnit.IncludeBriefCommentsInCodeCompletion
+        clang.CXTranslationUnit.IncludeBriefCommentsInCodeCompletion,
       );
       assert.ok(tu2);
-      
+
       const cursor2 = tu2.getCursor();
       let hasComment = false;
       clang.visitChildren(cursor2, (child: Cursor, _parent: Cursor) => {
         if (clang.getCursorSpelling(child) === 'test_function') {
           const comment = clang.getCursorRawCommentText(child);
-          if (comment && comment.includes('Brief comment')) {
+          if (comment?.includes('Brief comment')) {
             hasComment = true;
           }
           return clang.CXChildVisit.Break;
         }
         return clang.CXChildVisit.Continue;
       });
-      
+
       assert.ok(hasComment, 'Should have found the brief comment');
-      
+
       tu2.dispose();
-      
+
       // Test with None option (default behavior)
       const tu3 = clang.parseTranslationUnit(
         index,
         testFile,
         [],
-        clang.CXTranslationUnit.None
+        clang.CXTranslationUnit.None,
       );
       assert.ok(tu3);
       tu3.dispose();
-      
     } finally {
       index.dispose();
     }

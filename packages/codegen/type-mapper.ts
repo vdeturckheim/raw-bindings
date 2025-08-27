@@ -2,42 +2,174 @@ import type { TypeMapping } from './types.ts';
 
 export class TypeMapper {
   private static readonly primitiveTypes: Map<string, TypeMapping> = new Map([
-    ['void', { cType: 'void', napiType: 'void', tsType: 'void', needsConversion: false }],
-    ['bool', { cType: 'bool', napiType: 'Napi::Boolean', tsType: 'boolean', needsConversion: true }],
-    ['char', { cType: 'char', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['unsigned char', { cType: 'unsigned char', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['short', { cType: 'short', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['unsigned short', { cType: 'unsigned short', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['int', { cType: 'int', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['unsigned int', { cType: 'unsigned int', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['long', { cType: 'long', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['unsigned long', { cType: 'unsigned long', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['long long', { cType: 'long long', napiType: 'Napi::BigInt', tsType: 'bigint', needsConversion: true }],
-    ['unsigned long long', { cType: 'unsigned long long', napiType: 'Napi::BigInt', tsType: 'bigint', needsConversion: true }],
-    ['float', { cType: 'float', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['double', { cType: 'double', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['size_t', { cType: 'size_t', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
-    ['ssize_t', { cType: 'ssize_t', napiType: 'Napi::Number', tsType: 'number', needsConversion: true }],
+    [
+      'void',
+      {
+        cType: 'void',
+        napiType: 'void',
+        tsType: 'void',
+        needsConversion: false,
+      },
+    ],
+    [
+      'bool',
+      {
+        cType: 'bool',
+        napiType: 'Napi::Boolean',
+        tsType: 'boolean',
+        needsConversion: true,
+      },
+    ],
+    [
+      'char',
+      {
+        cType: 'char',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'unsigned char',
+      {
+        cType: 'unsigned char',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'short',
+      {
+        cType: 'short',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'unsigned short',
+      {
+        cType: 'unsigned short',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'int',
+      {
+        cType: 'int',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'unsigned int',
+      {
+        cType: 'unsigned int',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'long',
+      {
+        cType: 'long',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'unsigned long',
+      {
+        cType: 'unsigned long',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'long long',
+      {
+        cType: 'long long',
+        napiType: 'Napi::BigInt',
+        tsType: 'bigint',
+        needsConversion: true,
+      },
+    ],
+    [
+      'unsigned long long',
+      {
+        cType: 'unsigned long long',
+        napiType: 'Napi::BigInt',
+        tsType: 'bigint',
+        needsConversion: true,
+      },
+    ],
+    [
+      'float',
+      {
+        cType: 'float',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'double',
+      {
+        cType: 'double',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'size_t',
+      {
+        cType: 'size_t',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
+    [
+      'ssize_t',
+      {
+        cType: 'ssize_t',
+        napiType: 'Napi::Number',
+        tsType: 'number',
+        needsConversion: true,
+      },
+    ],
   ]);
 
   static getMapping(cType: string): TypeMapping {
     // Remove const qualifier
     const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '');
-    
+
     // Check primitive types
-    if (this.primitiveTypes.has(cleanType)) {
-      return this.primitiveTypes.get(cleanType)!;
+    if (TypeMapper.primitiveTypes.has(cleanType)) {
+      return TypeMapper.primitiveTypes.get(cleanType)!;
     }
 
     // Handle char* and const char* as strings
-    if (cleanType === 'char *' || cleanType === 'const char *' || cType === 'const char *') {
+    if (
+      cleanType === 'char *' ||
+      cleanType === 'const char *' ||
+      cType === 'const char *'
+    ) {
       return {
         cType: cType,
         napiType: 'Napi::String',
         tsType: 'string',
         needsConversion: true,
         conversionTo: 'std::string($VAR.Utf8Value())',
-        conversionFrom: 'Napi::String::New(env, $VAR)'
+        conversionFrom: 'Napi::String::New(env, $VAR)',
       };
     }
 
@@ -49,7 +181,7 @@ export class TypeMapper {
         tsType: 'unknown',
         needsConversion: true,
         conversionTo: '$VAR.Data()',
-        conversionFrom: 'Napi::External<void>::New(env, $VAR)'
+        conversionFrom: 'Napi::External<void>::New(env, $VAR)',
       };
     }
 
@@ -61,8 +193,8 @@ export class TypeMapper {
         napiType: `Napi::External<${baseType}>`,
         tsType: `{ _ptr: unknown }`,
         needsConversion: true,
-        conversionTo: '$VAR.As<Napi::External<' + baseType + '>>().Data()',
-        conversionFrom: 'wrapPointer(env, $VAR, "' + baseType + '")'
+        conversionTo: `$VAR.As<Napi::External<${baseType}>>().Data()`,
+        conversionFrom: `wrapPointer(env, $VAR, "${baseType}")`,
       };
     }
 
@@ -72,7 +204,7 @@ export class TypeMapper {
         cType: cType,
         napiType: 'Napi::Array',
         tsType: 'unknown[]',
-        needsConversion: true
+        needsConversion: true,
       };
     }
 
@@ -82,18 +214,17 @@ export class TypeMapper {
         cType: cType,
         napiType: 'Napi::Number',
         tsType: 'number',
-        needsConversion: true
+        needsConversion: true,
       };
     }
 
     // Handle structs/classes as objects
     if (cleanType.startsWith('struct ') || cleanType.startsWith('class ')) {
-      const structName = cleanType.replace(/^(struct|class)\s+/, '');
       return {
         cType: cType,
         napiType: 'Napi::Object',
         tsType: `{ [key: string]: unknown }`,
-        needsConversion: true
+        needsConversion: true,
       };
     }
 
@@ -104,12 +235,12 @@ export class TypeMapper {
       tsType: `{ _type: '${cType}' }`,
       needsConversion: true,
       conversionTo: '$VAR.As<Napi::External<void>>().Data()',
-      conversionFrom: 'Napi::External<void>::New(env, $VAR)'
+      conversionFrom: 'Napi::External<void>::New(env, $VAR)',
     };
   }
 
   static getNapiToC(napiVar: string, cType: string): string {
-    const mapping = this.getMapping(cType);
+    const mapping = TypeMapper.getMapping(cType);
     if (!mapping.needsConversion) return napiVar;
 
     if (mapping.conversionTo) {
@@ -141,8 +272,12 @@ export class TypeMapper {
     return napiVar;
   }
 
-  static getCToNapi(cVar: string, cType: string, envVar: string = 'env'): string {
-    const mapping = this.getMapping(cType);
+  static getCToNapi(
+    cVar: string,
+    cType: string,
+    envVar: string = 'env',
+  ): string {
+    const mapping = TypeMapper.getMapping(cType);
     if (!mapping.needsConversion) return cVar;
 
     if (mapping.conversionFrom) {
@@ -168,12 +303,12 @@ export class TypeMapper {
   }
 
   static getTsType(cType: string): string {
-    return this.getMapping(cType).tsType;
+    return TypeMapper.getMapping(cType).tsType;
   }
 
   static isPointerType(cType: string): boolean {
     const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '');
-    return cleanType.includes('*') && !this.isStringType(cType);
+    return cleanType.includes('*') && !TypeMapper.isStringType(cType);
   }
 
   static isStringType(cType: string): boolean {
@@ -187,19 +322,19 @@ export class TypeMapper {
   static isStructType(cType: string): boolean {
     // A struct type is one that is not a primitive, not a pointer, and not void
     const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '');
-    
+
     // Not a pointer
     if (cleanType.includes('*')) return false;
-    
+
     // Not a primitive
-    if (this.primitiveTypes.has(cleanType)) return false;
-    
+    if (TypeMapper.primitiveTypes.has(cleanType)) return false;
+
     // Not void
     if (cleanType === 'void') return false;
-    
+
     // Not an enum (though enums are handled as numbers)
     if (cleanType.startsWith('enum ')) return false;
-    
+
     // Likely a struct/class or typedef
     return true;
   }

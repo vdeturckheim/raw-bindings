@@ -88,7 +88,7 @@ const addon = nodeGypBuild(import.meta.dirname) as {
   CXCursor_TypedefDecl: number;
   CXCursor_CXXMethod: number;
   CXCursor_EnumConstantDecl: number;
-  
+
   // Objective-C cursor kinds
   CXCursor_ObjCInterfaceDecl: number;
   CXCursor_ObjCCategoryDecl: number;
@@ -97,7 +97,7 @@ const addon = nodeGypBuild(import.meta.dirname) as {
   CXCursor_ObjCInstanceMethodDecl: number;
   CXCursor_ObjCClassMethodDecl: number;
   CXCursor_ObjCProtocolRef: number;
-  
+
   // Parse options
   CXTranslationUnit_None: number;
   CXTranslationUnit_DetailedPreprocessingRecord: number;
@@ -176,8 +176,10 @@ export const CXCursorKind = {
 // Parse options
 export const CXTranslationUnit = {
   None: addon.CXTranslationUnit_None,
-  DetailedPreprocessingRecord: addon.CXTranslationUnit_DetailedPreprocessingRecord,
-  IncludeBriefCommentsInCodeCompletion: addon.CXTranslationUnit_IncludeBriefCommentsInCodeCompletion,
+  DetailedPreprocessingRecord:
+    addon.CXTranslationUnit_DetailedPreprocessingRecord,
+  IncludeBriefCommentsInCodeCompletion:
+    addon.CXTranslationUnit_IncludeBriefCommentsInCodeCompletion,
 } as const;
 
 // Re-export classes from addon

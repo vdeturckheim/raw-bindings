@@ -1,5 +1,3 @@
-import type { HeaderAST } from 'h-parser';
-
 export interface GeneratorOptions {
   outputDir: string;
   packageName: string;

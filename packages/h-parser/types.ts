@@ -95,12 +95,12 @@ export interface ParseOptions {
   language?: 'c' | 'c++' | 'objective-c' | 'objective-c++';
   systemRoot?: string;
   includePaths?: string[];
-  additionalIncludePaths?: string[];  // Alias for includePaths for convenience
+  additionalIncludePaths?: string[]; // Alias for includePaths for convenience
   frameworkPaths?: string[];
   frameworks?: string[];
   defines?: string[];
   additionalArgs?: string[];
-  
+
   // Parse options
   includeDocumentation?: boolean;
   detailedProcessing?: boolean;

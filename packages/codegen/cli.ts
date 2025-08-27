@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { generateBindings } from './generator.ts';
-import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+import { generateBindings } from './generator.ts';
 import type { GeneratorOptions } from './types.ts';
 
 // Parse command-line arguments
@@ -12,55 +12,55 @@ const { values, positionals } = parseArgs({
     output: {
       type: 'string',
       short: 'o',
-      default: './generated-binding'
+      default: './generated-binding',
     },
     name: {
       type: 'string',
-      short: 'n'
+      short: 'n',
     },
     version: {
       type: 'string',
       short: 'v',
-      default: '0.0.1'
+      default: '0.0.1',
     },
     library: {
       type: 'string',
-      short: 'l'
+      short: 'l',
     },
     include: {
       type: 'string',
       short: 'I',
-      multiple: true
+      multiple: true,
     },
     'library-path': {
       type: 'string',
       short: 'L',
-      multiple: true
+      multiple: true,
     },
     framework: {
       type: 'string',
       short: 'F',
-      multiple: true
+      multiple: true,
     },
     'framework-path': {
       type: 'string',
-      multiple: true
+      multiple: true,
     },
     'header-include': {
       type: 'string',
-      short: 'H'
+      short: 'H',
     },
     define: {
       type: 'string',
       short: 'D',
-      multiple: true
+      multiple: true,
     },
     help: {
       type: 'boolean',
-      short: 'h'
-    }
+      short: 'h',
+    },
   },
-  allowPositionals: true
+  allowPositionals: true,
 });
 
 function showHelp() {
@@ -100,8 +100,8 @@ async function main() {
     process.exit(values.help ? 0 : 1);
   }
 
-  const headerPath = resolve(positionals[0]);
-  
+  const headerPath = resolve(positionals[0] as string);
+
   if (!values.name) {
     console.error('Error: Package name is required (use -n or --name)');
     process.exit(1);
@@ -112,13 +112,13 @@ async function main() {
     packageName: values.name as string,
     packageVersion: values.version as string,
     libraryName: values.library as string,
-    includePaths: values.include as string[] || [],
-    libraryPaths: values['library-path'] as string[] || [],
+    includePaths: (values.include as string[]) || [],
+    libraryPaths: (values['library-path'] as string[]) || [],
     libraries: values.library ? [values.library as string] : [],
-    frameworks: values.framework as string[] || [],
-    frameworkPaths: values['framework-path'] as string[] || [],
-    defines: values.define as string[] || [],
-    headerIncludePath: values['header-include'] as string
+    frameworks: (values.framework as string[]) || [],
+    frameworkPaths: (values['framework-path'] as string[]) || [],
+    defines: (values.define as string[]) || [],
+    headerIncludePath: values['header-include'] as string,
   };
 
   try {

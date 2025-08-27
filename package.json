@@ -6,8 +6,9 @@
   "scripts": {
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "check": "biome check . && npm run lint:cpp",
-    "fix": "biome check --write . "
+    "check": "biome check .",
+    "fix": "biome check --write . ",
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,7 @@
     "packages/codegen"
   ],
   "devDependencies": {
-    "@biomejs/biome": "^2.2.2"
+    "@biomejs/biome": "^2.2.2",
+    "typescript": "^5.7.3"
   }
 }
