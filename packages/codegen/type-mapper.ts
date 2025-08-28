@@ -355,44 +355,28 @@ export class TypeMapper {
   }
 
   static isEnumType(cType: string): boolean {
-    const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '');
-    
+    const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '').trim();
+
     // Pointers are never enums
     if (cleanType.includes('*')) return false;
-    
-    // Check if it's a typedef that resolves to a pointer (never an enum)
+
+    // If typedef, inspect underlying
     if (this.typedefMap.has(cleanType)) {
       const underlying = this.typedefMap.get(cleanType)!;
-      if (this.isPointerType(underlying)) {
-        return false;
-      }
-      // Check if it's a block type (Objective-C block)
-      if (underlying.includes('(^') || underlying.includes('Block')) {
-        return false;
-      }
-      // Check if it's a typedef to an enum (but not a block returning an enum)
-      if (underlying.startsWith('enum ') && !underlying.includes('(')) {
-        return true;
-      }
+      if (this.isPointerType(underlying)) return false;
+      if (underlying.includes('(^') || underlying.includes('Block')) return false;
+      if (underlying.startsWith('enum ') && !underlying.includes('(')) return true;
+      // Also consider typedef name in known enum set
+      if (this.enumTypes.has(cleanType)) return true;
+      return false;
     }
-    
-    // Check for explicit enum prefix
+
+    // Explicit enum type
     if (cleanType.startsWith('enum ')) return true;
-    
-    // Check for common libclang enum patterns
-    if (cleanType.startsWith('CX') && (
-      cleanType.includes('Kind') ||
-      cleanType.includes('Result') ||
-      cleanType.includes('Flag') ||
-      cleanType.includes('Option') ||
-      cleanType.includes('Property') ||
-      cleanType === 'CXIdxAttrKind' ||
-      cleanType === 'CXTUResourceUsageKind'
-    )) return true;
-    
-    // Check for other C enum patterns
-    if (cleanType.startsWith('CX_')) return true;
-    
+
+    // If the bare type name matches a known enum typedef
+    if (this.enumTypes.has(cleanType)) return true;
+
     return false;
   }
 

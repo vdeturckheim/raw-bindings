@@ -25,6 +25,9 @@
     "packages/h-parser",
     "packages/codegen"
   ],
+  "engines": {
+    "node": ">=24.3.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.2.2",
     "typescript": "^5.7.3"

@@ -5,15 +5,16 @@
   "private": true,
   "description": "codegen of addon from parsed headers",
   "main": "index.ts",
+  "engines": {
+    "node": ">=24.3.0"
+  },
   "bin": {
     "codegen": "./cli.ts"
   },
   "scripts": {
     "test": "node --test"
   },
-  "dependencies": {
-    "h-parser": "file:../h-parser"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.0.0"
   },

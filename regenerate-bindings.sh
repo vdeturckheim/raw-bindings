@@ -9,6 +9,9 @@
 
 set -e  # Exit on error
 
+echo "Using Node version:"
+node -v
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -53,9 +56,9 @@ print_step "Step 2: Regenerating node-clang-raw bindings using codegen..."
 TEMP_DIR=$(mktemp -d)
 print_step "Using temporary directory: $TEMP_DIR"
 
-# Run codegen to generate new bindings
-# Note: Index.h includes the other headers, so we only need to parse that one
-npx tsx packages/codegen/cli.ts \
+## Run codegen to generate new bindings using Node 24 TS stripping
+## Note: Index.h includes the other headers, so we only need to parse that one
+node --experimental-strip-types packages/codegen/cli.ts \
     -n node-clang-raw \
     -v 0.0.1 \
     -l clang \
@@ -68,7 +71,8 @@ npx tsx packages/codegen/cli.ts \
 if [ $? -eq 0 ]; then
     echo "  ✓ Bindings generated successfully"
 else
-    print_error "Failed to generate bindings"
+    print_error "Failed to generate bindings (Node TS)." 
+    print_warning "You can try installing tsx locally and switching to it."
     rm -rf "$TEMP_DIR"
     exit 1
 fi

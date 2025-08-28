@@ -1,4 +1,4 @@
-import type { HeaderAST } from 'h-parser';
+import type { HeaderAST } from '../h-parser/types.ts';
 import { TypeMapper } from '../type-mapper.ts';
 
 export class TsGenerator {
@@ -11,27 +11,32 @@ export class TsGenerator {
   generate(): string {
     const sections: string[] = [];
 
+    // Create stable, sorted views for deterministic output
+    const sortedEnums = [...this.ast.enums].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const sortedStructs = [...this.ast.structs].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const sortedFunctions = [...(this.ast.functions || [])].sort((a, b) => a.name.localeCompare(b.name));
+
     // Import statement
     sections.push(this.generateImports());
 
     // Type definitions for structs
-    if (this.ast.structs.length > 0) {
-      sections.push(this.generateStructInterfaces());
+    if (sortedStructs.length > 0) {
+      sections.push(this.generateStructInterfaces(sortedStructs));
     }
 
     // Enum constants
-    if (this.ast.enums.length > 0) {
-      sections.push(this.generateEnumExports());
+    if (sortedEnums.length > 0) {
+      sections.push(this.generateEnumExports(sortedEnums));
     }
 
     // Function exports
-    if (this.ast.functions?.length) {
-      sections.push(this.generateFunctionExports());
+    if (sortedFunctions.length) {
+      sections.push(this.generateFunctionExports(sortedFunctions));
     }
 
     // Struct helpers
-    if (this.ast.structs.length > 0) {
-      sections.push(this.generateStructHelpers());
+    if (sortedStructs.length > 0) {
+      sections.push(this.generateStructHelpers(sortedStructs));
     }
 
     return sections.join('\n\n');
@@ -44,13 +49,13 @@ export class TsGenerator {
 const addon = nodeGypBuild(import.meta.dirname) as any;`;
   }
 
-  private generateStructInterfaces(): string {
+  private generateStructInterfaces(sortedStructs: HeaderAST['structs']): string {
     const lines: string[] = ['// Struct type definitions'];
 
     // Deduplicate structs by name
     const seenStructNames = new Set<string>();
 
-    for (const struct of this.ast.structs) {
+    for (const struct of sortedStructs) {
       if (!struct.name) continue;
 
       // Handle anonymous structs with better naming
@@ -86,7 +91,7 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
       // Create init interface for struct creation
       lines.push(`export interface ${structName}Init {`);
-      for (const field of struct.fields) {
+      for (const field of [...struct.fields].sort((a, b) => (a.name||'').localeCompare(b.name||''))) {
         // Skip fields with empty names (anonymous union members)
         if (!field.name || field.name.trim() === '') {
           continue;
@@ -101,13 +106,13 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
     return lines.join('\n');
   }
 
-  private generateEnumExports(): string {
+  private generateEnumExports(sortedEnums: HeaderAST['enums']): string {
     const lines: string[] = ['// Enum constants'];
 
     // Deduplicate enums by name
     const seenEnumNames = new Set<string>();
 
-    for (const enumDef of this.ast.enums) {
+    for (const enumDef of sortedEnums) {
       const enumName = enumDef.name || 'UnnamedEnum';
 
       // Skip if we've already processed this enum
@@ -123,7 +128,7 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
 
       // Export as a const object instead of enum for better compatibility
       lines.push(`export const ${enumName} = {`);
-      for (const constant of enumDef.constants) {
+      for (const constant of [...enumDef.constants].sort((a, b) => a.name.localeCompare(b.name))) {
         if (constant.documentation) {
           lines.push(`  /** ${constant.documentation} */`);
         }
@@ -139,7 +144,7 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
       lines.push('');
 
       // Also export individual constants for compatibility
-      for (const constant of enumDef.constants) {
+      for (const constant of [...enumDef.constants].sort((a, b) => a.name.localeCompare(b.name))) {
         const safeName = TypeMapper.sanitizeIdentifier(constant.name);
         if (constant.documentation) {
           lines.push(`/** ${constant.documentation} */`);
@@ -154,10 +159,10 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
     return lines.join('\n');
   }
 
-  private generateFunctionExports(): string {
+  private generateFunctionExports(sortedFunctions: NonNullable<HeaderAST['functions']>): string {
     const lines: string[] = ['// Function exports'];
 
-    for (const func of this.ast.functions || []) {
+    for (const func of sortedFunctions) {
       if (func.documentation) {
         lines.push(`/**`);
         lines.push(` * ${func.documentation}`);
@@ -209,7 +214,7 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
     // Deduplicate structs by name
     const seenStructNames = new Set<string>();
 
-    for (const struct of this.ast.structs) {
+    for (const struct of arguments[0] as HeaderAST['structs']) {
       if (!struct.name) continue;
 
       // Handle anonymous structs with better naming
@@ -246,7 +251,7 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
       lines.push('');
 
       // Field getters
-      for (const field of struct.fields) {
+      for (const field of [...struct.fields].sort((a, b) => (a.name||'').localeCompare(b.name||''))) {
         // Skip fields with empty names (anonymous union members)
         if (!field.name || field.name.trim() === '') {
           continue;

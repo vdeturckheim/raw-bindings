@@ -1,4 +1,4 @@
-import type { HeaderAST } from 'h-parser';
+import type { HeaderAST } from '../h-parser/types.ts';
 import { TypeMapper } from '../type-mapper.ts';
 
 export class CppGenerator {
@@ -26,8 +26,13 @@ export class CppGenerator {
   generate(): string {
     const sections: string[] = [];
 
-    // Initialize TypeMapper with known struct types
-    const structNames = this.ast.structs.map(s => s.name);
+    // Create stable, sorted views of AST for deterministic output
+    const sortedEnums = [...this.ast.enums].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const sortedStructs = [...this.ast.structs].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const sortedFunctions = [...(this.ast.functions || [])].sort((a, b) => a.name.localeCompare(b.name));
+
+    // Initialize TypeMapper with known struct types (from sorted list)
+    const structNames = sortedStructs.map(s => s.name);
     TypeMapper.setKnownStructTypes(structNames);
     
     // Initialize TypeMapper with typedef information
@@ -36,7 +41,7 @@ export class CppGenerator {
     }
     
     // Initialize TypeMapper with enum names
-    const enumNames = this.ast.enums.map(e => e.name).filter(n => n);
+    const enumNames = sortedEnums.map(e => e.name).filter(n => n);
     TypeMapper.setEnumTypes(enumNames);
 
     // Headers
@@ -46,18 +51,18 @@ export class CppGenerator {
     sections.push(this.generateHelpers());
 
     // Enum constants
-    if (this.ast.enums.length > 0) {
-      sections.push(this.generateEnumConstants());
+    if (sortedEnums.length > 0) {
+      sections.push(this.generateEnumConstants(sortedEnums));
     }
 
     // Struct wrappers
-    if (this.ast.structs.length > 0) {
-      sections.push(this.generateStructWrappers());
+    if (sortedStructs.length > 0) {
+      sections.push(this.generateStructWrappers(sortedStructs));
     }
 
     // Function wrappers
-    if (this.ast.functions?.length) {
-      sections.push(this.generateFunctionWrappers());
+    if (sortedFunctions.length) {
+      sections.push(this.generateFunctionWrappers(sortedFunctions));
     }
 
     // Module initialization
@@ -134,19 +139,31 @@ static void* unwrapPointer(Napi::Object obj) {
         return nullptr;
     }
     return obj.Get("_ptr").As<Napi::External<void>>().Data();
+}
+
+// Helper to wrap owned pointers with a finalizer
+template <typename T>
+static Napi::Object wrapOwnedPointer(Napi::Env env, T* ptr, const std::string& typeName) {
+    auto ext = Napi::External<T>::New(env, ptr, [](Napi::Env, T* p) {
+        delete p;
+    });
+    Napi::Object obj = Napi::Object::New(env);
+    obj.Set("_ptr", ext);
+    obj.Set("_type", Napi::String::New(env, typeName));
+    return obj;
 }`;
   }
 
-  private generateEnumConstants(): string {
+  private generateEnumConstants(sortedEnums: HeaderAST['enums']): string {
     const lines: string[] = ['// Enum constants'];
 
-    for (const enumDef of this.ast.enums) {
+    for (const enumDef of sortedEnums) {
       if (enumDef.documentation) {
         lines.push(this.formatComment(enumDef.documentation));
       }
       lines.push(`// enum ${enumDef.name}`);
-
-      for (const constant of enumDef.constants) {
+      const sortedConstants = [...enumDef.constants].sort((a, b) => a.name.localeCompare(b.name));
+      for (const constant of sortedConstants) {
         const safeName = TypeMapper.sanitizeIdentifier(constant.name);
         const functionName = `Get_${safeName}`;
 
@@ -173,10 +190,10 @@ static void* unwrapPointer(Napi::Object obj) {
     return lines.join('\n');
   }
 
-  private generateStructWrappers(): string {
+  private generateStructWrappers(sortedStructs: HeaderAST['structs']): string {
     const lines: string[] = ['// Struct wrappers'];
 
-    for (const struct of this.ast.structs) {
+    for (const struct of sortedStructs) {
       if (!struct.name) continue;
 
       // Skip opaque pointer types (ending with Impl or that are forward declarations)
@@ -319,7 +336,7 @@ static void* unwrapPointer(Napi::Object obj) {
 
       lines.push(`    }`);
       lines.push(`    `);
-      lines.push(`    return wrapPointer(env, ptr, "${structName}");`);
+      lines.push(`    return wrapOwnedPointer(env, ptr, "${structName}");`);
       lines.push(`}`);
       lines.push('');
 
@@ -346,7 +363,7 @@ static void* unwrapPointer(Napi::Object obj) {
       );
       lines.push(`    `);
 
-      for (const field of struct.fields) {
+      for (const field of [...struct.fields].sort((a, b) => (a.name||'').localeCompare(b.name||''))) {
         // Skip fields with empty names (anonymous union members)
         if (!field.name || field.name.trim() === '') {
           continue;
@@ -410,10 +427,10 @@ static void* unwrapPointer(Napi::Object obj) {
     return lines.join('\n');
   }
 
-  private generateFunctionWrappers(): string {
+  private generateFunctionWrappers(sortedFunctions: NonNullable<HeaderAST['functions']>): string {
     const lines: string[] = ['// Function wrappers'];
 
-    for (const func of this.ast.functions || []) {
+    for (const func of sortedFunctions) {
       const safeName = TypeMapper.sanitizeIdentifier(func.name);
       const wrapperName = `${safeName}_wrapper`;
 
@@ -444,9 +461,9 @@ static void* unwrapPointer(Napi::Object obj) {
         lines.push(`    `);
       }
 
-      // Special complete handling for clang_visitChildren
+      // Special handling for libclang-style visitor APIs: clang_visitChildren
       if (func.name === 'clang_visitChildren') {
-        // Handle all three parameters specially
+        // Handle all three parameters specially: parent, JS visitor, client_data (ignored)
         lines.push(`    // Parameter: parent (CXCursor)`);
         lines.push(`    CXCursor parent = *static_cast<CXCursor*>(unwrapPointer(info[0].As<Napi::Object>()));`);
         lines.push(`    `);
@@ -457,41 +474,27 @@ static void* unwrapPointer(Napi::Object obj) {
         lines.push(`    }`);
         lines.push(`    Napi::Function jsVisitor = info[1].As<Napi::Function>();`);
         lines.push(`    `);
-        lines.push(`    // Parameter: client_data (ignored - we use our own)`);
-        lines.push(`    // Note: We ignore the JavaScript client_data and use our own for the callback`);
-        lines.push(`    `);
-        lines.push(`    // Create C++ visitor function`);
+        lines.push(`    // Create C++ visitor function that forwards to JS`);
+        lines.push(`    struct VisitorThunkData { Napi::FunctionReference fnRef; };`);
+        lines.push(`    VisitorThunkData data{ Napi::Persistent(jsVisitor) };`);
         lines.push(`    auto visitor = [](CXCursor cursor, CXCursor parent, CXClientData client_data) -> enum CXChildVisitResult {`);
-        lines.push(`        auto* callbackData = static_cast<std::pair<Napi::Function*, Napi::Env*>*>(client_data);`);
-        lines.push(`        Napi::Function* jsFunc = callbackData->first;`);
-        lines.push(`        Napi::Env* env = callbackData->second;`);
-        lines.push(`        `);
-        lines.push(`        // Wrap cursors for JavaScript`);
+        lines.push(`        auto* d = static_cast<VisitorThunkData*>(client_data);`);
+        lines.push(`        Napi::Env env = d->fnRef.Env();`);
         lines.push(`        CXCursor* cursorPtr = new CXCursor(cursor);`);
-        lines.push(`        Napi::Object cursorObj = wrapPointer(*env, cursorPtr, "CXCursor");`);
-        lines.push(`        `);
+        lines.push(`        Napi::Object cursorObj = wrapOwnedPointer(env, cursorPtr, "CXCursor");`);
         lines.push(`        CXCursor* parentPtr = new CXCursor(parent);`);
-        lines.push(`        Napi::Object parentObj = wrapPointer(*env, parentPtr, "CXCursor");`);
-        lines.push(`        `);
-        lines.push(`        // Call JavaScript function`);
-        lines.push(`        Napi::Value result = jsFunc->Call({cursorObj, parentObj});`);
-        lines.push(`        `);
-        lines.push(`        // Convert result to enum`);
+        lines.push(`        Napi::Object parentObj = wrapOwnedPointer(env, parentPtr, "CXCursor");`);
+        lines.push(`        Napi::Value result = d->fnRef.Call({cursorObj, parentObj});`);
         lines.push(`        if (result.IsNumber()) {`);
         lines.push(`            return static_cast<enum CXChildVisitResult>(result.As<Napi::Number>().Int32Value());`);
         lines.push(`        }`);
-        lines.push(`        return CXChildVisit_Break; // Default to break on error`);
+        lines.push(`        return CXChildVisit_Break;`);
         lines.push(`    };`);
-        lines.push(`    `);
-        lines.push(`    // Create callback data`);
-        lines.push(`    std::pair<Napi::Function*, Napi::Env*> callbackData(&jsVisitor, &env);`);
-        lines.push(`    `);
-        lines.push(`    // Call clang_visitChildren with our lambda`);
-        lines.push(`    auto result = clang_visitChildren(parent, visitor, &callbackData);`);
+        lines.push(`    auto result = clang_visitChildren(parent, visitor, &data);`);
         lines.push(`    return Napi::Number::New(env, result);`);
         lines.push(`}`);
         lines.push('');
-        continue; // Skip the rest of function generation
+        continue; // Skip generic handling for this function
       }
 
       // Convert parameters
@@ -537,14 +540,12 @@ static void* unwrapPointer(Napi::Object obj) {
           lines.push(`    if (!info[${i}].IsNull() && !info[${i}].IsUndefined() && info[${i}].IsObject()) {`);
           lines.push(`        ${paramName} = static_cast<${paramType}>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
           lines.push(`    }`);
+        } else if (paramType === 'int *' && func.name === 'clang_getFileContents' && paramName === 'size') {
+          // Special-case: some platforms resolve size_t* to int* in headers; ensure correct type for libclang API
+          lines.push(`    size_t * ${paramName} = static_cast<size_t *>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
         } else if (paramType === 'size_t *' || paramType === 'int *') {
-          // Handle size_t and int pointers first - can be passed as wrapped pointers
-          // Note: h-parser sometimes resolves size_t* to int* on some platforms
-          // Special case: clang_getFileContents expects size_t* for the size parameter
-          if (paramType === 'int *' && func.name === 'clang_getFileContents' && paramName === 'size') {
-            // clang_getFileContents actually expects size_t* for the size parameter
-            lines.push(`    size_t * ${paramName} = static_cast<size_t *>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
-          } else if (paramType === 'size_t *') {
+          // Handle integer pointer buffers via wrapped pointers
+          if (paramType === 'size_t *') {
             lines.push(`    size_t * ${paramName} = static_cast<size_t *>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
           } else {
             lines.push(`    int * ${paramName} = static_cast<int *>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
@@ -639,14 +640,14 @@ static void* unwrapPointer(Napi::Object obj) {
         // Struct returned by value - allocate on heap and wrap as pointer
         lines.push(`    ${returnType} result = ${func.name}(${paramNames});`);
         lines.push(`    ${returnType}* resultPtr = new ${returnType}(result);`);
-        lines.push(`    return wrapPointer(env, resultPtr, "${returnType}");`);
+        lines.push(`    return wrapOwnedPointer(env, resultPtr, "${returnType}");`);
       } else if (TypeMapper.isPointerType(returnType)) {
         // Handle pointer types (including typedefs to pointers like CXTranslationUnit)
         lines.push(`    ${returnType} result = ${func.name}(${paramNames});`);
         // For typedef pointers, we need to create a heap-allocated copy to match unwrap expectations
         lines.push(`    ${returnType}* resultPtr = new ${returnType};`);
         lines.push(`    *resultPtr = result;`);
-        lines.push(`    return wrapPointer(env, resultPtr, "${returnType}");`);
+        lines.push(`    return wrapOwnedPointer(env, resultPtr, "${returnType}");`);
       } else {
         lines.push(`    auto result = ${func.name}(${paramNames});`);
         if (TypeMapper.isEnumType(returnType)) {

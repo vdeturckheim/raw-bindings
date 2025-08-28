@@ -72,6 +72,7 @@ export interface Typedef {
   name: string;
   underlying: string;
   documentation?: string;
+  spelling?: string;
 }
 
 export interface Function {
@@ -110,4 +111,7 @@ export interface ParseOptions {
   // Parse options
   includeDocumentation?: boolean;
   detailedProcessing?: boolean;
+  excludeDeclarationsFromPCH?: boolean;
+  displayDiagnostics?: boolean;
 }
+

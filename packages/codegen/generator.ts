@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { type HeaderAST, parseHeader } from 'h-parser';
+import { type HeaderAST, parseHeader } from './h-parser/index.ts';
 import { BuildGenerator } from './generators/build-generator.ts';
 import { CppGenerator } from './generators/cpp-generator.ts';
 import { TsGenerator } from './generators/ts-generator.ts';
@@ -103,7 +103,7 @@ export async function generateBindings(
     headerIncludePaths: headerIncludePaths,
   };
 
-  // Generate all files
+  // Generate all files (deterministic ordering)
   const files = generateFilesFromAST(combinedAST, updatedOptions);
 
   // Write all files

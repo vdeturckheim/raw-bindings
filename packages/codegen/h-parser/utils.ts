@@ -136,8 +136,8 @@ export function getCursorKindName(cursor: any): string {
  * Check if cursor is from a specific file
  */
 export function isCursorFromFile(
-  cursor: any,
-  filePath: string,
+  _cursor: any,
+  _filePath: string,
 ): boolean {
   // TODO: Implement once output parameters are supported in bindings
   // For now, return true to allow parsing
@@ -227,3 +227,4 @@ export function buildParseOptions(
 
   return flags;
 }
+
