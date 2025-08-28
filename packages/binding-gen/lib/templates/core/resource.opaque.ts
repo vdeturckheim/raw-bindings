@@ -51,12 +51,16 @@ const tpl: Template = {
   get disposed() { return this.#disposed; }
   #ensure() { if (this.#disposed) throw new Error('{{className}} disposed'); }
 
+  [kGetPtr](): any { this.#ensure(); return this.#ptr; }
+
   [Symbol.dispose](): void {
     if (!this.#disposed) {
       try { addon.{{destroyFn}}(this.#ptr); }
       finally { this.#disposed = true; this.#ptr = null; }
     }
   }
+
+  /* @gen:methods */
 }
 `
     ]

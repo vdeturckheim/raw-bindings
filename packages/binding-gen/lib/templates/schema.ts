@@ -45,3 +45,5 @@ export function render(template: string, bindings: Record<string, unknown>): str
 // Common TS import prologue shared by all templates
 export const TS_IMPORTS = `import nodeGypBuild from 'node-gyp-build';
 const addon = nodeGypBuild(import.meta.dirname) as any;`;
+// Hidden symbol used by templates to access native handle from resource classes
+export const kGetPtrExport = `export const kGetPtr: unique symbol = Symbol.for('binding-gen.getPtr') as any;`;

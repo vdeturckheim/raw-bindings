@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { Template } from './templates/schema.ts';
-import { render, TS_IMPORTS } from './templates/schema.ts';
+import { render, TS_IMPORTS, kGetPtrExport } from './templates/schema.ts';
 
 export interface GenerateUnit {
   template: Template;
@@ -13,6 +13,12 @@ export interface GenerateOptions {
   units: GenerateUnit[]; // one or more template+bindings units
   packageName?: string;
   bindingIdent?: string; // used in NODE_API_MODULE
+  cmake?: {
+    includeDirs?: string[];
+    linkLibraries?: string[];
+    definitions?: string[];
+    extraLines?: string[];
+  };
 }
 
 async function ensureDir(p: string): Promise<void> {
@@ -35,7 +41,8 @@ export class BindingBuilder {
       outDir,
       units,
       packageName = 'node-opaque-test',
-      bindingIdent = deriveBindingIdent('node_opaque_test')
+      bindingIdent = deriveBindingIdent('node_opaque_test'),
+      cmake
     } = opts;
 
     // Aggregate from all units
@@ -45,6 +52,7 @@ export class BindingBuilder {
     const defsArr: string[] = [];
     const moduleInitArr: string[] = [];
     const tsParts: string[] = [];
+    const classMethods = new Map<string, string[]>();
 
     for (const { template, bindings } of units) {
       for (const h of template.cxx.headers.map((x) => render(x, bindings))) headerSet.add(h);
@@ -54,7 +62,15 @@ export class BindingBuilder {
       }
       defsArr.push(...template.cxx.definitions.map((x) => render(x, bindings)));
       moduleInitArr.push(...template.cxx.moduleInit.map((x) => render(x, bindings)));
-      tsParts.push(...template.ts.parts.map((x) => render(x, bindings)));
+      if (template.kind === 'method') {
+        const cls = (bindings as any).className as string;
+        const rendered = template.ts.parts.map((x) => render(x, bindings)).join('\n');
+        const arr = classMethods.get(cls) || [];
+        arr.push(rendered.trim());
+        classMethods.set(cls, arr);
+      } else {
+        tsParts.push(...template.ts.parts.map((x) => render(x, bindings)));
+      }
     }
 
     const headers = Array.from(headerSet).sort().join('\n');
@@ -73,15 +89,27 @@ export class BindingBuilder {
     cmakeLines.push('set(CMAKE_CXX_STANDARD_REQUIRED ON)');
     cmakeLines.push('include_directories(${CMAKE_JS_INC})');
     cmakeLines.push('include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)');
+    if (cmake?.includeDirs?.length) {
+      for (const dir of cmake.includeDirs) cmakeLines.push(`include_directories(${dir})`);
+    }
     cmakeLines.push('file(GLOB SOURCE_FILES "src/*.cpp" "src/*.cc")');
     cmakeLines.push('add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${CMAKE_JS_SRC})');
     cmakeLines.push('target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)');
     cmakeLines.push('set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")');
     cmakeLines.push('target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB})');
+    if (cmake?.linkLibraries?.length) {
+      cmakeLines.push('target_link_libraries(${PROJECT_NAME} ' + cmake.linkLibraries.join(' ') + ')');
+    }
     cmakeLines.push(`execute_process(COMMAND node -p "require('node-addon-api').include_dir" WORKING_DIRECTORY \${CMAKE_SOURCE_DIR} OUTPUT_VARIABLE NODE_ADDON_API_DIR)`);
     cmakeLines.push('string(REPLACE "\n" "" NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR})');
     cmakeLines.push('target_include_directories(${PROJECT_NAME} PRIVATE ${NODE_ADDON_API_DIR})');
     cmakeLines.push('add_definitions(-DNAPI_DISABLE_CPP_EXCEPTIONS)');
+    if (cmake?.definitions?.length) {
+      for (const def of cmake.definitions) cmakeLines.push(`add_definitions(${def})`);
+    }
+    if (cmake?.extraLines?.length) {
+      cmakeLines.push(...cmake.extraLines);
+    }
 
     // package.json
     const pkg = {
@@ -104,7 +132,18 @@ export class BindingBuilder {
     } as any;
 
     // index.ts assembled from common imports + all TS parts
-    const tsIndex = [TS_IMPORTS, ...tsParts].join('\n\n');
+    // Inject collected methods into their classes at placeholders.
+    const tsWithMethods = tsParts.map((part) => {
+      // Find a class name in the part to match method injection mapping.
+      const m = part.match(/export\s+class\s+(\w+)\s*\{/);
+      if (!m) return part;
+      const cls = m[1];
+      const methods = classMethods.get(cls);
+      if (!methods || methods.length === 0) return part;
+      return part.replace('/* @gen:methods */', methods.map((s) => '  ' + s.replace(/\n/g, '\n  ')).join('\n'));
+    });
+
+    const tsIndex = [TS_IMPORTS, kGetPtrExport, ...tsWithMethods].join('\n\n');
 
     // Write files
     await ensureDir(join(outDir, 'src'));
