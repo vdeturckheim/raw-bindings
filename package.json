@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/vdeturckheim/raw-bindings#readme",
   "workspaces": [
-    "packages/node-clang",
+    "packages/node-clang-raw",
     "packages/h-parser",
     "packages/codegen"
   ],

@@ -537,17 +537,32 @@ static void* unwrapPointer(Napi::Object obj) {
           // These can be null or a JavaScript array of strings
           lines.push(`    ${paramType} ${paramName} = nullptr;`);
           lines.push(`    std::vector<std::string> ${paramName}_strings;`);
-          lines.push(`    std::vector<const char*> ${paramName}_cstrs;`);
-          lines.push(`    if (!info[${i}].IsNull() && !info[${i}].IsUndefined()) {`);
-          lines.push(`        if (info[${i}].IsArray()) {`);
-          lines.push(`            Napi::Array arr = info[${i}].As<Napi::Array>();`);
-          lines.push(`            for (uint32_t j = 0; j < arr.Length(); j++) {`);
-          lines.push(`                ${paramName}_strings.push_back(arr.Get(j).As<Napi::String>().Utf8Value());`);
-          lines.push(`            }`);
-          lines.push(`            for (const auto& s : ${paramName}_strings) {`);
-          lines.push(`                ${paramName}_cstrs.push_back(s.c_str());`);
-          lines.push(`            }`);
-          lines.push(`            ${paramName} = ${paramName}_cstrs.data();`);
+          if (paramType === 'char **') {
+            // For non-const char**, we need a vector of char*
+            lines.push(`    std::vector<char*> ${paramName}_cstrs;`);
+            lines.push(`    if (!info[${i}].IsNull() && !info[${i}].IsUndefined()) {`);
+            lines.push(`        if (info[${i}].IsArray()) {`);
+            lines.push(`            Napi::Array arr = info[${i}].As<Napi::Array>();`);
+            lines.push(`            for (uint32_t j = 0; j < arr.Length(); j++) {`);
+            lines.push(`                ${paramName}_strings.push_back(arr.Get(j).As<Napi::String>().Utf8Value());`);
+            lines.push(`            }`);
+            lines.push(`            for (auto& s : ${paramName}_strings) {`);
+            lines.push(`                ${paramName}_cstrs.push_back(const_cast<char*>(s.c_str()));`);
+            lines.push(`            }`);
+            lines.push(`            ${paramName} = ${paramName}_cstrs.data();`);
+          } else {
+            lines.push(`    std::vector<const char*> ${paramName}_cstrs;`);
+            lines.push(`    if (!info[${i}].IsNull() && !info[${i}].IsUndefined()) {`);
+            lines.push(`        if (info[${i}].IsArray()) {`);
+            lines.push(`            Napi::Array arr = info[${i}].As<Napi::Array>();`);
+            lines.push(`            for (uint32_t j = 0; j < arr.Length(); j++) {`);
+            lines.push(`                ${paramName}_strings.push_back(arr.Get(j).As<Napi::String>().Utf8Value());`);
+            lines.push(`            }`);
+            lines.push(`            for (const auto& s : ${paramName}_strings) {`);
+            lines.push(`                ${paramName}_cstrs.push_back(s.c_str());`);
+            lines.push(`            }`);
+            lines.push(`            ${paramName} = ${paramName}_cstrs.data();`)
+          };
           lines.push(`        } else if (info[${i}].IsObject()) {`);
           lines.push(`            // Assume it's a wrapped pointer`);
           lines.push(`            ${paramName} = *static_cast<${paramType}*>(unwrapPointer(info[${i}].As<Napi::Object>()));`);
@@ -620,6 +635,12 @@ static void* unwrapPointer(Napi::Object obj) {
         if (TypeMapper.isEnumType(returnType)) {
           // Return enums as numbers
           lines.push(`    return Napi::Number::New(env, static_cast<int>(result));`);
+        } else if (TypeMapper.isStringType(returnType)) {
+          // Handle string returns - check for null
+          lines.push(`    if (result == nullptr) {`);
+          lines.push(`        return env.Null();`);
+          lines.push(`    }`);
+          lines.push(`    return Napi::String::New(env, result);`);
         } else {
           lines.push(
             `    return ${TypeMapper.getCToNapi('result', returnType)};`,

@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import * as clang from 'node-clang';
+import * as clang from 'node-clang-raw';
 import type { TypeInfo } from './types.ts';
 
 /**
@@ -68,13 +68,21 @@ export function cleanDocumentation(comment: string | null): string | undefined {
 /**
  * Extract type information from a libclang type
  */
-export function getTypeInfo(type: clang.Type): TypeInfo {
+export function getTypeInfo(type: any): TypeInfo {
+  // Helper to get string from CXString
+  function getStringFromCXString(cxString: any): string {
+    if (!cxString || !cxString._ptr) return '';
+    const str = clang.clang_getCString(cxString);
+    clang.clang_disposeString(cxString);
+    return str || '';
+  }
+
   const info: TypeInfo = {
-    spelling: clang.getTypeSpelling(type),
+    spelling: getStringFromCXString(clang.clang_getTypeSpelling(type)),
   };
 
   // Get nullability if available
-  const nullability = clang.getTypeNullability(type);
+  const nullability = clang.clang_Type_getNullability(type);
   const nullabilityMap: Record<number, TypeInfo['nullability'] | undefined> = {
     0: 'nonnull',
     1: 'nullable',
@@ -95,30 +103,30 @@ export function getTypeInfo(type: clang.Type): TypeInfo {
 /**
  * Get cursor kind name as a string
  */
-export function getCursorKindName(cursor: clang.Cursor): string {
-  const kind = clang.getCursorKind(cursor);
+export function getCursorKindName(cursor: any): string {
+  const kind = clang.clang_getCursorKind(cursor);
 
   // Map numeric kinds to string names
   const kindMap: Record<number, string> = {
-    [clang.CXCursorKind.UnexposedDecl]: 'UNEXPOSED_DECL',
-    [clang.CXCursorKind.StructDecl]: 'STRUCT_DECL',
-    [clang.CXCursorKind.UnionDecl]: 'UNION_DECL',
-    [clang.CXCursorKind.ClassDecl]: 'CLASS_DECL',
-    [clang.CXCursorKind.EnumDecl]: 'ENUM_DECL',
-    [clang.CXCursorKind.FieldDecl]: 'FIELD_DECL',
-    [clang.CXCursorKind.FunctionDecl]: 'FUNCTION_DECL',
-    [clang.CXCursorKind.VarDecl]: 'VAR_DECL',
-    [clang.CXCursorKind.ParmDecl]: 'PARM_DECL',
-    [clang.CXCursorKind.TypedefDecl]: 'TYPEDEF_DECL',
-    [clang.CXCursorKind.CXXMethod]: 'CXX_METHOD',
-    [clang.CXCursorKind.EnumConstantDecl]: 'ENUM_CONSTANT_DECL',
-    [clang.CXCursorKind.ObjCInterfaceDecl]: 'OBJC_INTERFACE_DECL',
-    [clang.CXCursorKind.ObjCCategoryDecl]: 'OBJC_CATEGORY_DECL',
-    [clang.CXCursorKind.ObjCProtocolDecl]: 'OBJC_PROTOCOL_DECL',
-    [clang.CXCursorKind.ObjCPropertyDecl]: 'OBJC_PROPERTY_DECL',
-    [clang.CXCursorKind.ObjCInstanceMethodDecl]: 'OBJC_INSTANCE_METHOD_DECL',
-    [clang.CXCursorKind.ObjCClassMethodDecl]: 'OBJC_CLASS_METHOD_DECL',
-    [clang.CXCursorKind.ObjCProtocolRef]: 'OBJC_PROTOCOL_REF',
+    [clang.CXCursor_UnexposedDecl]: 'UNEXPOSED_DECL',
+    [clang.CXCursor_StructDecl]: 'STRUCT_DECL',
+    [clang.CXCursor_UnionDecl]: 'UNION_DECL',
+    [clang.CXCursor_ClassDecl]: 'CLASS_DECL',
+    [clang.CXCursor_EnumDecl]: 'ENUM_DECL',
+    [clang.CXCursor_FieldDecl]: 'FIELD_DECL',
+    [clang.CXCursor_FunctionDecl]: 'FUNCTION_DECL',
+    [clang.CXCursor_VarDecl]: 'VAR_DECL',
+    [clang.CXCursor_ParmDecl]: 'PARM_DECL',
+    [clang.CXCursor_TypedefDecl]: 'TYPEDEF_DECL',
+    [clang.CXCursor_CXXMethod]: 'CXX_METHOD',
+    [clang.CXCursor_EnumConstantDecl]: 'ENUM_CONSTANT_DECL',
+    [clang.CXCursor_ObjCInterfaceDecl]: 'OBJC_INTERFACE_DECL',
+    [clang.CXCursor_ObjCCategoryDecl]: 'OBJC_CATEGORY_DECL',
+    [clang.CXCursor_ObjCProtocolDecl]: 'OBJC_PROTOCOL_DECL',
+    [clang.CXCursor_ObjCPropertyDecl]: 'OBJC_PROPERTY_DECL',
+    [clang.CXCursor_ObjCInstanceMethodDecl]: 'OBJC_INSTANCE_METHOD_DECL',
+    [clang.CXCursor_ObjCClassMethodDecl]: 'OBJC_CLASS_METHOD_DECL',
+    [clang.CXCursor_ObjCProtocolRef]: 'OBJC_PROTOCOL_REF',
   };
 
   return kindMap[kind] || `UNKNOWN_${kind}`;
@@ -128,11 +136,12 @@ export function getCursorKindName(cursor: clang.Cursor): string {
  * Check if cursor is from a specific file
  */
 export function isCursorFromFile(
-  cursor: clang.Cursor,
+  cursor: any,
   filePath: string,
 ): boolean {
-  const location = clang.getCursorLocation(cursor);
-  return location.file === filePath;
+  // TODO: Implement once output parameters are supported in bindings
+  // For now, return true to allow parsing
+  return true;
 }
 
 /**
@@ -206,14 +215,14 @@ export function buildCompilerArgs(
 export function buildParseOptions(
   options: import('./types.ts').ParseOptions = {},
 ): number {
-  let flags = clang.CXTranslationUnit.None;
+  let flags = clang.CXTranslationUnit_None || 0;
 
   if (options.detailedProcessing !== false) {
-    flags |= clang.CXTranslationUnit.DetailedPreprocessingRecord;
+    flags |= clang.CXTranslationUnit_DetailedPreprocessingRecord || 0x01;
   }
 
   if (options.includeDocumentation !== false) {
-    flags |= clang.CXTranslationUnit.IncludeBriefCommentsInCodeCompletion;
+    flags |= clang.CXTranslationUnit_IncludeBriefCommentsInCodeCompletion || 0x40;
   }
 
   return flags;

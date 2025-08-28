@@ -9,7 +9,7 @@
     "test": "node --test test/**/*.test.ts"
   },
   "dependencies": {
-    "node-clang": "file:../node-clang"
+    "node-clang-raw": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

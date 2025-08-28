@@ -1,5 +1,5 @@
 import { basename } from 'node:path';
-import * as clang from 'node-clang';
+import * as clang from 'node-clang-raw';
 import type {
   Enum,
   EnumConstant,
@@ -19,36 +19,69 @@ import {
   buildCompilerArgs,
   buildParseOptions,
   cleanDocumentation,
-  getTypeInfo,
 } from './utils.ts';
+
+// Helper to get string from CXString
+function getStringFromCXString(cxString: any): string {
+  if (!cxString || !cxString._ptr) return '';
+  try {
+    const str = clang.clang_getCString(cxString);
+    clang.clang_disposeString(cxString);
+    return str || '';
+  } catch (e) {
+    // Handle null string case
+    return '';
+  }
+}
+
+// Helper to get type info
+function getTypeInfo(type: any): { spelling: string; nullability?: string } {
+  const spelling = getStringFromCXString(clang.clang_getTypeSpelling(type));
+  const info: any = { spelling };
+  
+  // Get nullability if available
+  const nullability = clang.clang_Type_getNullability(type);
+  const nullabilityMap: Record<number, string> = {
+    0: 'nonnull',
+    1: 'nullable',
+    2: 'unspecified',
+    3: 'nullable_result',
+  };
+  
+  if (nullability in nullabilityMap) {
+    info.nullability = nullabilityMap[nullability];
+  }
+  
+  return info;
+}
 
 /**
  * Collect method information from a cursor
  */
-function collectMethod(cursor: clang.Cursor): Method {
-  const kind = clang.getCursorKind(cursor);
-  const isClassMethod = kind === clang.CXCursorKind.ObjCClassMethodDecl;
+function collectMethod(cursor: any): Method {
+  const kind = clang.clang_getCursorKind(cursor);
+  const isClassMethod = kind === clang.CXCursor_ObjCClassMethodDecl;
 
   const method: Method = {
     kind: isClassMethod ? 'class' : 'instance',
-    selector: clang.getCursorSpelling(cursor),
-    return: getTypeInfo(clang.getCursorResultType(cursor)),
+    selector: getStringFromCXString(clang.clang_getCursorSpelling(cursor)),
+    return: getTypeInfo(clang.clang_getCursorResultType(cursor)),
     params: [],
   };
 
   // Add documentation if available
-  const doc = cleanDocumentation(clang.getCursorRawCommentText(cursor));
+  const doc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(cursor)));
   if (doc) {
     method.documentation = doc;
   }
 
   // Get method arguments
-  const numArgs = clang.getNumCursorArguments(cursor);
+  const numArgs = clang.clang_Cursor_getNumArguments(cursor);
   for (let i = 0; i < numArgs; i++) {
-    const argCursor = clang.getCursorArgument(cursor, i);
+    const argCursor = clang.clang_Cursor_getArgument(cursor, i);
     const param: MethodParam = {
-      name: clang.getCursorSpelling(argCursor) || '',
-      type: getTypeInfo(clang.getCursorType(argCursor)),
+      name: getStringFromCXString(clang.clang_getCursorSpelling(argCursor)) || '',
+      type: getTypeInfo(clang.clang_getCursorType(argCursor)),
     };
     method.params.push(param);
   }
@@ -59,14 +92,14 @@ function collectMethod(cursor: clang.Cursor): Method {
 /**
  * Collect property information from a cursor
  */
-function collectProperty(cursor: clang.Cursor): Property {
+function collectProperty(cursor: any): Property {
   const prop: Property = {
-    name: clang.getCursorSpelling(cursor),
-    type: getTypeInfo(clang.getCursorType(cursor)),
+    name: getStringFromCXString(clang.clang_getCursorSpelling(cursor)),
+    type: getTypeInfo(clang.clang_getCursorType(cursor)),
   };
 
   // Add documentation if available
-  const doc = cleanDocumentation(clang.getCursorRawCommentText(cursor));
+  const doc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(cursor)));
   if (doc) {
     prop.documentation = doc;
   }
@@ -77,38 +110,38 @@ function collectProperty(cursor: clang.Cursor): Property {
 /**
  * Collect Objective-C interface or C++ class information
  */
-function collectInterface(cursor: clang.Cursor): Interface {
+function collectInterface(cursor: any): Interface {
   const iface: Interface = {
-    name: clang.getCursorSpelling(cursor),
+    name: getStringFromCXString(clang.clang_getCursorSpelling(cursor)),
     methods: [],
     properties: [],
     protocols: [],
   };
 
   // Add documentation if available
-  const doc = cleanDocumentation(clang.getCursorRawCommentText(cursor));
+  const doc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(cursor)));
   if (doc) {
     iface.documentation = doc;
   }
 
   // Visit children to collect methods, properties, and protocol references
-  clang.visitChildren(cursor, (child: clang.Cursor) => {
-    const kind = clang.getCursorKind(child);
+  clang.clang_visitChildren(cursor, (child: any, _parent: any) => {
+    const kind = clang.clang_getCursorKind(child);
 
     if (
-      kind === clang.CXCursorKind.ObjCInstanceMethodDecl ||
-      kind === clang.CXCursorKind.ObjCClassMethodDecl ||
-      kind === clang.CXCursorKind.CXXMethod
+      kind === clang.CXCursor_ObjCInstanceMethodDecl ||
+      kind === clang.CXCursor_ObjCClassMethodDecl ||
+      kind === clang.CXCursor_CXXMethod
     ) {
       iface.methods.push(collectMethod(child));
-    } else if (kind === clang.CXCursorKind.ObjCPropertyDecl) {
+    } else if (kind === clang.CXCursor_ObjCPropertyDecl) {
       iface.properties.push(collectProperty(child));
-    } else if (kind === clang.CXCursorKind.ObjCProtocolRef) {
-      iface.protocols.push(clang.getCursorSpelling(child));
+    } else if (kind === clang.CXCursor_ObjCProtocolRef) {
+      iface.protocols.push(getStringFromCXString(clang.clang_getCursorSpelling(child)));
     }
 
-    return clang.CXChildVisit.Continue;
-  });
+    return clang.CXChildVisit_Continue;
+  }, null);
 
   return iface;
 }
@@ -116,36 +149,36 @@ function collectInterface(cursor: clang.Cursor): Interface {
 /**
  * Collect protocol information
  */
-function collectProtocol(cursor: clang.Cursor): Protocol {
+function collectProtocol(cursor: any): Protocol {
   const protocol: Protocol = {
-    name: clang.getCursorSpelling(cursor),
+    name: getStringFromCXString(clang.clang_getCursorSpelling(cursor)),
     methods: [],
     properties: [],
   };
 
   // Add documentation if available
-  const doc = cleanDocumentation(clang.getCursorRawCommentText(cursor));
+  const doc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(cursor)));
   if (doc) {
     protocol.documentation = doc;
   }
 
   // Visit children to collect methods and properties
-  clang.visitChildren(cursor, (child: clang.Cursor) => {
-    const kind = clang.getCursorKind(child);
+  clang.clang_visitChildren(cursor, (child: any, _parent: any) => {
+    const kind = clang.clang_getCursorKind(child);
 
     if (
-      kind === clang.CXCursorKind.ObjCInstanceMethodDecl ||
-      kind === clang.CXCursorKind.ObjCClassMethodDecl
+      kind === clang.CXCursor_ObjCInstanceMethodDecl ||
+      kind === clang.CXCursor_ObjCClassMethodDecl
     ) {
       if (!protocol.methods) protocol.methods = [];
       protocol.methods.push(collectMethod(child));
-    } else if (kind === clang.CXCursorKind.ObjCPropertyDecl) {
+    } else if (kind === clang.CXCursor_ObjCPropertyDecl) {
       if (!protocol.properties) protocol.properties = [];
       protocol.properties.push(collectProperty(child));
     }
 
-    return clang.CXChildVisit.Continue;
-  });
+    return clang.CXChildVisit_Continue;
+  }, null);
 
   return protocol;
 }
@@ -153,36 +186,47 @@ function collectProtocol(cursor: clang.Cursor): Protocol {
 /**
  * Collect enum information
  */
-function collectEnum(cursor: clang.Cursor): Enum {
+function collectEnum(cursor: any): Enum {
   const enumDecl: Enum = {
-    name: clang.getCursorSpelling(cursor) || '',
+    name: getStringFromCXString(clang.clang_getCursorSpelling(cursor)) || '',
     constants: [],
   };
 
   // Add documentation if available
-  const doc = cleanDocumentation(clang.getCursorRawCommentText(cursor));
+  const doc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(cursor)));
   if (doc) {
     enumDecl.documentation = doc;
   }
 
   // Visit children to collect enum constants
-  clang.visitChildren(cursor, (child: clang.Cursor) => {
-    const kind = clang.getCursorKind(child);
+  clang.clang_visitChildren(cursor, (child: any, _parent: any) => {
+    const kind = clang.clang_getCursorKind(child);
 
-    if (kind === clang.CXCursorKind.EnumConstantDecl) {
+    if (kind === clang.CXCursor_EnumConstantDecl) {
       const constant: EnumConstant = {
-        name: clang.getCursorSpelling(child),
+        name: getStringFromCXString(clang.clang_getCursorSpelling(child)),
         value: null,
       };
 
       try {
-        constant.value = clang.getEnumConstantDeclValue(child);
+        const val = clang.clang_getEnumConstantDeclValue(child);
+        // Convert BigInt to number or string for JSON serialization
+        if (typeof val === 'bigint') {
+          // Convert to number if it fits, otherwise to string
+          if (val >= Number.MIN_SAFE_INTEGER && val <= Number.MAX_SAFE_INTEGER) {
+            constant.value = Number(val);
+          } else {
+            constant.value = val.toString();
+          }
+        } else {
+          constant.value = val;
+        }
       } catch {
         // Value might not be available
       }
 
       // Add documentation for constant if available
-      const constDoc = cleanDocumentation(clang.getCursorRawCommentText(child));
+      const constDoc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(child)));
       if (constDoc) {
         constant.documentation = constDoc;
       }
@@ -190,8 +234,8 @@ function collectEnum(cursor: clang.Cursor): Enum {
       enumDecl.constants.push(constant);
     }
 
-    return clang.CXChildVisit.Continue;
-  });
+    return clang.CXChildVisit_Continue;
+  }, null);
 
   return enumDecl;
 }
@@ -199,32 +243,32 @@ function collectEnum(cursor: clang.Cursor): Enum {
 /**
  * Collect struct information
  */
-function collectStruct(cursor: clang.Cursor): Struct {
+function collectStruct(cursor: any): Struct {
   const struct: Struct = {
-    name: clang.getCursorSpelling(cursor),
+    name: getStringFromCXString(clang.clang_getCursorSpelling(cursor)),
     fields: [],
   };
 
   // Add documentation if available
-  const doc = cleanDocumentation(clang.getCursorRawCommentText(cursor));
+  const doc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(cursor)));
   if (doc) {
     struct.documentation = doc;
   }
 
   // Visit children to collect fields
-  clang.visitChildren(cursor, (child: clang.Cursor) => {
-    const kind = clang.getCursorKind(child);
+  clang.clang_visitChildren(cursor, (child: any, _parent: any) => {
+    const kind = clang.clang_getCursorKind(child);
 
-    if (kind === clang.CXCursorKind.FieldDecl) {
+    if (kind === clang.CXCursor_FieldDecl) {
       const field: StructField = {
-        name: clang.getCursorSpelling(child),
-        type: clang.getTypeSpelling(clang.getCursorType(child)),
+        name: getStringFromCXString(clang.clang_getCursorSpelling(child)),
+        type: getStringFromCXString(clang.clang_getTypeSpelling(clang.clang_getCursorType(child))),
       };
       struct.fields.push(field);
     }
 
-    return clang.CXChildVisit.Continue;
-  });
+    return clang.CXChildVisit_Continue;
+  }, null);
 
   return struct;
 }
@@ -232,16 +276,15 @@ function collectStruct(cursor: clang.Cursor): Struct {
 /**
  * Collect typedef information
  */
-function collectTypedef(cursor: clang.Cursor): Typedef {
+function collectTypedef(cursor: any): Typedef {
   const typedef: Typedef = {
-    name: clang.getCursorSpelling(cursor),
-    underlying: clang.getTypeSpelling(
-      clang.getTypedefDeclUnderlyingType(cursor),
-    ),
+    name: getStringFromCXString(clang.clang_getCursorSpelling(cursor)),
+    underlying: getStringFromCXString(clang.clang_getTypeSpelling(clang.clang_getTypedefDeclUnderlyingType(cursor))),
+    spelling: getStringFromCXString(clang.clang_getTypeSpelling(clang.clang_getCursorType(cursor))),
   };
 
   // Add documentation if available
-  const doc = cleanDocumentation(clang.getCursorRawCommentText(cursor));
+  const doc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(cursor)));
   if (doc) {
     typedef.documentation = doc;
   }
@@ -252,26 +295,26 @@ function collectTypedef(cursor: clang.Cursor): Typedef {
 /**
  * Collect function information
  */
-function collectFunction(cursor: clang.Cursor): FunctionDecl {
+function collectFunction(cursor: any): FunctionDecl {
   const func: FunctionDecl = {
-    name: clang.getCursorSpelling(cursor),
-    return: getTypeInfo(clang.getCursorResultType(cursor)),
+    name: getStringFromCXString(clang.clang_getCursorSpelling(cursor)),
+    return: getTypeInfo(clang.clang_getCursorResultType(cursor)),
     params: [],
   };
 
   // Add documentation if available
-  const doc = cleanDocumentation(clang.getCursorRawCommentText(cursor));
+  const doc = cleanDocumentation(getStringFromCXString(clang.clang_Cursor_getRawCommentText(cursor)));
   if (doc) {
     func.documentation = doc;
   }
 
   // Get function arguments
-  const numArgs = clang.getNumCursorArguments(cursor);
+  const numArgs = clang.clang_Cursor_getNumArguments(cursor);
   for (let i = 0; i < numArgs; i++) {
-    const argCursor = clang.getCursorArgument(cursor, i);
+    const argCursor = clang.clang_Cursor_getArgument(cursor, i);
     const param: MethodParam = {
-      name: clang.getCursorSpelling(argCursor) || '',
-      type: getTypeInfo(clang.getCursorType(argCursor)),
+      name: getStringFromCXString(clang.clang_getCursorSpelling(argCursor)) || '',
+      type: getTypeInfo(clang.clang_getCursorType(argCursor)),
     };
     func.params.push(param);
   }
@@ -287,7 +330,10 @@ export function parseHeader(
   options: ParseOptions = {},
 ): HeaderAST {
   // Create index
-  const index = clang.createIndex();
+  const index = clang.clang_createIndex(
+    options.excludeDeclarationsFromPCH ? 1 : 0,
+    options.displayDiagnostics ? 1 : 0
+  );
 
   try {
     // Build compiler arguments
@@ -297,9 +343,17 @@ export function parseHeader(
     const parseOpts = buildParseOptions(options);
 
     // Parse the header
-    const tu = clang.parseTranslationUnit(index, headerPath, args, parseOpts);
+    const tu = clang.clang_parseTranslationUnit(
+      index,
+      headerPath,
+      args,
+      args.length,
+      null,
+      0,
+      parseOpts
+    );
 
-    if (!tu) {
+    if (!tu || !tu._ptr) {
       throw new Error(`Failed to parse header: ${headerPath}`);
     }
 
@@ -321,52 +375,52 @@ export function parseHeader(
       };
 
       // Get root cursor
-      const cursor = tu.getCursor();
+      const cursor = clang.clang_getTranslationUnitCursor(tu);
 
       // Recursively visit nodes
       const visitNode = (
-        node: clang.Cursor,
+        node: any,
         parentInHeader: boolean = false,
       ) => {
-        // Check if this cursor is in our target header
-        const location = clang.getCursorLocation(node);
-        const inThisHeader = location.file === headerPath;
+        // For now, assume all nodes from the parsed file are in the target header
+        // TODO: Properly check source location once output parameters are supported
+        const inThisHeader = true;
 
         // Process if in target header or if parent was in header (for nested decls)
         if (inThisHeader || parentInHeader) {
-          const kind = clang.getCursorKind(node);
+          const kind = clang.clang_getCursorKind(node);
 
           // Process based on cursor kind
           switch (kind) {
-            case clang.CXCursorKind.ObjCInterfaceDecl:
+            case clang.CXCursor_ObjCInterfaceDecl:
               ast.interfaces.push(collectInterface(node));
               break;
 
-            case clang.CXCursorKind.ObjCProtocolDecl:
+            case clang.CXCursor_ObjCProtocolDecl:
               ast.protocols.push(collectProtocol(node));
               break;
 
-            case clang.CXCursorKind.ClassDecl:
+            case clang.CXCursor_ClassDecl:
               if (ast.classes) {
                 ast.classes.push(collectInterface(node));
               }
               break;
 
-            case clang.CXCursorKind.EnumDecl:
+            case clang.CXCursor_EnumDecl:
               // Parse both named and anonymous enums
               ast.enums.push(collectEnum(node));
               break;
 
-            case clang.CXCursorKind.StructDecl:
+            case clang.CXCursor_StructDecl:
               // Parse both named and anonymous structs
               ast.structs.push(collectStruct(node));
               break;
 
-            case clang.CXCursorKind.TypedefDecl:
+            case clang.CXCursor_TypedefDecl:
               ast.typedefs.push(collectTypedef(node));
               break;
 
-            case clang.CXCursorKind.FunctionDecl:
+            case clang.CXCursor_FunctionDecl:
               if (ast.functions) {
                 ast.functions.push(collectFunction(node));
               }
@@ -375,10 +429,10 @@ export function parseHeader(
         }
 
         // Recurse into children
-        clang.visitChildren(node, (child: clang.Cursor) => {
+        clang.clang_visitChildren(node, (child: any, _parent: any) => {
           visitNode(child, inThisHeader);
-          return clang.CXChildVisit.Continue;
-        });
+          return clang.CXChildVisit_Continue;
+        }, null);
       };
 
       // Start visiting from root
@@ -390,10 +444,10 @@ export function parseHeader(
 
       return ast;
     } finally {
-      tu.dispose();
+      clang.clang_disposeTranslationUnit(tu);
     }
   } finally {
-    index.dispose();
+    clang.clang_disposeIndex(index);
   }
 }
 

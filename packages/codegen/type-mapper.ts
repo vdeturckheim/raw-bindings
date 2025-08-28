@@ -286,9 +286,9 @@ export class TypeMapper {
 
     if (mapping.napiType === 'Napi::BigInt') {
       if (cType.includes('unsigned')) {
-        return `${napiVar}.As<Napi::BigInt>().Uint64Value()`;
+        return `${napiVar}.As<Napi::BigInt>().Uint64Value(nullptr)`;
       }
-      return `${napiVar}.As<Napi::BigInt>().Int64Value()`;
+      return `${napiVar}.As<Napi::BigInt>().Int64Value(nullptr)`;
     }
 
     return napiVar;
