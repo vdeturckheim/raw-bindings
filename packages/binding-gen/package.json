@@ -1,0 +1,24 @@
+{
+  "name": "binding-gen",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "High-level Node.js binding generator with LLM planning",
+  "main": "index.ts",
+  "engines": {
+    "node": ">=24.3.0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "handlebars": "^4.7.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/handlebars": "^4.0.40"
+  },
+  "author": "vdeturckheim",
+  "license": "MIT"
+}
