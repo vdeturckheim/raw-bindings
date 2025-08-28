@@ -4,8 +4,6 @@
 #include <memory>
 #include <cstring>
 #include <clang-c/Index.h>
-#include <clang-c/CXString.h>
-#include <clang-c/CXSourceLocation.h>
 
 // Helper function to wrap pointers as JavaScript objects
 static Napi::Object wrapPointer(Napi::Env env, void* ptr, const std::string& typeName) {
@@ -38,6 +36,163 @@ static void* unwrapPointer(Napi::Object obj) {
 }
 
 // Enum constants
+// Error codes returned by libclang routines.
+// 
+// Zero (\c CXError_Success) is the only error code indicating success.  Other
+// error codes, including not yet assigned non-zero values, indicate errors.
+// enum CXErrorCode
+// No error.
+static Napi::Value Get_CXError_Success(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXError_Success);
+}
+
+// A generic error code, no further details are available.
+// 
+// Errors of this kind can get their own specific error codes in future
+// libclang versions.
+static Napi::Value Get_CXError_Failure(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXError_Failure);
+}
+
+// libclang crashed while performing the requested operation.
+static Napi::Value Get_CXError_Crashed(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXError_Crashed);
+}
+
+// The function detected that the arguments violate the function
+// contract.
+static Napi::Value Get_CXError_InvalidArguments(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXError_InvalidArguments);
+}
+
+// An AST deserialization error has occurred.
+static Napi::Value Get_CXError_ASTReadError(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXError_ASTReadError);
+}
+
+// Describes the severity of a particular diagnostic.
+// enum CXDiagnosticSeverity
+// A diagnostic that has been suppressed, e.g., by a command-line
+// option.
+static Napi::Value Get_CXDiagnostic_Ignored(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_Ignored);
+}
+
+// This diagnostic is a note that should be attached to the
+// previous (non-note) diagnostic.
+static Napi::Value Get_CXDiagnostic_Note(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_Note);
+}
+
+// This diagnostic indicates suspicious code that may not be
+// wrong.
+static Napi::Value Get_CXDiagnostic_Warning(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_Warning);
+}
+
+// This diagnostic indicates that the code is ill-formed.
+static Napi::Value Get_CXDiagnostic_Error(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_Error);
+}
+
+// This diagnostic indicates that the code is ill-formed such
+// that future parser recovery is unlikely to produce useful
+// results.
+static Napi::Value Get_CXDiagnostic_Fatal(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_Fatal);
+}
+
+// Describes the kind of error that occurred (if any) in a call to
+// \c clang_loadDiagnostics.
+// enum CXLoadDiag_Error
+// Indicates that no error occurred.
+static Napi::Value Get_CXLoadDiag_None(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXLoadDiag_None);
+}
+
+// Indicates that an unknown error occurred while attempting to
+// deserialize diagnostics.
+static Napi::Value Get_CXLoadDiag_Unknown(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXLoadDiag_Unknown);
+}
+
+// Indicates that the file containing the serialized diagnostics
+// could not be opened.
+static Napi::Value Get_CXLoadDiag_CannotLoad(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXLoadDiag_CannotLoad);
+}
+
+// Indicates that the serialized diagnostics file is invalid or
+// corrupt.
+static Napi::Value Get_CXLoadDiag_InvalidFile(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXLoadDiag_InvalidFile);
+}
+
+// Options to control the display of diagnostics.
+// 
+// The values in this enum are meant to be combined to customize the
+// behavior of \c clang_formatDiagnostic().
+// enum CXDiagnosticDisplayOptions
+// Display the source-location information where the
+// diagnostic was located.
+// 
+// When set, diagnostics will be prefixed by the file, line, and
+// (optionally) column to which the diagnostic refers. For example,
+// 
+// \code
+// test.c:28: warning: extra tokens at end of #endif directive
+// \endcode
+// 
+// This option corresponds to the clang flag \c -fshow-source-location.
+static Napi::Value Get_CXDiagnostic_DisplaySourceLocation(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_DisplaySourceLocation);
+}
+
+// If displaying the source-location information of the
+// diagnostic, also include the column number.
+// 
+// This option corresponds to the clang flag \c -fshow-column.
+static Napi::Value Get_CXDiagnostic_DisplayColumn(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_DisplayColumn);
+}
+
+// If displaying the source-location information of the
+// diagnostic, also include information about source ranges in a
+// machine-parsable format.
+// 
+// This option corresponds to the clang flag
+// \c -fdiagnostics-print-source-range-info.
+static Napi::Value Get_CXDiagnostic_DisplaySourceRanges(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_DisplaySourceRanges);
+}
+
+// Display the option name associated with this diagnostic, if any.
+// 
+// The option name displayed (e.g., -Wconversion) will be placed in brackets
+// after the diagnostic text. This option corresponds to the clang flag
+// \c -fdiagnostics-show-option.
+static Napi::Value Get_CXDiagnostic_DisplayOption(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_DisplayOption);
+}
+
+// Display the category number associated with this diagnostic, if any.
+// 
+// The category number is displayed within brackets after the diagnostic text.
+// This option corresponds to the clang flag
+// \c -fdiagnostics-show-category=id.
+static Napi::Value Get_CXDiagnostic_DisplayCategoryId(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_DisplayCategoryId);
+}
+
+// Display the category name associated with this diagnostic, if any.
+// 
+// The category name is displayed within brackets after the diagnostic text.
+// This option corresponds to the clang flag
+// \c -fdiagnostics-show-category=name.
+static Napi::Value Get_CXDiagnostic_DisplayCategoryName(const Napi::CallbackInfo& info) {
+    return Napi::Number::New(info.Env(), CXDiagnostic_DisplayCategoryName);
+}
+
 // Describes the availability of a particular entity, which indicates
 // whether the use of this entity will result in a warning or error due to
 // it being deprecated or unavailable.
@@ -4822,6 +4977,323 @@ static Napi::Value Get_CXUnaryOperator_Coawait(const Napi::CallbackInfo& info) {
 
 
 // Struct wrappers
+// A character string.
+// 
+// The \c CXString type is used to return strings from the interface when
+// the ownership of that string might differ from one call to the next.
+// Use \c clang_getCString() to retrieve the string data and, once finished
+// with the string data, call \c clang_disposeString() to free the string.
+static Napi::Value Create_CXString(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Allocate struct
+    CXString* ptr = new CXString();
+    
+    // Initialize from JavaScript object if provided
+    if (info.Length() > 0 && info[0].IsObject()) {
+        Napi::Object obj = info[0].As<Napi::Object>();
+        if (obj.Has("data")) {
+            if (obj.Get("data").IsObject()) {
+                ptr->data = static_cast<const void *>(unwrapPointer(obj.Get("data").As<Napi::Object>()));
+            } else if (obj.Get("data").IsNull() || obj.Get("data").IsUndefined()) {
+                ptr->data = nullptr;
+            } else {
+                // Invalid value for pointer field
+                ptr->data = nullptr;
+            }
+        }
+        if (obj.Has("private_flags")) {
+            ptr->private_flags = obj.Get("private_flags").As<Napi::Number>().Uint32Value();
+        }
+    }
+    
+    return wrapPointer(env, ptr, "CXString");
+}
+
+static Napi::Value Get_CXString_Field(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
+        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    CXString* ptr = static_cast<CXString*>(unwrapPointer(info[0].As<Napi::Object>()));
+    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
+    
+    if (fieldName == "data") {
+        return wrapConstPointer(env, ptr->data, "void");
+    }
+    if (fieldName == "private_flags") {
+        return Napi::Number::New(env, ptr->private_flags);
+    }
+    
+    return env.Undefined();
+}
+
+static Napi::Value Create_CXStringSet(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Allocate struct
+    CXStringSet* ptr = new CXStringSet();
+    
+    // Initialize from JavaScript object if provided
+    if (info.Length() > 0 && info[0].IsObject()) {
+        Napi::Object obj = info[0].As<Napi::Object>();
+        if (obj.Has("Strings")) {
+            if (obj.Get("Strings").IsObject()) {
+                ptr->Strings = static_cast<CXString *>(unwrapPointer(obj.Get("Strings").As<Napi::Object>()));
+            } else if (obj.Get("Strings").IsNull() || obj.Get("Strings").IsUndefined()) {
+                ptr->Strings = nullptr;
+            } else {
+                // Invalid value for pointer field
+                ptr->Strings = nullptr;
+            }
+        }
+        if (obj.Has("Count")) {
+            ptr->Count = obj.Get("Count").As<Napi::Number>().Uint32Value();
+        }
+    }
+    
+    return wrapPointer(env, ptr, "CXStringSet");
+}
+
+static Napi::Value Get_CXStringSet_Field(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
+        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    CXStringSet* ptr = static_cast<CXStringSet*>(unwrapPointer(info[0].As<Napi::Object>()));
+    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
+    
+    if (fieldName == "Strings") {
+        return wrapPointer(env, ptr->Strings, "CXString");
+    }
+    if (fieldName == "Count") {
+        return Napi::Number::New(env, ptr->Count);
+    }
+    
+    return env.Undefined();
+}
+
+// Uniquely identifies a CXFile, that refers to the same underlying file,
+// across an indexing session.
+static Napi::Value Create_CXFileUniqueID(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Allocate struct
+    CXFileUniqueID* ptr = new CXFileUniqueID();
+    
+    // Initialize from JavaScript object if provided
+    if (info.Length() > 0 && info[0].IsObject()) {
+        Napi::Object obj = info[0].As<Napi::Object>();
+        if (obj.Has("data")) {
+            Napi::Array data_arr = obj.Get("data").As<Napi::Array>();
+            for (size_t i = 0; i < data_arr.Length() && i < sizeof(ptr->data)/sizeof(ptr->data[0]); i++) {
+                ptr->data[i] = data_arr.Get(i).As<Napi::BigInt>().Uint64Value(nullptr);
+            }
+        }
+    }
+    
+    return wrapPointer(env, ptr, "CXFileUniqueID");
+}
+
+static Napi::Value Get_CXFileUniqueID_Field(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
+        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    CXFileUniqueID* ptr = static_cast<CXFileUniqueID*>(unwrapPointer(info[0].As<Napi::Object>()));
+    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
+    
+    if (fieldName == "data") {
+        Napi::Array arr = Napi::Array::New(env);
+        size_t arraySize = sizeof(ptr->data)/sizeof(ptr->data[0]);
+        for (size_t i = 0; i < arraySize; i++) {
+            arr.Set(i, Napi::BigInt::New(env, ptr->data[i]));
+        }
+        return arr;
+    }
+    
+    return env.Undefined();
+}
+
+// Identifies a specific source location within a translation
+// unit.
+// 
+// Use clang_getExpansionLocation() or clang_getSpellingLocation()
+// to map a source location to a particular file, line, and column.
+static Napi::Value Create_CXSourceLocation(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Allocate struct
+    CXSourceLocation* ptr = new CXSourceLocation();
+    
+    // Initialize from JavaScript object if provided
+    if (info.Length() > 0 && info[0].IsObject()) {
+        Napi::Object obj = info[0].As<Napi::Object>();
+        if (obj.Has("ptr_data")) {
+            Napi::Array ptr_data_arr = obj.Get("ptr_data").As<Napi::Array>();
+            for (size_t i = 0; i < ptr_data_arr.Length() && i < sizeof(ptr->ptr_data)/sizeof(ptr->ptr_data[0]); i++) {
+                if (ptr_data_arr.Get(i).IsExternal()) {
+                    ptr->ptr_data[i] = ptr_data_arr.Get(i).As<Napi::External<void>>().Data();
+                } else {
+                    ptr->ptr_data[i] = nullptr;
+                }
+            }
+        }
+        if (obj.Has("int_data")) {
+            ptr->int_data = obj.Get("int_data").As<Napi::Number>().Uint32Value();
+        }
+    }
+    
+    return wrapPointer(env, ptr, "CXSourceLocation");
+}
+
+static Napi::Value Get_CXSourceLocation_Field(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
+        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    CXSourceLocation* ptr = static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
+    
+    if (fieldName == "ptr_data") {
+        Napi::Array arr = Napi::Array::New(env);
+        size_t arraySize = sizeof(ptr->ptr_data)/sizeof(ptr->ptr_data[0]);
+        for (size_t i = 0; i < arraySize; i++) {
+            arr.Set(i, Napi::External<void>::New(env, const_cast<void*>(ptr->ptr_data[i])));
+        }
+        return arr;
+    }
+    if (fieldName == "int_data") {
+        return Napi::Number::New(env, ptr->int_data);
+    }
+    
+    return env.Undefined();
+}
+
+// Identifies a half-open character range in the source code.
+// 
+// Use clang_getRangeStart() and clang_getRangeEnd() to retrieve the
+// starting and end locations from a source range, respectively.
+static Napi::Value Create_CXSourceRange(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Allocate struct
+    CXSourceRange* ptr = new CXSourceRange();
+    
+    // Initialize from JavaScript object if provided
+    if (info.Length() > 0 && info[0].IsObject()) {
+        Napi::Object obj = info[0].As<Napi::Object>();
+        if (obj.Has("ptr_data")) {
+            Napi::Array ptr_data_arr = obj.Get("ptr_data").As<Napi::Array>();
+            for (size_t i = 0; i < ptr_data_arr.Length() && i < sizeof(ptr->ptr_data)/sizeof(ptr->ptr_data[0]); i++) {
+                if (ptr_data_arr.Get(i).IsExternal()) {
+                    ptr->ptr_data[i] = ptr_data_arr.Get(i).As<Napi::External<void>>().Data();
+                } else {
+                    ptr->ptr_data[i] = nullptr;
+                }
+            }
+        }
+        if (obj.Has("begin_int_data")) {
+            ptr->begin_int_data = obj.Get("begin_int_data").As<Napi::Number>().Uint32Value();
+        }
+        if (obj.Has("end_int_data")) {
+            ptr->end_int_data = obj.Get("end_int_data").As<Napi::Number>().Uint32Value();
+        }
+    }
+    
+    return wrapPointer(env, ptr, "CXSourceRange");
+}
+
+static Napi::Value Get_CXSourceRange_Field(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
+        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    CXSourceRange* ptr = static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
+    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
+    
+    if (fieldName == "ptr_data") {
+        Napi::Array arr = Napi::Array::New(env);
+        size_t arraySize = sizeof(ptr->ptr_data)/sizeof(ptr->ptr_data[0]);
+        for (size_t i = 0; i < arraySize; i++) {
+            arr.Set(i, Napi::External<void>::New(env, const_cast<void*>(ptr->ptr_data[i])));
+        }
+        return arr;
+    }
+    if (fieldName == "begin_int_data") {
+        return Napi::Number::New(env, ptr->begin_int_data);
+    }
+    if (fieldName == "end_int_data") {
+        return Napi::Number::New(env, ptr->end_int_data);
+    }
+    
+    return env.Undefined();
+}
+
+// Identifies an array of ranges.
+static Napi::Value Create_CXSourceRangeList(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    // Allocate struct
+    CXSourceRangeList* ptr = new CXSourceRangeList();
+    
+    // Initialize from JavaScript object if provided
+    if (info.Length() > 0 && info[0].IsObject()) {
+        Napi::Object obj = info[0].As<Napi::Object>();
+        if (obj.Has("count")) {
+            ptr->count = obj.Get("count").As<Napi::Number>().Uint32Value();
+        }
+        if (obj.Has("ranges")) {
+            if (obj.Get("ranges").IsObject()) {
+                ptr->ranges = static_cast<CXSourceRange *>(unwrapPointer(obj.Get("ranges").As<Napi::Object>()));
+            } else if (obj.Get("ranges").IsNull() || obj.Get("ranges").IsUndefined()) {
+                ptr->ranges = nullptr;
+            } else {
+                // Invalid value for pointer field
+                ptr->ranges = nullptr;
+            }
+        }
+    }
+    
+    return wrapPointer(env, ptr, "CXSourceRangeList");
+}
+
+static Napi::Value Get_CXSourceRangeList_Field(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
+        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    CXSourceRangeList* ptr = static_cast<CXSourceRangeList*>(unwrapPointer(info[0].As<Napi::Object>()));
+    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
+    
+    if (fieldName == "count") {
+        return Napi::Number::New(env, ptr->count);
+    }
+    if (fieldName == "ranges") {
+        return wrapPointer(env, ptr->ranges, "CXSourceRange");
+    }
+    
+    return env.Undefined();
+}
+
 // Provides the contents of a file that has not yet been saved to disk.
 // 
 // Each CXUnsavedFile instance provides the name of a file on the
@@ -5508,7 +5980,11 @@ static Napi::Value Create_CXCursorAndRangeVisitor(const Napi::CallbackInfo& info
             }
         }
         if (obj.Has("visit")) {
-            // Note: Function pointer field visit skipped - not assignable from JavaScript
+            if (obj.Get("visit").IsExternal()) {
+                ptr->visit = reinterpret_cast<enum CXVisitorResult (*)(void *, CXCursor, CXSourceRange)>(obj.Get("visit").As<Napi::External<void>>().Data());
+            } else {
+                ptr->visit = nullptr;
+            }
         }
     }
     
@@ -5612,10 +6088,7 @@ static Napi::Value Create_CXIdxIncludedFileInfo(const Napi::CallbackInfo& info) 
             ptr->filename = filename_str.c_str();
         }
         if (obj.Has("file")) {
-            CXFile* file_ptr = static_cast<CXFile*>(unwrapPointer(obj.Get("file").As<Napi::Object>()));
-            if (file_ptr) {
-                ptr->file = *file_ptr;
-            }
+            ptr->file = obj.Get("file").As<Napi::External<void>>().Data();
         }
         if (obj.Has("isImport")) {
             ptr->isImport = obj.Get("isImport").As<Napi::Number>().Int32Value();
@@ -5650,8 +6123,7 @@ static Napi::Value Get_CXIdxIncludedFileInfo_Field(const Napi::CallbackInfo& inf
         return Napi::String::New(env, ptr->filename);
     }
     if (fieldName == "file") {
-        CXFile* fieldPtr = new CXFile(ptr->file);
-        return wrapPointer(env, fieldPtr, "CXFile");
+        return wrapPointer(env, ptr->file, "CXFile");
     }
     if (fieldName == "isImport") {
         return Napi::Number::New(env, ptr->isImport);
@@ -5677,10 +6149,7 @@ static Napi::Value Create_CXIdxImportedASTFileInfo(const Napi::CallbackInfo& inf
     if (info.Length() > 0 && info[0].IsObject()) {
         Napi::Object obj = info[0].As<Napi::Object>();
         if (obj.Has("file")) {
-            CXFile* file_ptr = static_cast<CXFile*>(unwrapPointer(obj.Get("file").As<Napi::Object>()));
-            if (file_ptr) {
-                ptr->file = *file_ptr;
-            }
+            ptr->file = obj.Get("file").As<Napi::External<void>>().Data();
         }
         if (obj.Has("module")) {
             ptr->module = obj.Get("module").As<Napi::External<void>>().Data();
@@ -5711,8 +6180,7 @@ static Napi::Value Get_CXIdxImportedASTFileInfo_Field(const Napi::CallbackInfo& 
     std::string fieldName = info[1].As<Napi::String>().Utf8Value();
     
     if (fieldName == "file") {
-        CXFile* fieldPtr = new CXFile(ptr->file);
-        return wrapPointer(env, fieldPtr, "CXFile");
+        return wrapPointer(env, ptr->file, "CXFile");
     }
     if (fieldName == "module") {
         return wrapPointer(env, ptr->module, "CXModule");
@@ -5799,10 +6267,7 @@ static Napi::Value Create_CXIdxEntityInfo(const Napi::CallbackInfo& info) {
             ptr->templateKind = static_cast<CXIdxEntityCXXTemplateKind>(obj.Get("templateKind").As<Napi::Number>().Int32Value());
         }
         if (obj.Has("lang")) {
-            CXIdxEntityLanguage* lang_ptr = static_cast<CXIdxEntityLanguage*>(unwrapPointer(obj.Get("lang").As<Napi::Object>()));
-            if (lang_ptr) {
-                ptr->lang = *lang_ptr;
-            }
+            ptr->lang = static_cast<CXIdxEntityLanguage>(obj.Get("lang").As<Napi::Number>().Int32Value());
         }
         if (obj.Has("name")) {
             // Note: String lifetime management needed for production use
@@ -5856,8 +6321,7 @@ static Napi::Value Get_CXIdxEntityInfo_Field(const Napi::CallbackInfo& info) {
         return Napi::Number::New(env, static_cast<int>(ptr->templateKind));
     }
     if (fieldName == "lang") {
-        CXIdxEntityLanguage* fieldPtr = new CXIdxEntityLanguage(ptr->lang);
-        return wrapPointer(env, fieldPtr, "CXIdxEntityLanguage");
+        return Napi::Number::New(env, static_cast<int>(ptr->lang));
     }
     if (fieldName == "name") {
         return Napi::String::New(env, ptr->name);
@@ -6704,10 +7168,7 @@ static Napi::Value Create_CXIdxEntityRefInfo(const Napi::CallbackInfo& info) {
             }
         }
         if (obj.Has("role")) {
-            CXSymbolRole* role_ptr = static_cast<CXSymbolRole*>(unwrapPointer(obj.Get("role").As<Napi::Object>()));
-            if (role_ptr) {
-                ptr->role = *role_ptr;
-            }
+            ptr->role = static_cast<CXSymbolRole>(obj.Get("role").As<Napi::Number>().Int32Value());
         }
     }
     
@@ -6746,8 +7207,7 @@ static Napi::Value Get_CXIdxEntityRefInfo_Field(const Napi::CallbackInfo& info) 
         return wrapConstPointer(env, ptr->container, "CXIdxContainerInfo");
     }
     if (fieldName == "role") {
-        CXSymbolRole* fieldPtr = new CXSymbolRole(ptr->role);
-        return wrapPointer(env, fieldPtr, "CXSymbolRole");
+        return Napi::Number::New(env, static_cast<int>(ptr->role));
     }
     
     return env.Undefined();
@@ -6765,28 +7225,60 @@ static Napi::Value Create_IndexerCallbacks(const Napi::CallbackInfo& info) {
     if (info.Length() > 0 && info[0].IsObject()) {
         Napi::Object obj = info[0].As<Napi::Object>();
         if (obj.Has("abortQuery")) {
-            // Note: Function pointer field abortQuery skipped - not assignable from JavaScript
+            if (obj.Get("abortQuery").IsExternal()) {
+                ptr->abortQuery = reinterpret_cast<int (*)(CXClientData, void *)>(obj.Get("abortQuery").As<Napi::External<void>>().Data());
+            } else {
+                ptr->abortQuery = nullptr;
+            }
         }
         if (obj.Has("diagnostic")) {
-            // Note: Function pointer field diagnostic skipped - not assignable from JavaScript
+            if (obj.Get("diagnostic").IsExternal()) {
+                ptr->diagnostic = reinterpret_cast<void (*)(CXClientData, CXDiagnosticSet, void *)>(obj.Get("diagnostic").As<Napi::External<void>>().Data());
+            } else {
+                ptr->diagnostic = nullptr;
+            }
         }
         if (obj.Has("enteredMainFile")) {
-            // Note: Function pointer field enteredMainFile skipped - not assignable from JavaScript
+            if (obj.Get("enteredMainFile").IsExternal()) {
+                ptr->enteredMainFile = reinterpret_cast<CXIdxClientFile (*)(CXClientData, CXFile, void *)>(obj.Get("enteredMainFile").As<Napi::External<void>>().Data());
+            } else {
+                ptr->enteredMainFile = nullptr;
+            }
         }
         if (obj.Has("ppIncludedFile")) {
-            // Note: Function pointer field ppIncludedFile skipped - not assignable from JavaScript
+            if (obj.Get("ppIncludedFile").IsExternal()) {
+                ptr->ppIncludedFile = reinterpret_cast<CXIdxClientFile (*)(CXClientData, const CXIdxIncludedFileInfo *)>(obj.Get("ppIncludedFile").As<Napi::External<void>>().Data());
+            } else {
+                ptr->ppIncludedFile = nullptr;
+            }
         }
         if (obj.Has("importedASTFile")) {
-            // Note: Function pointer field importedASTFile skipped - not assignable from JavaScript
+            if (obj.Get("importedASTFile").IsExternal()) {
+                ptr->importedASTFile = reinterpret_cast<CXIdxClientASTFile (*)(CXClientData, const CXIdxImportedASTFileInfo *)>(obj.Get("importedASTFile").As<Napi::External<void>>().Data());
+            } else {
+                ptr->importedASTFile = nullptr;
+            }
         }
         if (obj.Has("startedTranslationUnit")) {
-            // Note: Function pointer field startedTranslationUnit skipped - not assignable from JavaScript
+            if (obj.Get("startedTranslationUnit").IsExternal()) {
+                ptr->startedTranslationUnit = reinterpret_cast<CXIdxClientContainer (*)(CXClientData, void *)>(obj.Get("startedTranslationUnit").As<Napi::External<void>>().Data());
+            } else {
+                ptr->startedTranslationUnit = nullptr;
+            }
         }
         if (obj.Has("indexDeclaration")) {
-            // Note: Function pointer field indexDeclaration skipped - not assignable from JavaScript
+            if (obj.Get("indexDeclaration").IsExternal()) {
+                ptr->indexDeclaration = reinterpret_cast<void (*)(CXClientData, const CXIdxDeclInfo *)>(obj.Get("indexDeclaration").As<Napi::External<void>>().Data());
+            } else {
+                ptr->indexDeclaration = nullptr;
+            }
         }
         if (obj.Has("indexEntityReference")) {
-            // Note: Function pointer field indexEntityReference skipped - not assignable from JavaScript
+            if (obj.Get("indexEntityReference").IsExternal()) {
+                ptr->indexEntityReference = reinterpret_cast<void (*)(CXClientData, const CXIdxEntityRefInfo *)>(obj.Get("indexEntityReference").As<Napi::External<void>>().Data());
+            } else {
+                ptr->indexEntityReference = nullptr;
+            }
         }
     }
     
@@ -6832,280 +7324,1305 @@ static Napi::Value Get_IndexerCallbacks_Field(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
-// A character string.
-// 
-// The \c CXString type is used to return strings from the interface when
-// the ownership of that string might differ from one call to the next.
-// Use \c clang_getCString() to retrieve the string data and, once finished
-// with the string data, call \c clang_disposeString() to free the string.
-static Napi::Value Create_CXString(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    // Allocate struct
-    CXString* ptr = new CXString();
-    
-    // Initialize from JavaScript object if provided
-    if (info.Length() > 0 && info[0].IsObject()) {
-        Napi::Object obj = info[0].As<Napi::Object>();
-        if (obj.Has("data")) {
-            if (obj.Get("data").IsObject()) {
-                ptr->data = static_cast<const void *>(unwrapPointer(obj.Get("data").As<Napi::Object>()));
-            } else if (obj.Get("data").IsNull() || obj.Get("data").IsUndefined()) {
-                ptr->data = nullptr;
-            } else {
-                // Invalid value for pointer field
-                ptr->data = nullptr;
-            }
-        }
-        if (obj.Has("private_flags")) {
-            ptr->private_flags = obj.Get("private_flags").As<Napi::Number>().Uint32Value();
-        }
-    }
-    
-    return wrapPointer(env, ptr, "CXString");
-}
-
-static Napi::Value Get_CXString_Field(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
-        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    CXString* ptr = static_cast<CXString*>(unwrapPointer(info[0].As<Napi::Object>()));
-    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
-    
-    if (fieldName == "data") {
-        return wrapConstPointer(env, ptr->data, "void");
-    }
-    if (fieldName == "private_flags") {
-        return Napi::Number::New(env, ptr->private_flags);
-    }
-    
-    return env.Undefined();
-}
-
-static Napi::Value Create_CXStringSet(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    // Allocate struct
-    CXStringSet* ptr = new CXStringSet();
-    
-    // Initialize from JavaScript object if provided
-    if (info.Length() > 0 && info[0].IsObject()) {
-        Napi::Object obj = info[0].As<Napi::Object>();
-        if (obj.Has("Strings")) {
-            if (obj.Get("Strings").IsObject()) {
-                ptr->Strings = static_cast<CXString *>(unwrapPointer(obj.Get("Strings").As<Napi::Object>()));
-            } else if (obj.Get("Strings").IsNull() || obj.Get("Strings").IsUndefined()) {
-                ptr->Strings = nullptr;
-            } else {
-                // Invalid value for pointer field
-                ptr->Strings = nullptr;
-            }
-        }
-        if (obj.Has("Count")) {
-            ptr->Count = obj.Get("Count").As<Napi::Number>().Uint32Value();
-        }
-    }
-    
-    return wrapPointer(env, ptr, "CXStringSet");
-}
-
-static Napi::Value Get_CXStringSet_Field(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
-        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    CXStringSet* ptr = static_cast<CXStringSet*>(unwrapPointer(info[0].As<Napi::Object>()));
-    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
-    
-    if (fieldName == "Strings") {
-        return wrapPointer(env, ptr->Strings, "CXString");
-    }
-    if (fieldName == "Count") {
-        return Napi::Number::New(env, ptr->Count);
-    }
-    
-    return env.Undefined();
-}
-
-// Identifies a specific source location within a translation
-// unit.
-// 
-// Use clang_getExpansionLocation() or clang_getSpellingLocation()
-// to map a source location to a particular file, line, and column.
-static Napi::Value Create_CXSourceLocation(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    // Allocate struct
-    CXSourceLocation* ptr = new CXSourceLocation();
-    
-    // Initialize from JavaScript object if provided
-    if (info.Length() > 0 && info[0].IsObject()) {
-        Napi::Object obj = info[0].As<Napi::Object>();
-        if (obj.Has("ptr_data")) {
-            Napi::Array ptr_data_arr = obj.Get("ptr_data").As<Napi::Array>();
-            for (size_t i = 0; i < ptr_data_arr.Length() && i < sizeof(ptr->ptr_data)/sizeof(ptr->ptr_data[0]); i++) {
-                if (ptr_data_arr.Get(i).IsExternal()) {
-                    ptr->ptr_data[i] = ptr_data_arr.Get(i).As<Napi::External<void>>().Data();
-                } else {
-                    ptr->ptr_data[i] = nullptr;
-                }
-            }
-        }
-        if (obj.Has("int_data")) {
-            ptr->int_data = obj.Get("int_data").As<Napi::Number>().Uint32Value();
-        }
-    }
-    
-    return wrapPointer(env, ptr, "CXSourceLocation");
-}
-
-static Napi::Value Get_CXSourceLocation_Field(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
-        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    CXSourceLocation* ptr = static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
-    
-    if (fieldName == "ptr_data") {
-        Napi::Array arr = Napi::Array::New(env);
-        size_t arraySize = sizeof(ptr->ptr_data)/sizeof(ptr->ptr_data[0]);
-        for (size_t i = 0; i < arraySize; i++) {
-            arr.Set(i, Napi::External<void>::New(env, const_cast<void*>(ptr->ptr_data[i])));
-        }
-        return arr;
-    }
-    if (fieldName == "int_data") {
-        return Napi::Number::New(env, ptr->int_data);
-    }
-    
-    return env.Undefined();
-}
-
-// Identifies a half-open character range in the source code.
-// 
-// Use clang_getRangeStart() and clang_getRangeEnd() to retrieve the
-// starting and end locations from a source range, respectively.
-static Napi::Value Create_CXSourceRange(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    // Allocate struct
-    CXSourceRange* ptr = new CXSourceRange();
-    
-    // Initialize from JavaScript object if provided
-    if (info.Length() > 0 && info[0].IsObject()) {
-        Napi::Object obj = info[0].As<Napi::Object>();
-        if (obj.Has("ptr_data")) {
-            Napi::Array ptr_data_arr = obj.Get("ptr_data").As<Napi::Array>();
-            for (size_t i = 0; i < ptr_data_arr.Length() && i < sizeof(ptr->ptr_data)/sizeof(ptr->ptr_data[0]); i++) {
-                if (ptr_data_arr.Get(i).IsExternal()) {
-                    ptr->ptr_data[i] = ptr_data_arr.Get(i).As<Napi::External<void>>().Data();
-                } else {
-                    ptr->ptr_data[i] = nullptr;
-                }
-            }
-        }
-        if (obj.Has("begin_int_data")) {
-            ptr->begin_int_data = obj.Get("begin_int_data").As<Napi::Number>().Uint32Value();
-        }
-        if (obj.Has("end_int_data")) {
-            ptr->end_int_data = obj.Get("end_int_data").As<Napi::Number>().Uint32Value();
-        }
-    }
-    
-    return wrapPointer(env, ptr, "CXSourceRange");
-}
-
-static Napi::Value Get_CXSourceRange_Field(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
-        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    CXSourceRange* ptr = static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
-    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
-    
-    if (fieldName == "ptr_data") {
-        Napi::Array arr = Napi::Array::New(env);
-        size_t arraySize = sizeof(ptr->ptr_data)/sizeof(ptr->ptr_data[0]);
-        for (size_t i = 0; i < arraySize; i++) {
-            arr.Set(i, Napi::External<void>::New(env, const_cast<void*>(ptr->ptr_data[i])));
-        }
-        return arr;
-    }
-    if (fieldName == "begin_int_data") {
-        return Napi::Number::New(env, ptr->begin_int_data);
-    }
-    if (fieldName == "end_int_data") {
-        return Napi::Number::New(env, ptr->end_int_data);
-    }
-    
-    return env.Undefined();
-}
-
-// Identifies an array of ranges.
-static Napi::Value Create_CXSourceRangeList(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    // Allocate struct
-    CXSourceRangeList* ptr = new CXSourceRangeList();
-    
-    // Initialize from JavaScript object if provided
-    if (info.Length() > 0 && info[0].IsObject()) {
-        Napi::Object obj = info[0].As<Napi::Object>();
-        if (obj.Has("count")) {
-            ptr->count = obj.Get("count").As<Napi::Number>().Uint32Value();
-        }
-        if (obj.Has("ranges")) {
-            if (obj.Get("ranges").IsObject()) {
-                ptr->ranges = static_cast<CXSourceRange *>(unwrapPointer(obj.Get("ranges").As<Napi::Object>()));
-            } else if (obj.Get("ranges").IsNull() || obj.Get("ranges").IsUndefined()) {
-                ptr->ranges = nullptr;
-            } else {
-                // Invalid value for pointer field
-                ptr->ranges = nullptr;
-            }
-        }
-    }
-    
-    return wrapPointer(env, ptr, "CXSourceRangeList");
-}
-
-static Napi::Value Get_CXSourceRangeList_Field(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
-        Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    CXSourceRangeList* ptr = static_cast<CXSourceRangeList*>(unwrapPointer(info[0].As<Napi::Object>()));
-    std::string fieldName = info[1].As<Napi::String>().Utf8Value();
-    
-    if (fieldName == "count") {
-        return Napi::Number::New(env, ptr->count);
-    }
-    if (fieldName == "ranges") {
-        return wrapPointer(env, ptr->ranges, "CXSourceRange");
-    }
-    
-    return env.Undefined();
-}
-
 
 // Function wrappers
+// Retrieve the character data associated with the given string.
+// 
+// The returned data is a reference and not owned by the user. This data
+// is only valid while the `CXString` is valid. This function is similar
+// to `std::string::c_str()`.
+static Napi::Value clang_getCString_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: string (CXString)
+    CXString string = *static_cast<CXString*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_getCString(string);
+    if (result == nullptr) {
+        return env.Null();
+    }
+    return Napi::String::New(env, result);
+}
+
+// Free the given string.
+static Napi::Value clang_disposeString_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: string (CXString)
+    CXString string = *static_cast<CXString*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    clang_disposeString(string);
+    return env.Undefined();
+}
+
+// Free the given string set.
+static Napi::Value clang_disposeStringSet_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: set (CXStringSet *)
+    CXStringSet * set = nullptr;
+    if (!info[0].IsNull() && !info[0].IsUndefined() && info[0].IsObject()) {
+        set = static_cast<CXStringSet *>(unwrapPointer(info[0].As<Napi::Object>()));
+    }
+    
+    clang_disposeStringSet(set);
+    return env.Undefined();
+}
+
+// Return the timestamp for use with Clang's
+// \c -fbuild-session-timestamp= option.
+static Napi::Value clang_getBuildSessionTimestamp_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    
+    auto result = clang_getBuildSessionTimestamp();
+    return Napi::BigInt::New(env, result);
+}
+
+// Create a \c CXVirtualFileOverlay object.
+// Must be disposed with \c clang_VirtualFileOverlay_dispose().
+// 
+// \param options is reserved, always pass 0.
+static Napi::Value clang_VirtualFileOverlay_create_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: options (unsigned int)
+    auto options = info[0].As<Napi::Number>().Uint32Value();
+    
+    CXVirtualFileOverlay result = clang_VirtualFileOverlay_create(options);
+    CXVirtualFileOverlay* resultPtr = new CXVirtualFileOverlay;
+    *resultPtr = result;
+    return wrapPointer(env, resultPtr, "CXVirtualFileOverlay");
+}
+
+// Map an absolute virtual file path to an absolute real one.
+// The virtual path must be canonicalized (not contain "."/"..").
+// \returns 0 for success, non-zero to indicate an error.
+static Napi::Value clang_VirtualFileOverlay_addFileMapping_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 3) {
+        Napi::TypeError::New(env, "Expected 3 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXVirtualFileOverlay)
+    CXVirtualFileOverlay arg0 = *static_cast<CXVirtualFileOverlay*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: virtualPath (const char *)
+    std::string virtualPath_str = info[1].As<Napi::String>().Utf8Value();
+    const char* virtualPath = virtualPath_str.c_str();
+    // Parameter: realPath (const char *)
+    std::string realPath_str = info[2].As<Napi::String>().Utf8Value();
+    const char* realPath = realPath_str.c_str();
+    
+    auto result = clang_VirtualFileOverlay_addFileMapping(arg0, virtualPath, realPath);
+    return Napi::Number::New(env, static_cast<int>(result));
+}
+
+// Set the case sensitivity for the \c CXVirtualFileOverlay object.
+// The \c CXVirtualFileOverlay object is case-sensitive by default, this
+// option can be used to override the default.
+// \returns 0 for success, non-zero to indicate an error.
+static Napi::Value clang_VirtualFileOverlay_setCaseSensitivity_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXVirtualFileOverlay)
+    CXVirtualFileOverlay arg0 = *static_cast<CXVirtualFileOverlay*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: caseSensitive (int)
+    auto caseSensitive = info[1].As<Napi::Number>().Int32Value();
+    
+    auto result = clang_VirtualFileOverlay_setCaseSensitivity(arg0, caseSensitive);
+    return Napi::Number::New(env, static_cast<int>(result));
+}
+
+// Write out the \c CXVirtualFileOverlay object to a char buffer.
+// 
+// \param options is reserved, always pass 0.
+// \param out_buffer_ptr pointer to receive the buffer pointer, which should be
+// disposed using \c clang_free().
+// \param out_buffer_size pointer to receive the buffer size.
+// \returns 0 for success, non-zero to indicate an error.
+static Napi::Value clang_VirtualFileOverlay_writeToBuffer_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 4) {
+        Napi::TypeError::New(env, "Expected 4 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXVirtualFileOverlay)
+    CXVirtualFileOverlay arg0 = *static_cast<CXVirtualFileOverlay*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: options (unsigned int)
+    auto options = info[1].As<Napi::Number>().Uint32Value();
+    // Parameter: out_buffer_ptr (char **)
+    char ** out_buffer_ptr = nullptr;
+    std::vector<std::string> out_buffer_ptr_strings;
+    std::vector<char*> out_buffer_ptr_cstrs;
+    if (!info[2].IsNull() && !info[2].IsUndefined()) {
+        if (info[2].IsArray()) {
+            Napi::Array arr = info[2].As<Napi::Array>();
+            for (uint32_t j = 0; j < arr.Length(); j++) {
+                out_buffer_ptr_strings.push_back(arr.Get(j).As<Napi::String>().Utf8Value());
+            }
+            for (auto& s : out_buffer_ptr_strings) {
+                out_buffer_ptr_cstrs.push_back(const_cast<char*>(s.c_str()));
+            }
+            out_buffer_ptr = out_buffer_ptr_cstrs.data();
+        } else if (info[2].IsObject()) {
+            // Assume it's a wrapped pointer
+            out_buffer_ptr = *static_cast<char ***>(unwrapPointer(info[2].As<Napi::Object>()));
+        }
+    }
+    // Parameter: out_buffer_size (unsigned int *)
+    unsigned int * out_buffer_size = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
+    
+    auto result = clang_VirtualFileOverlay_writeToBuffer(arg0, options, out_buffer_ptr, out_buffer_size);
+    return Napi::Number::New(env, static_cast<int>(result));
+}
+
+// free memory allocated by libclang, such as the buffer returned by
+// \c CXVirtualFileOverlay() or \c clang_ModuleMapDescriptor_writeToBuffer().
+// 
+// \param buffer memory pointer to free.
+static Napi::Value clang_free_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: buffer (void *)
+    void * buffer = *static_cast<void **>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    clang_free(buffer);
+    return env.Undefined();
+}
+
+// Dispose a \c CXVirtualFileOverlay object.
+static Napi::Value clang_VirtualFileOverlay_dispose_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXVirtualFileOverlay)
+    CXVirtualFileOverlay arg0 = *static_cast<CXVirtualFileOverlay*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    clang_VirtualFileOverlay_dispose(arg0);
+    return env.Undefined();
+}
+
+// Create a \c CXModuleMapDescriptor object.
+// Must be disposed with \c clang_ModuleMapDescriptor_dispose().
+// 
+// \param options is reserved, always pass 0.
+static Napi::Value clang_ModuleMapDescriptor_create_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: options (unsigned int)
+    auto options = info[0].As<Napi::Number>().Uint32Value();
+    
+    CXModuleMapDescriptor result = clang_ModuleMapDescriptor_create(options);
+    CXModuleMapDescriptor* resultPtr = new CXModuleMapDescriptor;
+    *resultPtr = result;
+    return wrapPointer(env, resultPtr, "CXModuleMapDescriptor");
+}
+
+// Sets the framework module name that the module.modulemap describes.
+// \returns 0 for success, non-zero to indicate an error.
+static Napi::Value clang_ModuleMapDescriptor_setFrameworkModuleName_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXModuleMapDescriptor)
+    CXModuleMapDescriptor arg0 = *static_cast<CXModuleMapDescriptor*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: name (const char *)
+    std::string name_str = info[1].As<Napi::String>().Utf8Value();
+    const char* name = name_str.c_str();
+    
+    auto result = clang_ModuleMapDescriptor_setFrameworkModuleName(arg0, name);
+    return Napi::Number::New(env, static_cast<int>(result));
+}
+
+// Sets the umbrella header name that the module.modulemap describes.
+// \returns 0 for success, non-zero to indicate an error.
+static Napi::Value clang_ModuleMapDescriptor_setUmbrellaHeader_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXModuleMapDescriptor)
+    CXModuleMapDescriptor arg0 = *static_cast<CXModuleMapDescriptor*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: name (const char *)
+    std::string name_str = info[1].As<Napi::String>().Utf8Value();
+    const char* name = name_str.c_str();
+    
+    auto result = clang_ModuleMapDescriptor_setUmbrellaHeader(arg0, name);
+    return Napi::Number::New(env, static_cast<int>(result));
+}
+
+// Write out the \c CXModuleMapDescriptor object to a char buffer.
+// 
+// \param options is reserved, always pass 0.
+// \param out_buffer_ptr pointer to receive the buffer pointer, which should be
+// disposed using \c clang_free().
+// \param out_buffer_size pointer to receive the buffer size.
+// \returns 0 for success, non-zero to indicate an error.
+static Napi::Value clang_ModuleMapDescriptor_writeToBuffer_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 4) {
+        Napi::TypeError::New(env, "Expected 4 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXModuleMapDescriptor)
+    CXModuleMapDescriptor arg0 = *static_cast<CXModuleMapDescriptor*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: options (unsigned int)
+    auto options = info[1].As<Napi::Number>().Uint32Value();
+    // Parameter: out_buffer_ptr (char **)
+    char ** out_buffer_ptr = nullptr;
+    std::vector<std::string> out_buffer_ptr_strings;
+    std::vector<char*> out_buffer_ptr_cstrs;
+    if (!info[2].IsNull() && !info[2].IsUndefined()) {
+        if (info[2].IsArray()) {
+            Napi::Array arr = info[2].As<Napi::Array>();
+            for (uint32_t j = 0; j < arr.Length(); j++) {
+                out_buffer_ptr_strings.push_back(arr.Get(j).As<Napi::String>().Utf8Value());
+            }
+            for (auto& s : out_buffer_ptr_strings) {
+                out_buffer_ptr_cstrs.push_back(const_cast<char*>(s.c_str()));
+            }
+            out_buffer_ptr = out_buffer_ptr_cstrs.data();
+        } else if (info[2].IsObject()) {
+            // Assume it's a wrapped pointer
+            out_buffer_ptr = *static_cast<char ***>(unwrapPointer(info[2].As<Napi::Object>()));
+        }
+    }
+    // Parameter: out_buffer_size (unsigned int *)
+    unsigned int * out_buffer_size = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
+    
+    auto result = clang_ModuleMapDescriptor_writeToBuffer(arg0, options, out_buffer_ptr, out_buffer_size);
+    return Napi::Number::New(env, static_cast<int>(result));
+}
+
+// Dispose a \c CXModuleMapDescriptor object.
+static Napi::Value clang_ModuleMapDescriptor_dispose_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXModuleMapDescriptor)
+    CXModuleMapDescriptor arg0 = *static_cast<CXModuleMapDescriptor*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    clang_ModuleMapDescriptor_dispose(arg0);
+    return env.Undefined();
+}
+
+// Retrieve the complete file and path name of the given file.
+static Napi::Value clang_getFileName_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: SFile (CXFile)
+    CXFile SFile = *static_cast<CXFile*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    CXString result = clang_getFileName(SFile);
+    CXString* resultPtr = new CXString(result);
+    return wrapPointer(env, resultPtr, "CXString");
+}
+
+// Retrieve the last modification time of the given file.
+static Napi::Value clang_getFileTime_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: SFile (CXFile)
+    CXFile SFile = *static_cast<CXFile*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_getFileTime(SFile);
+    return Napi::Number::New(env, result);
+}
+
+// Retrieve the unique ID for the given \c file.
+// 
+// \param file the file to get the ID for.
+// \param outID stores the returned CXFileUniqueID.
+// \returns If there was a failure getting the unique ID, returns non-zero,
+// otherwise returns 0.
+static Napi::Value clang_getFileUniqueID_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: file (CXFile)
+    CXFile file = *static_cast<CXFile*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: outID (CXFileUniqueID *)
+    CXFileUniqueID * outID = nullptr;
+    if (!info[1].IsNull() && !info[1].IsUndefined() && info[1].IsObject()) {
+        outID = static_cast<CXFileUniqueID *>(unwrapPointer(info[1].As<Napi::Object>()));
+    }
+    
+    auto result = clang_getFileUniqueID(file, outID);
+    return Napi::Number::New(env, result);
+}
+
+// Returns non-zero if the \c file1 and \c file2 point to the same file,
+// or they are both NULL.
+static Napi::Value clang_File_isEqual_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: file1 (CXFile)
+    CXFile file1 = *static_cast<CXFile*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: file2 (CXFile)
+    CXFile file2 = *static_cast<CXFile*>(unwrapPointer(info[1].As<Napi::Object>()));
+    
+    auto result = clang_File_isEqual(file1, file2);
+    return Napi::Number::New(env, result);
+}
+
+// Returns the real path name of \c file.
+// 
+// An empty string may be returned. Use \c clang_getFileName() in that case.
+static Napi::Value clang_File_tryGetRealPathName_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: file (CXFile)
+    CXFile file = *static_cast<CXFile*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    CXString result = clang_File_tryGetRealPathName(file);
+    CXString* resultPtr = new CXString(result);
+    return wrapPointer(env, resultPtr, "CXString");
+}
+
+// Retrieve a NULL (invalid) source location.
+static Napi::Value clang_getNullLocation_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    
+    CXSourceLocation result = clang_getNullLocation();
+    CXSourceLocation* resultPtr = new CXSourceLocation(result);
+    return wrapPointer(env, resultPtr, "CXSourceLocation");
+}
+
+// Determine whether two source locations, which must refer into
+// the same translation unit, refer to exactly the same point in the source
+// code.
+// 
+// \returns non-zero if the source locations refer to the same location, zero
+// if they refer to different locations.
+static Napi::Value clang_equalLocations_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: loc1 (CXSourceLocation)
+    CXSourceLocation loc1 = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: loc2 (CXSourceLocation)
+    CXSourceLocation loc2 = *static_cast<CXSourceLocation*>(unwrapPointer(info[1].As<Napi::Object>()));
+    
+    auto result = clang_equalLocations(loc1, loc2);
+    return Napi::Number::New(env, result);
+}
+
+// Determine for two source locations if the first comes
+// strictly before the second one in the source code.
+// 
+// \returns non-zero if the first source location comes
+// strictly before the second one, zero otherwise.
+static Napi::Value clang_isBeforeInTranslationUnit_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: loc1 (CXSourceLocation)
+    CXSourceLocation loc1 = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: loc2 (CXSourceLocation)
+    CXSourceLocation loc2 = *static_cast<CXSourceLocation*>(unwrapPointer(info[1].As<Napi::Object>()));
+    
+    auto result = clang_isBeforeInTranslationUnit(loc1, loc2);
+    return Napi::Number::New(env, result);
+}
+
+// Returns non-zero if the given source location is in a system header.
+static Napi::Value clang_Location_isInSystemHeader_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: location (CXSourceLocation)
+    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_Location_isInSystemHeader(location);
+    return Napi::Number::New(env, result);
+}
+
+// Returns non-zero if the given source location is in the main file of
+// the corresponding translation unit.
+static Napi::Value clang_Location_isFromMainFile_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: location (CXSourceLocation)
+    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_Location_isFromMainFile(location);
+    return Napi::Number::New(env, result);
+}
+
+// Retrieve a NULL (invalid) source range.
+static Napi::Value clang_getNullRange_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    
+    CXSourceRange result = clang_getNullRange();
+    CXSourceRange* resultPtr = new CXSourceRange(result);
+    return wrapPointer(env, resultPtr, "CXSourceRange");
+}
+
+// Retrieve a source range given the beginning and ending source
+// locations.
+static Napi::Value clang_getRange_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: begin (CXSourceLocation)
+    CXSourceLocation begin = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: end (CXSourceLocation)
+    CXSourceLocation end = *static_cast<CXSourceLocation*>(unwrapPointer(info[1].As<Napi::Object>()));
+    
+    CXSourceRange result = clang_getRange(begin, end);
+    CXSourceRange* resultPtr = new CXSourceRange(result);
+    return wrapPointer(env, resultPtr, "CXSourceRange");
+}
+
+// Determine whether two ranges are equivalent.
+// 
+// \returns non-zero if the ranges are the same, zero if they differ.
+static Napi::Value clang_equalRanges_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: range1 (CXSourceRange)
+    CXSourceRange range1 = *static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: range2 (CXSourceRange)
+    CXSourceRange range2 = *static_cast<CXSourceRange*>(unwrapPointer(info[1].As<Napi::Object>()));
+    
+    auto result = clang_equalRanges(range1, range2);
+    return Napi::Number::New(env, result);
+}
+
+// Returns non-zero if \p range is null.
+static Napi::Value clang_Range_isNull_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: range (CXSourceRange)
+    CXSourceRange range = *static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_Range_isNull(range);
+    return Napi::Number::New(env, result);
+}
+
+// Retrieve the file, line, column, and offset represented by
+// the given source location.
+// 
+// If the location refers into a macro expansion, retrieves the
+// location of the macro expansion.
+// 
+// \param location the location within a source file that will be decomposed
+// into its parts.
+// 
+// \param file [out] if non-NULL, will be set to the file to which the given
+// source location points.
+// 
+// \param line [out] if non-NULL, will be set to the line to which the given
+// source location points.
+// 
+// \param column [out] if non-NULL, will be set to the column to which the given
+// source location points.
+// 
+// \param offset [out] if non-NULL, will be set to the offset into the
+// buffer to which the given source location points.
+static Napi::Value clang_getExpansionLocation_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 5) {
+        Napi::TypeError::New(env, "Expected 5 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: location (CXSourceLocation)
+    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: file (CXFile *)
+    CXFile * file = *static_cast<CXFile **>(unwrapPointer(info[1].As<Napi::Object>()));
+    // Parameter: line (unsigned int *)
+    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
+    // Parameter: column (unsigned int *)
+    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
+    // Parameter: offset (unsigned int *)
+    unsigned int * offset = *static_cast<unsigned int **>(unwrapPointer(info[4].As<Napi::Object>()));
+    
+    clang_getExpansionLocation(location, file, line, column, offset);
+    return env.Undefined();
+}
+
+// Retrieve the file, line and column represented by the given source
+// location, as specified in a # line directive.
+// 
+// Example: given the following source code in a file somefile.c
+// 
+// \code
+// #123 "dummy.c" 1
+// 
+// static int func(void)
+// {
+// return 0;
+// }
+// \endcode
+// 
+// the location information returned by this function would be
+// 
+// File: dummy.c Line: 124 Column: 12
+// 
+// whereas clang_getExpansionLocation would have returned
+// 
+// File: somefile.c Line: 3 Column: 12
+// 
+// \param location the location within a source file that will be decomposed
+// into its parts.
+// 
+// \param filename [out] if non-NULL, will be set to the filename of the
+// source location. Note that filenames returned will be for "virtual" files,
+// which don't necessarily exist on the machine running clang - e.g. when
+// parsing preprocessed output obtained from a different environment. If
+// a non-NULL value is passed in, remember to dispose of the returned value
+// using \c clang_disposeString() once you've finished with it. For an invalid
+// source location, an empty string is returned.
+// 
+// \param line [out] if non-NULL, will be set to the line number of the
+// source location. For an invalid source location, zero is returned.
+// 
+// \param column [out] if non-NULL, will be set to the column number of the
+// source location. For an invalid source location, zero is returned.
+static Napi::Value clang_getPresumedLocation_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 4) {
+        Napi::TypeError::New(env, "Expected 4 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: location (CXSourceLocation)
+    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: filename (CXString *)
+    CXString * filename = nullptr;
+    if (!info[1].IsNull() && !info[1].IsUndefined() && info[1].IsObject()) {
+        filename = static_cast<CXString *>(unwrapPointer(info[1].As<Napi::Object>()));
+    }
+    // Parameter: line (unsigned int *)
+    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
+    // Parameter: column (unsigned int *)
+    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
+    
+    clang_getPresumedLocation(location, filename, line, column);
+    return env.Undefined();
+}
+
+// Legacy API to retrieve the file, line, column, and offset represented
+// by the given source location.
+// 
+// This interface has been replaced by the newer interface
+// #clang_getExpansionLocation(). See that interface's documentation for
+// details.
+static Napi::Value clang_getInstantiationLocation_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 5) {
+        Napi::TypeError::New(env, "Expected 5 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: location (CXSourceLocation)
+    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: file (CXFile *)
+    CXFile * file = *static_cast<CXFile **>(unwrapPointer(info[1].As<Napi::Object>()));
+    // Parameter: line (unsigned int *)
+    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
+    // Parameter: column (unsigned int *)
+    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
+    // Parameter: offset (unsigned int *)
+    unsigned int * offset = *static_cast<unsigned int **>(unwrapPointer(info[4].As<Napi::Object>()));
+    
+    clang_getInstantiationLocation(location, file, line, column, offset);
+    return env.Undefined();
+}
+
+// Retrieve the file, line, column, and offset represented by
+// the given source location.
+// 
+// If the location refers into a macro instantiation, return where the
+// location was originally spelled in the source file.
+// 
+// \param location the location within a source file that will be decomposed
+// into its parts.
+// 
+// \param file [out] if non-NULL, will be set to the file to which the given
+// source location points.
+// 
+// \param line [out] if non-NULL, will be set to the line to which the given
+// source location points.
+// 
+// \param column [out] if non-NULL, will be set to the column to which the given
+// source location points.
+// 
+// \param offset [out] if non-NULL, will be set to the offset into the
+// buffer to which the given source location points.
+static Napi::Value clang_getSpellingLocation_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 5) {
+        Napi::TypeError::New(env, "Expected 5 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: location (CXSourceLocation)
+    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: file (CXFile *)
+    CXFile * file = *static_cast<CXFile **>(unwrapPointer(info[1].As<Napi::Object>()));
+    // Parameter: line (unsigned int *)
+    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
+    // Parameter: column (unsigned int *)
+    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
+    // Parameter: offset (unsigned int *)
+    unsigned int * offset = *static_cast<unsigned int **>(unwrapPointer(info[4].As<Napi::Object>()));
+    
+    clang_getSpellingLocation(location, file, line, column, offset);
+    return env.Undefined();
+}
+
+// Retrieve the file, line, column, and offset represented by
+// the given source location.
+// 
+// If the location refers into a macro expansion, return where the macro was
+// expanded or where the macro argument was written, if the location points at
+// a macro argument.
+// 
+// \param location the location within a source file that will be decomposed
+// into its parts.
+// 
+// \param file [out] if non-NULL, will be set to the file to which the given
+// source location points.
+// 
+// \param line [out] if non-NULL, will be set to the line to which the given
+// source location points.
+// 
+// \param column [out] if non-NULL, will be set to the column to which the given
+// source location points.
+// 
+// \param offset [out] if non-NULL, will be set to the offset into the
+// buffer to which the given source location points.
+static Napi::Value clang_getFileLocation_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 5) {
+        Napi::TypeError::New(env, "Expected 5 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: location (CXSourceLocation)
+    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: file (CXFile *)
+    CXFile * file = *static_cast<CXFile **>(unwrapPointer(info[1].As<Napi::Object>()));
+    // Parameter: line (unsigned int *)
+    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
+    // Parameter: column (unsigned int *)
+    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
+    // Parameter: offset (unsigned int *)
+    unsigned int * offset = *static_cast<unsigned int **>(unwrapPointer(info[4].As<Napi::Object>()));
+    
+    clang_getFileLocation(location, file, line, column, offset);
+    return env.Undefined();
+}
+
+// Retrieve a source location representing the first character within a
+// source range.
+static Napi::Value clang_getRangeStart_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: range (CXSourceRange)
+    CXSourceRange range = *static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    CXSourceLocation result = clang_getRangeStart(range);
+    CXSourceLocation* resultPtr = new CXSourceLocation(result);
+    return wrapPointer(env, resultPtr, "CXSourceLocation");
+}
+
+// Retrieve a source location representing the last character within a
+// source range.
+static Napi::Value clang_getRangeEnd_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: range (CXSourceRange)
+    CXSourceRange range = *static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    CXSourceLocation result = clang_getRangeEnd(range);
+    CXSourceLocation* resultPtr = new CXSourceLocation(result);
+    return wrapPointer(env, resultPtr, "CXSourceLocation");
+}
+
+// Destroy the given \c CXSourceRangeList.
+static Napi::Value clang_disposeSourceRangeList_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: ranges (CXSourceRangeList *)
+    CXSourceRangeList * ranges = nullptr;
+    if (!info[0].IsNull() && !info[0].IsUndefined() && info[0].IsObject()) {
+        ranges = static_cast<CXSourceRangeList *>(unwrapPointer(info[0].As<Napi::Object>()));
+    }
+    
+    clang_disposeSourceRangeList(ranges);
+    return env.Undefined();
+}
+
+// Determine the number of diagnostics in a CXDiagnosticSet.
+static Napi::Value clang_getNumDiagnosticsInSet_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diags (CXDiagnosticSet)
+    CXDiagnosticSet Diags = *static_cast<CXDiagnosticSet*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_getNumDiagnosticsInSet(Diags);
+    return Napi::Number::New(env, result);
+}
+
+// Retrieve a diagnostic associated with the given CXDiagnosticSet.
+// 
+// \param Diags the CXDiagnosticSet to query.
+// \param Index the zero-based diagnostic number to retrieve.
+// 
+// \returns the requested diagnostic. This diagnostic must be freed
+// via a call to \c clang_disposeDiagnostic().
+static Napi::Value clang_getDiagnosticInSet_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diags (CXDiagnosticSet)
+    CXDiagnosticSet Diags = *static_cast<CXDiagnosticSet*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: Index (unsigned int)
+    auto Index = info[1].As<Napi::Number>().Uint32Value();
+    
+    CXDiagnostic result = clang_getDiagnosticInSet(Diags, Index);
+    CXDiagnostic* resultPtr = new CXDiagnostic;
+    *resultPtr = result;
+    return wrapPointer(env, resultPtr, "CXDiagnostic");
+}
+
+// Deserialize a set of diagnostics from a Clang diagnostics bitcode
+// file.
+// 
+// \param file The name of the file to deserialize.
+// \param error A pointer to a enum value recording if there was a problem
+// deserializing the diagnostics.
+// \param errorString A pointer to a CXString for recording the error string
+// if the file was not successfully loaded.
+// 
+// \returns A loaded CXDiagnosticSet if successful, and NULL otherwise.  These
+// diagnostics should be released using clang_disposeDiagnosticSet().
+static Napi::Value clang_loadDiagnostics_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 3) {
+        Napi::TypeError::New(env, "Expected 3 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: file (const char *)
+    std::string file_str = info[0].As<Napi::String>().Utf8Value();
+    const char* file = file_str.c_str();
+    // Parameter: error (enum CXLoadDiag_Error *)
+    enum CXLoadDiag_Error * error = *static_cast<enum CXLoadDiag_Error **>(unwrapPointer(info[1].As<Napi::Object>()));
+    // Parameter: errorString (CXString *)
+    CXString * errorString = nullptr;
+    if (!info[2].IsNull() && !info[2].IsUndefined() && info[2].IsObject()) {
+        errorString = static_cast<CXString *>(unwrapPointer(info[2].As<Napi::Object>()));
+    }
+    
+    CXDiagnosticSet result = clang_loadDiagnostics(file, error, errorString);
+    CXDiagnosticSet* resultPtr = new CXDiagnosticSet;
+    *resultPtr = result;
+    return wrapPointer(env, resultPtr, "CXDiagnosticSet");
+}
+
+// Release a CXDiagnosticSet and all of its contained diagnostics.
+static Napi::Value clang_disposeDiagnosticSet_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diags (CXDiagnosticSet)
+    CXDiagnosticSet Diags = *static_cast<CXDiagnosticSet*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    clang_disposeDiagnosticSet(Diags);
+    return env.Undefined();
+}
+
+// Retrieve the child diagnostics of a CXDiagnostic.
+// 
+// This CXDiagnosticSet does not need to be released by
+// clang_disposeDiagnosticSet.
+static Napi::Value clang_getChildDiagnostics_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: D (CXDiagnostic)
+    CXDiagnostic D = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    CXDiagnosticSet result = clang_getChildDiagnostics(D);
+    CXDiagnosticSet* resultPtr = new CXDiagnosticSet;
+    *resultPtr = result;
+    return wrapPointer(env, resultPtr, "CXDiagnosticSet");
+}
+
+// Destroy a diagnostic.
+static Napi::Value clang_disposeDiagnostic_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diagnostic (CXDiagnostic)
+    CXDiagnostic Diagnostic = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    clang_disposeDiagnostic(Diagnostic);
+    return env.Undefined();
+}
+
+// Format the given diagnostic in a manner that is suitable for display.
+// 
+// This routine will format the given diagnostic to a string, rendering
+// the diagnostic according to the various options given. The
+// \c clang_defaultDiagnosticDisplayOptions() function returns the set of
+// options that most closely mimics the behavior of the clang compiler.
+// 
+// \param Diagnostic The diagnostic to print.
+// 
+// \param Options A set of options that control the diagnostic display,
+// created by combining \c CXDiagnosticDisplayOptions values.
+// 
+// \returns A new string containing for formatted diagnostic.
+static Napi::Value clang_formatDiagnostic_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diagnostic (CXDiagnostic)
+    CXDiagnostic Diagnostic = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: Options (unsigned int)
+    auto Options = info[1].As<Napi::Number>().Uint32Value();
+    
+    CXString result = clang_formatDiagnostic(Diagnostic, Options);
+    CXString* resultPtr = new CXString(result);
+    return wrapPointer(env, resultPtr, "CXString");
+}
+
+// Retrieve the set of display options most similar to the
+// default behavior of the clang compiler.
+// 
+// \returns A set of display options suitable for use with \c
+// clang_formatDiagnostic().
+static Napi::Value clang_defaultDiagnosticDisplayOptions_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    
+    auto result = clang_defaultDiagnosticDisplayOptions();
+    return Napi::Number::New(env, result);
+}
+
+// Determine the severity of the given diagnostic.
+static Napi::Value clang_getDiagnosticSeverity_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXDiagnostic)
+    CXDiagnostic arg0 = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_getDiagnosticSeverity(arg0);
+    return Napi::Number::New(env, static_cast<int>(result));
+}
+
+// Retrieve the source location of the given diagnostic.
+// 
+// This location is where Clang would print the caret ('^') when
+// displaying the diagnostic on the command line.
+static Napi::Value clang_getDiagnosticLocation_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXDiagnostic)
+    CXDiagnostic arg0 = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    CXSourceLocation result = clang_getDiagnosticLocation(arg0);
+    CXSourceLocation* resultPtr = new CXSourceLocation(result);
+    return wrapPointer(env, resultPtr, "CXSourceLocation");
+}
+
+// Retrieve the text of the given diagnostic.
+static Napi::Value clang_getDiagnosticSpelling_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXDiagnostic)
+    CXDiagnostic arg0 = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    CXString result = clang_getDiagnosticSpelling(arg0);
+    CXString* resultPtr = new CXString(result);
+    return wrapPointer(env, resultPtr, "CXString");
+}
+
+// Retrieve the name of the command-line option that enabled this
+// diagnostic.
+// 
+// \param Diag The diagnostic to be queried.
+// 
+// \param Disable If non-NULL, will be set to the option that disables this
+// diagnostic (if any).
+// 
+// \returns A string that contains the command-line option used to enable this
+// warning, such as "-Wconversion" or "-pedantic".
+static Napi::Value clang_getDiagnosticOption_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diag (CXDiagnostic)
+    CXDiagnostic Diag = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: Disable (CXString *)
+    CXString * Disable = nullptr;
+    if (!info[1].IsNull() && !info[1].IsUndefined() && info[1].IsObject()) {
+        Disable = static_cast<CXString *>(unwrapPointer(info[1].As<Napi::Object>()));
+    }
+    
+    CXString result = clang_getDiagnosticOption(Diag, Disable);
+    CXString* resultPtr = new CXString(result);
+    return wrapPointer(env, resultPtr, "CXString");
+}
+
+// Retrieve the category number for this diagnostic.
+// 
+// Diagnostics can be categorized into groups along with other, related
+// diagnostics (e.g., diagnostics under the same warning flag). This routine
+// retrieves the category number for the given diagnostic.
+// 
+// \returns The number of the category that contains this diagnostic, or zero
+// if this diagnostic is uncategorized.
+static Napi::Value clang_getDiagnosticCategory_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXDiagnostic)
+    CXDiagnostic arg0 = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_getDiagnosticCategory(arg0);
+    return Napi::Number::New(env, result);
+}
+
+// Retrieve the name of a particular diagnostic category.  This
+// is now deprecated.  Use clang_getDiagnosticCategoryText()
+// instead.
+// 
+// \param Category A diagnostic category number, as returned by
+// \c clang_getDiagnosticCategory().
+// 
+// \returns The name of the given diagnostic category.
+static Napi::Value clang_getDiagnosticCategoryName_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Category (unsigned int)
+    auto Category = info[0].As<Napi::Number>().Uint32Value();
+    
+    CXString result = clang_getDiagnosticCategoryName(Category);
+    CXString* resultPtr = new CXString(result);
+    return wrapPointer(env, resultPtr, "CXString");
+}
+
+// Retrieve the diagnostic category text for a given diagnostic.
+// 
+// \returns The text of the given diagnostic category.
+static Napi::Value clang_getDiagnosticCategoryText_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXDiagnostic)
+    CXDiagnostic arg0 = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    CXString result = clang_getDiagnosticCategoryText(arg0);
+    CXString* resultPtr = new CXString(result);
+    return wrapPointer(env, resultPtr, "CXString");
+}
+
+// Determine the number of source ranges associated with the given
+// diagnostic.
+static Napi::Value clang_getDiagnosticNumRanges_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: arg0 (CXDiagnostic)
+    CXDiagnostic arg0 = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_getDiagnosticNumRanges(arg0);
+    return Napi::Number::New(env, result);
+}
+
+// Retrieve a source range associated with the diagnostic.
+// 
+// A diagnostic's source ranges highlight important elements in the source
+// code. On the command line, Clang displays source ranges by
+// underlining them with '~' characters.
+// 
+// \param Diagnostic the diagnostic whose range is being extracted.
+// 
+// \param Range the zero-based index specifying which range to
+// 
+// \returns the requested source range.
+static Napi::Value clang_getDiagnosticRange_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diagnostic (CXDiagnostic)
+    CXDiagnostic Diagnostic = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: Range (unsigned int)
+    auto Range = info[1].As<Napi::Number>().Uint32Value();
+    
+    CXSourceRange result = clang_getDiagnosticRange(Diagnostic, Range);
+    CXSourceRange* resultPtr = new CXSourceRange(result);
+    return wrapPointer(env, resultPtr, "CXSourceRange");
+}
+
+// Determine the number of fix-it hints associated with the
+// given diagnostic.
+static Napi::Value clang_getDiagnosticNumFixIts_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diagnostic (CXDiagnostic)
+    CXDiagnostic Diagnostic = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    
+    auto result = clang_getDiagnosticNumFixIts(Diagnostic);
+    return Napi::Number::New(env, result);
+}
+
+// Retrieve the replacement information for a given fix-it.
+// 
+// Fix-its are described in terms of a source range whose contents
+// should be replaced by a string. This approach generalizes over
+// three kinds of operations: removal of source code (the range covers
+// the code to be removed and the replacement string is empty),
+// replacement of source code (the range covers the code to be
+// replaced and the replacement string provides the new code), and
+// insertion (both the start and end of the range point at the
+// insertion location, and the replacement string provides the text to
+// insert).
+// 
+// \param Diagnostic The diagnostic whose fix-its are being queried.
+// 
+// \param FixIt The zero-based index of the fix-it.
+// 
+// \param ReplacementRange The source range whose contents will be
+// replaced with the returned replacement string. Note that source
+// ranges are half-open ranges [a, b), so the source code should be
+// replaced from a and up to (but not including) b.
+// 
+// \returns A string containing text that should be replace the source
+// code indicated by the \c ReplacementRange.
+static Napi::Value clang_getDiagnosticFixIt_wrapper(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 3) {
+        Napi::TypeError::New(env, "Expected 3 arguments").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    
+    // Parameter: Diagnostic (CXDiagnostic)
+    CXDiagnostic Diagnostic = *static_cast<CXDiagnostic*>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: FixIt (unsigned int)
+    auto FixIt = info[1].As<Napi::Number>().Uint32Value();
+    // Parameter: ReplacementRange (CXSourceRange *)
+    CXSourceRange * ReplacementRange = nullptr;
+    if (!info[2].IsNull() && !info[2].IsUndefined() && info[2].IsObject()) {
+        ReplacementRange = static_cast<CXSourceRange *>(unwrapPointer(info[2].As<Napi::Object>()));
+    }
+    
+    CXString result = clang_getDiagnosticFixIt(Diagnostic, FixIt, ReplacementRange);
+    CXString* resultPtr = new CXString(result);
+    return wrapPointer(env, resultPtr, "CXString");
+}
+
 // Provides a shared context for creating translation units.
 // 
 // It provides two options:
@@ -7364,7 +8881,8 @@ static Napi::Value clang_getFile_wrapper(const Napi::CallbackInfo& info) {
     const char* file_name = file_name_str.c_str();
     
     CXFile result = clang_getFile(tu, file_name);
-    CXFile* resultPtr = new CXFile(result);
+    CXFile* resultPtr = new CXFile;
+    *resultPtr = result;
     return wrapPointer(env, resultPtr, "CXFile");
 }
 
@@ -7394,6 +8912,9 @@ static Napi::Value clang_getFileContents_wrapper(const Napi::CallbackInfo& info)
     size_t * size = static_cast<size_t *>(unwrapPointer(info[2].As<Napi::Object>()));
     
     auto result = clang_getFileContents(tu, file, size);
+    if (result == nullptr) {
+        return env.Null();
+    }
     return Napi::String::New(env, result);
 }
 
@@ -7526,7 +9047,8 @@ static Napi::Value clang_getDiagnostic_wrapper(const Napi::CallbackInfo& info) {
     auto Index = info[1].As<Napi::Number>().Uint32Value();
     
     CXDiagnostic result = clang_getDiagnostic(Unit, Index);
-    CXDiagnostic* resultPtr = new CXDiagnostic(result);
+    CXDiagnostic* resultPtr = new CXDiagnostic;
+    *resultPtr = result;
     return wrapPointer(env, resultPtr, "CXDiagnostic");
 }
 
@@ -7546,7 +9068,8 @@ static Napi::Value clang_getDiagnosticSetFromTU_wrapper(const Napi::CallbackInfo
     CXTranslationUnit Unit = *static_cast<CXTranslationUnit*>(unwrapPointer(info[0].As<Napi::Object>()));
     
     CXDiagnosticSet result = clang_getDiagnosticSetFromTU(Unit);
-    CXDiagnosticSet* resultPtr = new CXDiagnosticSet(result);
+    CXDiagnosticSet* resultPtr = new CXDiagnosticSet;
+    *resultPtr = result;
     return wrapPointer(env, resultPtr, "CXDiagnosticSet");
 }
 
@@ -8117,6 +9640,9 @@ static Napi::Value clang_getTUResourceUsageName_wrapper(const Napi::CallbackInfo
     enum CXTUResourceUsageKind kind = static_cast<enum CXTUResourceUsageKind>(info[0].As<Napi::Number>().Int32Value());
     
     auto result = clang_getTUResourceUsageName(kind);
+    if (result == nullptr) {
+        return env.Null();
+    }
     return Napi::String::New(env, result);
 }
 
@@ -9025,7 +10551,8 @@ static Napi::Value clang_getIncludedFile_wrapper(const Napi::CallbackInfo& info)
     CXCursor cursor = *static_cast<CXCursor*>(unwrapPointer(info[0].As<Napi::Object>()));
     
     CXFile result = clang_getIncludedFile(cursor);
-    CXFile* resultPtr = new CXFile(result);
+    CXFile* resultPtr = new CXFile;
+    *resultPtr = result;
     return wrapPointer(env, resultPtr, "CXFile");
 }
 
@@ -11593,7 +13120,8 @@ static Napi::Value clang_Module_getASTFile_wrapper(const Napi::CallbackInfo& inf
     CXModule Module = *static_cast<CXModule*>(unwrapPointer(info[0].As<Napi::Object>()));
     
     CXFile result = clang_Module_getASTFile(Module);
-    CXFile* resultPtr = new CXFile(result);
+    CXFile* resultPtr = new CXFile;
+    *resultPtr = result;
     return wrapPointer(env, resultPtr, "CXFile");
 }
 
@@ -11716,7 +13244,8 @@ static Napi::Value clang_Module_getTopLevelHeader_wrapper(const Napi::CallbackIn
     auto Index = info[2].As<Napi::Number>().Uint32Value();
     
     CXFile result = clang_Module_getTopLevelHeader(arg0, Module, Index);
-    CXFile* resultPtr = new CXFile(result);
+    CXFile* resultPtr = new CXFile;
+    *resultPtr = result;
     return wrapPointer(env, resultPtr, "CXFile");
 }
 
@@ -12453,8 +13982,11 @@ static Napi::Value clang_executeOnThread_wrapper(const Napi::CallbackInfo& info)
     }
     
     // Parameter: fn (void (*)(void *))
-    typedef void (*fn_t)(void *);
-    fn_t fn = reinterpret_cast<fn_t>(unwrapPointer(info[0].As<Napi::Object>()));
+    // Parameter: fn (void (*)(void *))
+    void (*fn)(void *) = nullptr;
+    if (info[0].IsExternal()) {
+        fn = reinterpret_cast<void (*)(void *)>(info[0].As<Napi::External<void>>().Data());
+    }
     // Parameter: user_data (void *)
     void * user_data = *static_cast<void **>(unwrapPointer(info[1].As<Napi::Object>()));
     // Parameter: stack_size (unsigned int)
@@ -13006,7 +14538,8 @@ static Napi::Value clang_codeCompleteGetDiagnostic_wrapper(const Napi::CallbackI
     auto Index = info[1].As<Napi::Number>().Uint32Value();
     
     CXDiagnostic result = clang_codeCompleteGetDiagnostic(Results, Index);
-    CXDiagnostic* resultPtr = new CXDiagnostic(result);
+    CXDiagnostic* resultPtr = new CXDiagnostic;
+    *resultPtr = result;
     return wrapPointer(env, resultPtr, "CXDiagnostic");
 }
 
@@ -13156,7 +14689,11 @@ static Napi::Value clang_getInclusions_wrapper(const Napi::CallbackInfo& info) {
     // Parameter: tu (CXTranslationUnit)
     CXTranslationUnit tu = *static_cast<CXTranslationUnit*>(unwrapPointer(info[0].As<Napi::Object>()));
     // Parameter: visitor (CXInclusionVisitor)
-    CXInclusionVisitor visitor = *static_cast<CXInclusionVisitor*>(unwrapPointer(info[1].As<Napi::Object>()));
+    // Parameter: visitor (CXInclusionVisitor)
+    CXInclusionVisitor visitor = nullptr;
+    if (info[1].IsExternal()) {
+        visitor = reinterpret_cast<CXInclusionVisitor>(info[1].As<Napi::External<void>>().Data());
+    }
     // Parameter: client_data (CXClientData)
     CXClientData client_data = *static_cast<CXClientData*>(unwrapPointer(info[2].As<Napi::Object>()));
     
@@ -13303,6 +14840,9 @@ static Napi::Value clang_EvalResult_getAsStr_wrapper(const Napi::CallbackInfo& i
     CXEvalResult E = *static_cast<CXEvalResult*>(unwrapPointer(info[0].As<Napi::Object>()));
     
     auto result = clang_EvalResult_getAsStr(E);
+    if (result == nullptr) {
+        return env.Null();
+    }
     return Napi::String::New(env, result);
 }
 
@@ -14026,10 +15566,7 @@ static Napi::Value clang_indexLoc_getFileLocation_wrapper(const Napi::CallbackIn
     // Parameter: indexFile (CXIdxClientFile *)
     CXIdxClientFile * indexFile = *static_cast<CXIdxClientFile **>(unwrapPointer(info[1].As<Napi::Object>()));
     // Parameter: file (CXFile *)
-    CXFile * file = nullptr;
-    if (!info[2].IsNull() && !info[2].IsUndefined() && info[2].IsObject()) {
-        file = static_cast<CXFile *>(unwrapPointer(info[2].As<Napi::Object>()));
-    }
+    CXFile * file = *static_cast<CXFile **>(unwrapPointer(info[2].As<Napi::Object>()));
     // Parameter: line (unsigned int *)
     unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
     // Parameter: column (unsigned int *)
@@ -14086,7 +15623,11 @@ static Napi::Value clang_Type_visitFields_wrapper(const Napi::CallbackInfo& info
     // Parameter: T (CXType)
     CXType T = *static_cast<CXType*>(unwrapPointer(info[0].As<Napi::Object>()));
     // Parameter: visitor (CXFieldVisitor)
-    CXFieldVisitor visitor = *static_cast<CXFieldVisitor*>(unwrapPointer(info[1].As<Napi::Object>()));
+    // Parameter: visitor (CXFieldVisitor)
+    CXFieldVisitor visitor = nullptr;
+    if (info[1].IsExternal()) {
+        visitor = reinterpret_cast<CXFieldVisitor>(info[1].As<Napi::External<void>>().Data());
+    }
     // Parameter: client_data (CXClientData)
     CXClientData client_data = *static_cast<CXClientData*>(unwrapPointer(info[2].As<Napi::Object>()));
     
@@ -14122,7 +15663,11 @@ static Napi::Value clang_visitCXXBaseClasses_wrapper(const Napi::CallbackInfo& i
     // Parameter: T (CXType)
     CXType T = *static_cast<CXType*>(unwrapPointer(info[0].As<Napi::Object>()));
     // Parameter: visitor (CXFieldVisitor)
-    CXFieldVisitor visitor = *static_cast<CXFieldVisitor*>(unwrapPointer(info[1].As<Napi::Object>()));
+    // Parameter: visitor (CXFieldVisitor)
+    CXFieldVisitor visitor = nullptr;
+    if (info[1].IsExternal()) {
+        visitor = reinterpret_cast<CXFieldVisitor>(info[1].As<Napi::External<void>>().Data());
+    }
     // Parameter: client_data (CXClientData)
     CXClientData client_data = *static_cast<CXClientData*>(unwrapPointer(info[2].As<Napi::Object>()));
     
@@ -14200,1345 +15745,880 @@ static Napi::Value clang_getCursorUnaryOperatorKind_wrapper(const Napi::Callback
     return Napi::Number::New(env, static_cast<int>(result));
 }
 
-// Retrieve the character data associated with the given string.
-// 
-// The returned data is a reference and not owned by the user. This data
-// is only valid while the `CXString` is valid. This function is similar
-// to `std::string::c_str()`.
-static Napi::Value clang_getCString_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: string (CXString)
-    CXString string = *static_cast<CXString*>(unwrapPointer(info[0].As<Napi::Object>()));
-    
-    auto result = clang_getCString(string);
-    return Napi::String::New(env, result);
-}
-
-// Free the given string.
-static Napi::Value clang_disposeString_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: string (CXString)
-    CXString string = *static_cast<CXString*>(unwrapPointer(info[0].As<Napi::Object>()));
-    
-    clang_disposeString(string);
-    return env.Undefined();
-}
-
-// Free the given string set.
-static Napi::Value clang_disposeStringSet_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: set (CXStringSet *)
-    CXStringSet * set = nullptr;
-    if (!info[0].IsNull() && !info[0].IsUndefined() && info[0].IsObject()) {
-        set = static_cast<CXStringSet *>(unwrapPointer(info[0].As<Napi::Object>()));
-    }
-    
-    clang_disposeStringSet(set);
-    return env.Undefined();
-}
-
-// Retrieve a NULL (invalid) source location.
-static Napi::Value clang_getNullLocation_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    
-    CXSourceLocation result = clang_getNullLocation();
-    CXSourceLocation* resultPtr = new CXSourceLocation(result);
-    return wrapPointer(env, resultPtr, "CXSourceLocation");
-}
-
-// Determine whether two source locations, which must refer into
-// the same translation unit, refer to exactly the same point in the source
-// code.
-// 
-// \returns non-zero if the source locations refer to the same location, zero
-// if they refer to different locations.
-static Napi::Value clang_equalLocations_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2) {
-        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: loc1 (CXSourceLocation)
-    CXSourceLocation loc1 = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: loc2 (CXSourceLocation)
-    CXSourceLocation loc2 = *static_cast<CXSourceLocation*>(unwrapPointer(info[1].As<Napi::Object>()));
-    
-    auto result = clang_equalLocations(loc1, loc2);
-    return Napi::Number::New(env, result);
-}
-
-// Determine for two source locations if the first comes
-// strictly before the second one in the source code.
-// 
-// \returns non-zero if the first source location comes
-// strictly before the second one, zero otherwise.
-static Napi::Value clang_isBeforeInTranslationUnit_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2) {
-        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: loc1 (CXSourceLocation)
-    CXSourceLocation loc1 = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: loc2 (CXSourceLocation)
-    CXSourceLocation loc2 = *static_cast<CXSourceLocation*>(unwrapPointer(info[1].As<Napi::Object>()));
-    
-    auto result = clang_isBeforeInTranslationUnit(loc1, loc2);
-    return Napi::Number::New(env, result);
-}
-
-// Returns non-zero if the given source location is in a system header.
-static Napi::Value clang_Location_isInSystemHeader_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: location (CXSourceLocation)
-    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    
-    auto result = clang_Location_isInSystemHeader(location);
-    return Napi::Number::New(env, result);
-}
-
-// Returns non-zero if the given source location is in the main file of
-// the corresponding translation unit.
-static Napi::Value clang_Location_isFromMainFile_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: location (CXSourceLocation)
-    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    
-    auto result = clang_Location_isFromMainFile(location);
-    return Napi::Number::New(env, result);
-}
-
-// Retrieve a NULL (invalid) source range.
-static Napi::Value clang_getNullRange_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    
-    CXSourceRange result = clang_getNullRange();
-    CXSourceRange* resultPtr = new CXSourceRange(result);
-    return wrapPointer(env, resultPtr, "CXSourceRange");
-}
-
-// Retrieve a source range given the beginning and ending source
-// locations.
-static Napi::Value clang_getRange_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2) {
-        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: begin (CXSourceLocation)
-    CXSourceLocation begin = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: end (CXSourceLocation)
-    CXSourceLocation end = *static_cast<CXSourceLocation*>(unwrapPointer(info[1].As<Napi::Object>()));
-    
-    CXSourceRange result = clang_getRange(begin, end);
-    CXSourceRange* resultPtr = new CXSourceRange(result);
-    return wrapPointer(env, resultPtr, "CXSourceRange");
-}
-
-// Determine whether two ranges are equivalent.
-// 
-// \returns non-zero if the ranges are the same, zero if they differ.
-static Napi::Value clang_equalRanges_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 2) {
-        Napi::TypeError::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: range1 (CXSourceRange)
-    CXSourceRange range1 = *static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: range2 (CXSourceRange)
-    CXSourceRange range2 = *static_cast<CXSourceRange*>(unwrapPointer(info[1].As<Napi::Object>()));
-    
-    auto result = clang_equalRanges(range1, range2);
-    return Napi::Number::New(env, result);
-}
-
-// Returns non-zero if \p range is null.
-static Napi::Value clang_Range_isNull_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: range (CXSourceRange)
-    CXSourceRange range = *static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
-    
-    auto result = clang_Range_isNull(range);
-    return Napi::Number::New(env, result);
-}
-
-// Retrieve the file, line, column, and offset represented by
-// the given source location.
-// 
-// If the location refers into a macro expansion, retrieves the
-// location of the macro expansion.
-// 
-// \param location the location within a source file that will be decomposed
-// into its parts.
-// 
-// \param file [out] if non-NULL, will be set to the file to which the given
-// source location points.
-// 
-// \param line [out] if non-NULL, will be set to the line to which the given
-// source location points.
-// 
-// \param column [out] if non-NULL, will be set to the column to which the given
-// source location points.
-// 
-// \param offset [out] if non-NULL, will be set to the offset into the
-// buffer to which the given source location points.
-static Napi::Value clang_getExpansionLocation_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 5) {
-        Napi::TypeError::New(env, "Expected 5 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: location (CXSourceLocation)
-    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: file (CXFile *)
-    CXFile * file = nullptr;
-    if (!info[1].IsNull() && !info[1].IsUndefined() && info[1].IsObject()) {
-        file = static_cast<CXFile *>(unwrapPointer(info[1].As<Napi::Object>()));
-    }
-    // Parameter: line (unsigned int *)
-    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
-    // Parameter: column (unsigned int *)
-    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
-    // Parameter: offset (unsigned int *)
-    unsigned int * offset = *static_cast<unsigned int **>(unwrapPointer(info[4].As<Napi::Object>()));
-    
-    clang_getExpansionLocation(location, file, line, column, offset);
-    return env.Undefined();
-}
-
-// Retrieve the file, line and column represented by the given source
-// location, as specified in a # line directive.
-// 
-// Example: given the following source code in a file somefile.c
-// 
-// \code
-// #123 "dummy.c" 1
-// 
-// static int func(void)
-// {
-// return 0;
-// }
-// \endcode
-// 
-// the location information returned by this function would be
-// 
-// File: dummy.c Line: 124 Column: 12
-// 
-// whereas clang_getExpansionLocation would have returned
-// 
-// File: somefile.c Line: 3 Column: 12
-// 
-// \param location the location within a source file that will be decomposed
-// into its parts.
-// 
-// \param filename [out] if non-NULL, will be set to the filename of the
-// source location. Note that filenames returned will be for "virtual" files,
-// which don't necessarily exist on the machine running clang - e.g. when
-// parsing preprocessed output obtained from a different environment. If
-// a non-NULL value is passed in, remember to dispose of the returned value
-// using \c clang_disposeString() once you've finished with it. For an invalid
-// source location, an empty string is returned.
-// 
-// \param line [out] if non-NULL, will be set to the line number of the
-// source location. For an invalid source location, zero is returned.
-// 
-// \param column [out] if non-NULL, will be set to the column number of the
-// source location. For an invalid source location, zero is returned.
-static Napi::Value clang_getPresumedLocation_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 4) {
-        Napi::TypeError::New(env, "Expected 4 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: location (CXSourceLocation)
-    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: filename (CXString *)
-    CXString * filename = nullptr;
-    if (!info[1].IsNull() && !info[1].IsUndefined() && info[1].IsObject()) {
-        filename = static_cast<CXString *>(unwrapPointer(info[1].As<Napi::Object>()));
-    }
-    // Parameter: line (unsigned int *)
-    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
-    // Parameter: column (unsigned int *)
-    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
-    
-    clang_getPresumedLocation(location, filename, line, column);
-    return env.Undefined();
-}
-
-// Legacy API to retrieve the file, line, column, and offset represented
-// by the given source location.
-// 
-// This interface has been replaced by the newer interface
-// #clang_getExpansionLocation(). See that interface's documentation for
-// details.
-static Napi::Value clang_getInstantiationLocation_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 5) {
-        Napi::TypeError::New(env, "Expected 5 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: location (CXSourceLocation)
-    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: file (CXFile *)
-    CXFile * file = nullptr;
-    if (!info[1].IsNull() && !info[1].IsUndefined() && info[1].IsObject()) {
-        file = static_cast<CXFile *>(unwrapPointer(info[1].As<Napi::Object>()));
-    }
-    // Parameter: line (unsigned int *)
-    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
-    // Parameter: column (unsigned int *)
-    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
-    // Parameter: offset (unsigned int *)
-    unsigned int * offset = *static_cast<unsigned int **>(unwrapPointer(info[4].As<Napi::Object>()));
-    
-    clang_getInstantiationLocation(location, file, line, column, offset);
-    return env.Undefined();
-}
-
-// Retrieve the file, line, column, and offset represented by
-// the given source location.
-// 
-// If the location refers into a macro instantiation, return where the
-// location was originally spelled in the source file.
-// 
-// \param location the location within a source file that will be decomposed
-// into its parts.
-// 
-// \param file [out] if non-NULL, will be set to the file to which the given
-// source location points.
-// 
-// \param line [out] if non-NULL, will be set to the line to which the given
-// source location points.
-// 
-// \param column [out] if non-NULL, will be set to the column to which the given
-// source location points.
-// 
-// \param offset [out] if non-NULL, will be set to the offset into the
-// buffer to which the given source location points.
-static Napi::Value clang_getSpellingLocation_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 5) {
-        Napi::TypeError::New(env, "Expected 5 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: location (CXSourceLocation)
-    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: file (CXFile *)
-    CXFile * file = nullptr;
-    if (!info[1].IsNull() && !info[1].IsUndefined() && info[1].IsObject()) {
-        file = static_cast<CXFile *>(unwrapPointer(info[1].As<Napi::Object>()));
-    }
-    // Parameter: line (unsigned int *)
-    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
-    // Parameter: column (unsigned int *)
-    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
-    // Parameter: offset (unsigned int *)
-    unsigned int * offset = *static_cast<unsigned int **>(unwrapPointer(info[4].As<Napi::Object>()));
-    
-    clang_getSpellingLocation(location, file, line, column, offset);
-    return env.Undefined();
-}
-
-// Retrieve the file, line, column, and offset represented by
-// the given source location.
-// 
-// If the location refers into a macro expansion, return where the macro was
-// expanded or where the macro argument was written, if the location points at
-// a macro argument.
-// 
-// \param location the location within a source file that will be decomposed
-// into its parts.
-// 
-// \param file [out] if non-NULL, will be set to the file to which the given
-// source location points.
-// 
-// \param line [out] if non-NULL, will be set to the line to which the given
-// source location points.
-// 
-// \param column [out] if non-NULL, will be set to the column to which the given
-// source location points.
-// 
-// \param offset [out] if non-NULL, will be set to the offset into the
-// buffer to which the given source location points.
-static Napi::Value clang_getFileLocation_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 5) {
-        Napi::TypeError::New(env, "Expected 5 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: location (CXSourceLocation)
-    CXSourceLocation location = *static_cast<CXSourceLocation*>(unwrapPointer(info[0].As<Napi::Object>()));
-    // Parameter: file (CXFile *)
-    CXFile * file = nullptr;
-    if (!info[1].IsNull() && !info[1].IsUndefined() && info[1].IsObject()) {
-        file = static_cast<CXFile *>(unwrapPointer(info[1].As<Napi::Object>()));
-    }
-    // Parameter: line (unsigned int *)
-    unsigned int * line = *static_cast<unsigned int **>(unwrapPointer(info[2].As<Napi::Object>()));
-    // Parameter: column (unsigned int *)
-    unsigned int * column = *static_cast<unsigned int **>(unwrapPointer(info[3].As<Napi::Object>()));
-    // Parameter: offset (unsigned int *)
-    unsigned int * offset = *static_cast<unsigned int **>(unwrapPointer(info[4].As<Napi::Object>()));
-    
-    clang_getFileLocation(location, file, line, column, offset);
-    return env.Undefined();
-}
-
-// Retrieve a source location representing the first character within a
-// source range.
-static Napi::Value clang_getRangeStart_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: range (CXSourceRange)
-    CXSourceRange range = *static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
-    
-    CXSourceLocation result = clang_getRangeStart(range);
-    CXSourceLocation* resultPtr = new CXSourceLocation(result);
-    return wrapPointer(env, resultPtr, "CXSourceLocation");
-}
-
-// Retrieve a source location representing the last character within a
-// source range.
-static Napi::Value clang_getRangeEnd_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: range (CXSourceRange)
-    CXSourceRange range = *static_cast<CXSourceRange*>(unwrapPointer(info[0].As<Napi::Object>()));
-    
-    CXSourceLocation result = clang_getRangeEnd(range);
-    CXSourceLocation* resultPtr = new CXSourceLocation(result);
-    return wrapPointer(env, resultPtr, "CXSourceLocation");
-}
-
-// Destroy the given \c CXSourceRangeList.
-static Napi::Value clang_disposeSourceRangeList_wrapper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-    
-    // Parameter: ranges (CXSourceRangeList *)
-    CXSourceRangeList * ranges = nullptr;
-    if (!info[0].IsNull() && !info[0].IsUndefined() && info[0].IsObject()) {
-        ranges = static_cast<CXSourceRangeList *>(unwrapPointer(info[0].As<Napi::Object>()));
-    }
-    
-    clang_disposeSourceRangeList(ranges);
-    return env.Undefined();
-}
-
 
 static Napi::Object Init(Napi::Env env, Napi::Object exports) {
-    exports.Set("CXAvailability_Available", Napi::Function::New(env, Get_CXAvailability_Available));
-    exports.Set("CXAvailability_Deprecated", Napi::Function::New(env, Get_CXAvailability_Deprecated));
-    exports.Set("CXAvailability_NotAvailable", Napi::Function::New(env, Get_CXAvailability_NotAvailable));
-    exports.Set("CXAvailability_NotAccessible", Napi::Function::New(env, Get_CXAvailability_NotAccessible));
-    exports.Set("CXCursor_ExceptionSpecificationKind_None", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_None));
-    exports.Set("CXCursor_ExceptionSpecificationKind_DynamicNone", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_DynamicNone));
-    exports.Set("CXCursor_ExceptionSpecificationKind_Dynamic", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_Dynamic));
-    exports.Set("CXCursor_ExceptionSpecificationKind_MSAny", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_MSAny));
-    exports.Set("CXCursor_ExceptionSpecificationKind_BasicNoexcept", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_BasicNoexcept));
-    exports.Set("CXCursor_ExceptionSpecificationKind_ComputedNoexcept", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_ComputedNoexcept));
-    exports.Set("CXCursor_ExceptionSpecificationKind_Unevaluated", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_Unevaluated));
-    exports.Set("CXCursor_ExceptionSpecificationKind_Uninstantiated", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_Uninstantiated));
-    exports.Set("CXCursor_ExceptionSpecificationKind_Unparsed", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_Unparsed));
-    exports.Set("CXCursor_ExceptionSpecificationKind_NoThrow", Napi::Function::New(env, Get_CXCursor_ExceptionSpecificationKind_NoThrow));
-    exports.Set("CXChoice_Default", Napi::Function::New(env, Get_CXChoice_Default));
-    exports.Set("CXChoice_Enabled", Napi::Function::New(env, Get_CXChoice_Enabled));
-    exports.Set("CXChoice_Disabled", Napi::Function::New(env, Get_CXChoice_Disabled));
-    exports.Set("CXGlobalOpt_None", Napi::Function::New(env, Get_CXGlobalOpt_None));
-    exports.Set("CXGlobalOpt_ThreadBackgroundPriorityForIndexing", Napi::Function::New(env, Get_CXGlobalOpt_ThreadBackgroundPriorityForIndexing));
-    exports.Set("CXGlobalOpt_ThreadBackgroundPriorityForEditing", Napi::Function::New(env, Get_CXGlobalOpt_ThreadBackgroundPriorityForEditing));
-    exports.Set("CXGlobalOpt_ThreadBackgroundPriorityForAll", Napi::Function::New(env, Get_CXGlobalOpt_ThreadBackgroundPriorityForAll));
-    exports.Set("CXTranslationUnit_None", Napi::Function::New(env, Get_CXTranslationUnit_None));
-    exports.Set("CXTranslationUnit_DetailedPreprocessingRecord", Napi::Function::New(env, Get_CXTranslationUnit_DetailedPreprocessingRecord));
-    exports.Set("CXTranslationUnit_Incomplete", Napi::Function::New(env, Get_CXTranslationUnit_Incomplete));
-    exports.Set("CXTranslationUnit_PrecompiledPreamble", Napi::Function::New(env, Get_CXTranslationUnit_PrecompiledPreamble));
-    exports.Set("CXTranslationUnit_CacheCompletionResults", Napi::Function::New(env, Get_CXTranslationUnit_CacheCompletionResults));
-    exports.Set("CXTranslationUnit_ForSerialization", Napi::Function::New(env, Get_CXTranslationUnit_ForSerialization));
-    exports.Set("CXTranslationUnit_CXXChainedPCH", Napi::Function::New(env, Get_CXTranslationUnit_CXXChainedPCH));
-    exports.Set("CXTranslationUnit_SkipFunctionBodies", Napi::Function::New(env, Get_CXTranslationUnit_SkipFunctionBodies));
-    exports.Set("CXTranslationUnit_IncludeBriefCommentsInCodeCompletion", Napi::Function::New(env, Get_CXTranslationUnit_IncludeBriefCommentsInCodeCompletion));
-    exports.Set("CXTranslationUnit_CreatePreambleOnFirstParse", Napi::Function::New(env, Get_CXTranslationUnit_CreatePreambleOnFirstParse));
-    exports.Set("CXTranslationUnit_KeepGoing", Napi::Function::New(env, Get_CXTranslationUnit_KeepGoing));
-    exports.Set("CXTranslationUnit_SingleFileParse", Napi::Function::New(env, Get_CXTranslationUnit_SingleFileParse));
-    exports.Set("CXTranslationUnit_LimitSkipFunctionBodiesToPreamble", Napi::Function::New(env, Get_CXTranslationUnit_LimitSkipFunctionBodiesToPreamble));
-    exports.Set("CXTranslationUnit_IncludeAttributedTypes", Napi::Function::New(env, Get_CXTranslationUnit_IncludeAttributedTypes));
-    exports.Set("CXTranslationUnit_VisitImplicitAttributes", Napi::Function::New(env, Get_CXTranslationUnit_VisitImplicitAttributes));
-    exports.Set("CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles", Napi::Function::New(env, Get_CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles));
-    exports.Set("CXTranslationUnit_RetainExcludedConditionalBlocks", Napi::Function::New(env, Get_CXTranslationUnit_RetainExcludedConditionalBlocks));
-    exports.Set("CXSaveTranslationUnit_None", Napi::Function::New(env, Get_CXSaveTranslationUnit_None));
-    exports.Set("CXSaveError_None", Napi::Function::New(env, Get_CXSaveError_None));
-    exports.Set("CXSaveError_Unknown", Napi::Function::New(env, Get_CXSaveError_Unknown));
-    exports.Set("CXSaveError_TranslationErrors", Napi::Function::New(env, Get_CXSaveError_TranslationErrors));
-    exports.Set("CXSaveError_InvalidTU", Napi::Function::New(env, Get_CXSaveError_InvalidTU));
-    exports.Set("CXReparse_None", Napi::Function::New(env, Get_CXReparse_None));
-    exports.Set("CXTUResourceUsage_AST", Napi::Function::New(env, Get_CXTUResourceUsage_AST));
-    exports.Set("CXTUResourceUsage_Identifiers", Napi::Function::New(env, Get_CXTUResourceUsage_Identifiers));
-    exports.Set("CXTUResourceUsage_Selectors", Napi::Function::New(env, Get_CXTUResourceUsage_Selectors));
-    exports.Set("CXTUResourceUsage_GlobalCompletionResults", Napi::Function::New(env, Get_CXTUResourceUsage_GlobalCompletionResults));
-    exports.Set("CXTUResourceUsage_SourceManagerContentCache", Napi::Function::New(env, Get_CXTUResourceUsage_SourceManagerContentCache));
-    exports.Set("CXTUResourceUsage_AST_SideTables", Napi::Function::New(env, Get_CXTUResourceUsage_AST_SideTables));
-    exports.Set("CXTUResourceUsage_SourceManager_Membuffer_Malloc", Napi::Function::New(env, Get_CXTUResourceUsage_SourceManager_Membuffer_Malloc));
-    exports.Set("CXTUResourceUsage_SourceManager_Membuffer_MMap", Napi::Function::New(env, Get_CXTUResourceUsage_SourceManager_Membuffer_MMap));
-    exports.Set("CXTUResourceUsage_ExternalASTSource_Membuffer_Malloc", Napi::Function::New(env, Get_CXTUResourceUsage_ExternalASTSource_Membuffer_Malloc));
-    exports.Set("CXTUResourceUsage_ExternalASTSource_Membuffer_MMap", Napi::Function::New(env, Get_CXTUResourceUsage_ExternalASTSource_Membuffer_MMap));
-    exports.Set("CXTUResourceUsage_Preprocessor", Napi::Function::New(env, Get_CXTUResourceUsage_Preprocessor));
-    exports.Set("CXTUResourceUsage_PreprocessingRecord", Napi::Function::New(env, Get_CXTUResourceUsage_PreprocessingRecord));
-    exports.Set("CXTUResourceUsage_SourceManager_DataStructures", Napi::Function::New(env, Get_CXTUResourceUsage_SourceManager_DataStructures));
-    exports.Set("CXTUResourceUsage_Preprocessor_HeaderSearch", Napi::Function::New(env, Get_CXTUResourceUsage_Preprocessor_HeaderSearch));
-    exports.Set("CXTUResourceUsage_MEMORY_IN_BYTES_BEGIN", Napi::Function::New(env, Get_CXTUResourceUsage_MEMORY_IN_BYTES_BEGIN));
-    exports.Set("CXTUResourceUsage_MEMORY_IN_BYTES_END", Napi::Function::New(env, Get_CXTUResourceUsage_MEMORY_IN_BYTES_END));
-    exports.Set("CXTUResourceUsage_First", Napi::Function::New(env, Get_CXTUResourceUsage_First));
-    exports.Set("CXTUResourceUsage_Last", Napi::Function::New(env, Get_CXTUResourceUsage_Last));
-    exports.Set("CXCursor_UnexposedDecl", Napi::Function::New(env, Get_CXCursor_UnexposedDecl));
-    exports.Set("CXCursor_StructDecl", Napi::Function::New(env, Get_CXCursor_StructDecl));
-    exports.Set("CXCursor_UnionDecl", Napi::Function::New(env, Get_CXCursor_UnionDecl));
-    exports.Set("CXCursor_ClassDecl", Napi::Function::New(env, Get_CXCursor_ClassDecl));
-    exports.Set("CXCursor_EnumDecl", Napi::Function::New(env, Get_CXCursor_EnumDecl));
-    exports.Set("CXCursor_FieldDecl", Napi::Function::New(env, Get_CXCursor_FieldDecl));
-    exports.Set("CXCursor_EnumConstantDecl", Napi::Function::New(env, Get_CXCursor_EnumConstantDecl));
-    exports.Set("CXCursor_FunctionDecl", Napi::Function::New(env, Get_CXCursor_FunctionDecl));
-    exports.Set("CXCursor_VarDecl", Napi::Function::New(env, Get_CXCursor_VarDecl));
-    exports.Set("CXCursor_ParmDecl", Napi::Function::New(env, Get_CXCursor_ParmDecl));
-    exports.Set("CXCursor_ObjCInterfaceDecl", Napi::Function::New(env, Get_CXCursor_ObjCInterfaceDecl));
-    exports.Set("CXCursor_ObjCCategoryDecl", Napi::Function::New(env, Get_CXCursor_ObjCCategoryDecl));
-    exports.Set("CXCursor_ObjCProtocolDecl", Napi::Function::New(env, Get_CXCursor_ObjCProtocolDecl));
-    exports.Set("CXCursor_ObjCPropertyDecl", Napi::Function::New(env, Get_CXCursor_ObjCPropertyDecl));
-    exports.Set("CXCursor_ObjCIvarDecl", Napi::Function::New(env, Get_CXCursor_ObjCIvarDecl));
-    exports.Set("CXCursor_ObjCInstanceMethodDecl", Napi::Function::New(env, Get_CXCursor_ObjCInstanceMethodDecl));
-    exports.Set("CXCursor_ObjCClassMethodDecl", Napi::Function::New(env, Get_CXCursor_ObjCClassMethodDecl));
-    exports.Set("CXCursor_ObjCImplementationDecl", Napi::Function::New(env, Get_CXCursor_ObjCImplementationDecl));
-    exports.Set("CXCursor_ObjCCategoryImplDecl", Napi::Function::New(env, Get_CXCursor_ObjCCategoryImplDecl));
-    exports.Set("CXCursor_TypedefDecl", Napi::Function::New(env, Get_CXCursor_TypedefDecl));
-    exports.Set("CXCursor_CXXMethod", Napi::Function::New(env, Get_CXCursor_CXXMethod));
-    exports.Set("CXCursor_Namespace", Napi::Function::New(env, Get_CXCursor_Namespace));
-    exports.Set("CXCursor_LinkageSpec", Napi::Function::New(env, Get_CXCursor_LinkageSpec));
-    exports.Set("CXCursor_Constructor", Napi::Function::New(env, Get_CXCursor_Constructor));
-    exports.Set("CXCursor_Destructor", Napi::Function::New(env, Get_CXCursor_Destructor));
-    exports.Set("CXCursor_ConversionFunction", Napi::Function::New(env, Get_CXCursor_ConversionFunction));
-    exports.Set("CXCursor_TemplateTypeParameter", Napi::Function::New(env, Get_CXCursor_TemplateTypeParameter));
-    exports.Set("CXCursor_NonTypeTemplateParameter", Napi::Function::New(env, Get_CXCursor_NonTypeTemplateParameter));
-    exports.Set("CXCursor_TemplateTemplateParameter", Napi::Function::New(env, Get_CXCursor_TemplateTemplateParameter));
-    exports.Set("CXCursor_FunctionTemplate", Napi::Function::New(env, Get_CXCursor_FunctionTemplate));
-    exports.Set("CXCursor_ClassTemplate", Napi::Function::New(env, Get_CXCursor_ClassTemplate));
-    exports.Set("CXCursor_ClassTemplatePartialSpecialization", Napi::Function::New(env, Get_CXCursor_ClassTemplatePartialSpecialization));
-    exports.Set("CXCursor_NamespaceAlias", Napi::Function::New(env, Get_CXCursor_NamespaceAlias));
-    exports.Set("CXCursor_UsingDirective", Napi::Function::New(env, Get_CXCursor_UsingDirective));
-    exports.Set("CXCursor_UsingDeclaration", Napi::Function::New(env, Get_CXCursor_UsingDeclaration));
-    exports.Set("CXCursor_TypeAliasDecl", Napi::Function::New(env, Get_CXCursor_TypeAliasDecl));
-    exports.Set("CXCursor_ObjCSynthesizeDecl", Napi::Function::New(env, Get_CXCursor_ObjCSynthesizeDecl));
-    exports.Set("CXCursor_ObjCDynamicDecl", Napi::Function::New(env, Get_CXCursor_ObjCDynamicDecl));
-    exports.Set("CXCursor_CXXAccessSpecifier", Napi::Function::New(env, Get_CXCursor_CXXAccessSpecifier));
-    exports.Set("CXCursor_FirstDecl", Napi::Function::New(env, Get_CXCursor_FirstDecl));
-    exports.Set("CXCursor_LastDecl", Napi::Function::New(env, Get_CXCursor_LastDecl));
-    exports.Set("CXCursor_FirstRef", Napi::Function::New(env, Get_CXCursor_FirstRef));
-    exports.Set("CXCursor_ObjCSuperClassRef", Napi::Function::New(env, Get_CXCursor_ObjCSuperClassRef));
-    exports.Set("CXCursor_ObjCProtocolRef", Napi::Function::New(env, Get_CXCursor_ObjCProtocolRef));
-    exports.Set("CXCursor_ObjCClassRef", Napi::Function::New(env, Get_CXCursor_ObjCClassRef));
-    exports.Set("CXCursor_TypeRef", Napi::Function::New(env, Get_CXCursor_TypeRef));
-    exports.Set("CXCursor_CXXBaseSpecifier", Napi::Function::New(env, Get_CXCursor_CXXBaseSpecifier));
-    exports.Set("CXCursor_TemplateRef", Napi::Function::New(env, Get_CXCursor_TemplateRef));
-    exports.Set("CXCursor_NamespaceRef", Napi::Function::New(env, Get_CXCursor_NamespaceRef));
-    exports.Set("CXCursor_MemberRef", Napi::Function::New(env, Get_CXCursor_MemberRef));
-    exports.Set("CXCursor_LabelRef", Napi::Function::New(env, Get_CXCursor_LabelRef));
-    exports.Set("CXCursor_OverloadedDeclRef", Napi::Function::New(env, Get_CXCursor_OverloadedDeclRef));
-    exports.Set("CXCursor_VariableRef", Napi::Function::New(env, Get_CXCursor_VariableRef));
-    exports.Set("CXCursor_LastRef", Napi::Function::New(env, Get_CXCursor_LastRef));
-    exports.Set("CXCursor_FirstInvalid", Napi::Function::New(env, Get_CXCursor_FirstInvalid));
-    exports.Set("CXCursor_InvalidFile", Napi::Function::New(env, Get_CXCursor_InvalidFile));
-    exports.Set("CXCursor_NoDeclFound", Napi::Function::New(env, Get_CXCursor_NoDeclFound));
-    exports.Set("CXCursor_NotImplemented", Napi::Function::New(env, Get_CXCursor_NotImplemented));
-    exports.Set("CXCursor_InvalidCode", Napi::Function::New(env, Get_CXCursor_InvalidCode));
-    exports.Set("CXCursor_LastInvalid", Napi::Function::New(env, Get_CXCursor_LastInvalid));
-    exports.Set("CXCursor_FirstExpr", Napi::Function::New(env, Get_CXCursor_FirstExpr));
-    exports.Set("CXCursor_UnexposedExpr", Napi::Function::New(env, Get_CXCursor_UnexposedExpr));
-    exports.Set("CXCursor_DeclRefExpr", Napi::Function::New(env, Get_CXCursor_DeclRefExpr));
-    exports.Set("CXCursor_MemberRefExpr", Napi::Function::New(env, Get_CXCursor_MemberRefExpr));
-    exports.Set("CXCursor_CallExpr", Napi::Function::New(env, Get_CXCursor_CallExpr));
-    exports.Set("CXCursor_ObjCMessageExpr", Napi::Function::New(env, Get_CXCursor_ObjCMessageExpr));
-    exports.Set("CXCursor_BlockExpr", Napi::Function::New(env, Get_CXCursor_BlockExpr));
-    exports.Set("CXCursor_IntegerLiteral", Napi::Function::New(env, Get_CXCursor_IntegerLiteral));
-    exports.Set("CXCursor_FloatingLiteral", Napi::Function::New(env, Get_CXCursor_FloatingLiteral));
-    exports.Set("CXCursor_ImaginaryLiteral", Napi::Function::New(env, Get_CXCursor_ImaginaryLiteral));
-    exports.Set("CXCursor_StringLiteral", Napi::Function::New(env, Get_CXCursor_StringLiteral));
-    exports.Set("CXCursor_CharacterLiteral", Napi::Function::New(env, Get_CXCursor_CharacterLiteral));
-    exports.Set("CXCursor_ParenExpr", Napi::Function::New(env, Get_CXCursor_ParenExpr));
-    exports.Set("CXCursor_UnaryOperator", Napi::Function::New(env, Get_CXCursor_UnaryOperator));
-    exports.Set("CXCursor_ArraySubscriptExpr", Napi::Function::New(env, Get_CXCursor_ArraySubscriptExpr));
-    exports.Set("CXCursor_BinaryOperator", Napi::Function::New(env, Get_CXCursor_BinaryOperator));
-    exports.Set("CXCursor_CompoundAssignOperator", Napi::Function::New(env, Get_CXCursor_CompoundAssignOperator));
-    exports.Set("CXCursor_ConditionalOperator", Napi::Function::New(env, Get_CXCursor_ConditionalOperator));
-    exports.Set("CXCursor_CStyleCastExpr", Napi::Function::New(env, Get_CXCursor_CStyleCastExpr));
-    exports.Set("CXCursor_CompoundLiteralExpr", Napi::Function::New(env, Get_CXCursor_CompoundLiteralExpr));
-    exports.Set("CXCursor_InitListExpr", Napi::Function::New(env, Get_CXCursor_InitListExpr));
-    exports.Set("CXCursor_AddrLabelExpr", Napi::Function::New(env, Get_CXCursor_AddrLabelExpr));
-    exports.Set("CXCursor_StmtExpr", Napi::Function::New(env, Get_CXCursor_StmtExpr));
-    exports.Set("CXCursor_GenericSelectionExpr", Napi::Function::New(env, Get_CXCursor_GenericSelectionExpr));
-    exports.Set("CXCursor_GNUNullExpr", Napi::Function::New(env, Get_CXCursor_GNUNullExpr));
-    exports.Set("CXCursor_CXXStaticCastExpr", Napi::Function::New(env, Get_CXCursor_CXXStaticCastExpr));
-    exports.Set("CXCursor_CXXDynamicCastExpr", Napi::Function::New(env, Get_CXCursor_CXXDynamicCastExpr));
-    exports.Set("CXCursor_CXXReinterpretCastExpr", Napi::Function::New(env, Get_CXCursor_CXXReinterpretCastExpr));
-    exports.Set("CXCursor_CXXConstCastExpr", Napi::Function::New(env, Get_CXCursor_CXXConstCastExpr));
-    exports.Set("CXCursor_CXXFunctionalCastExpr", Napi::Function::New(env, Get_CXCursor_CXXFunctionalCastExpr));
-    exports.Set("CXCursor_CXXTypeidExpr", Napi::Function::New(env, Get_CXCursor_CXXTypeidExpr));
-    exports.Set("CXCursor_CXXBoolLiteralExpr", Napi::Function::New(env, Get_CXCursor_CXXBoolLiteralExpr));
-    exports.Set("CXCursor_CXXNullPtrLiteralExpr", Napi::Function::New(env, Get_CXCursor_CXXNullPtrLiteralExpr));
-    exports.Set("CXCursor_CXXThisExpr", Napi::Function::New(env, Get_CXCursor_CXXThisExpr));
-    exports.Set("CXCursor_CXXThrowExpr", Napi::Function::New(env, Get_CXCursor_CXXThrowExpr));
-    exports.Set("CXCursor_CXXNewExpr", Napi::Function::New(env, Get_CXCursor_CXXNewExpr));
-    exports.Set("CXCursor_CXXDeleteExpr", Napi::Function::New(env, Get_CXCursor_CXXDeleteExpr));
-    exports.Set("CXCursor_UnaryExpr", Napi::Function::New(env, Get_CXCursor_UnaryExpr));
-    exports.Set("CXCursor_ObjCStringLiteral", Napi::Function::New(env, Get_CXCursor_ObjCStringLiteral));
-    exports.Set("CXCursor_ObjCEncodeExpr", Napi::Function::New(env, Get_CXCursor_ObjCEncodeExpr));
-    exports.Set("CXCursor_ObjCSelectorExpr", Napi::Function::New(env, Get_CXCursor_ObjCSelectorExpr));
-    exports.Set("CXCursor_ObjCProtocolExpr", Napi::Function::New(env, Get_CXCursor_ObjCProtocolExpr));
-    exports.Set("CXCursor_ObjCBridgedCastExpr", Napi::Function::New(env, Get_CXCursor_ObjCBridgedCastExpr));
-    exports.Set("CXCursor_PackExpansionExpr", Napi::Function::New(env, Get_CXCursor_PackExpansionExpr));
-    exports.Set("CXCursor_SizeOfPackExpr", Napi::Function::New(env, Get_CXCursor_SizeOfPackExpr));
-    exports.Set("CXCursor_LambdaExpr", Napi::Function::New(env, Get_CXCursor_LambdaExpr));
-    exports.Set("CXCursor_ObjCBoolLiteralExpr", Napi::Function::New(env, Get_CXCursor_ObjCBoolLiteralExpr));
-    exports.Set("CXCursor_ObjCSelfExpr", Napi::Function::New(env, Get_CXCursor_ObjCSelfExpr));
-    exports.Set("CXCursor_ArraySectionExpr", Napi::Function::New(env, Get_CXCursor_ArraySectionExpr));
-    exports.Set("CXCursor_ObjCAvailabilityCheckExpr", Napi::Function::New(env, Get_CXCursor_ObjCAvailabilityCheckExpr));
-    exports.Set("CXCursor_FixedPointLiteral", Napi::Function::New(env, Get_CXCursor_FixedPointLiteral));
-    exports.Set("CXCursor_OMPArrayShapingExpr", Napi::Function::New(env, Get_CXCursor_OMPArrayShapingExpr));
-    exports.Set("CXCursor_OMPIteratorExpr", Napi::Function::New(env, Get_CXCursor_OMPIteratorExpr));
-    exports.Set("CXCursor_CXXAddrspaceCastExpr", Napi::Function::New(env, Get_CXCursor_CXXAddrspaceCastExpr));
-    exports.Set("CXCursor_ConceptSpecializationExpr", Napi::Function::New(env, Get_CXCursor_ConceptSpecializationExpr));
-    exports.Set("CXCursor_RequiresExpr", Napi::Function::New(env, Get_CXCursor_RequiresExpr));
-    exports.Set("CXCursor_CXXParenListInitExpr", Napi::Function::New(env, Get_CXCursor_CXXParenListInitExpr));
-    exports.Set("CXCursor_PackIndexingExpr", Napi::Function::New(env, Get_CXCursor_PackIndexingExpr));
-    exports.Set("CXCursor_LastExpr", Napi::Function::New(env, Get_CXCursor_LastExpr));
-    exports.Set("CXCursor_FirstStmt", Napi::Function::New(env, Get_CXCursor_FirstStmt));
-    exports.Set("CXCursor_UnexposedStmt", Napi::Function::New(env, Get_CXCursor_UnexposedStmt));
-    exports.Set("CXCursor_LabelStmt", Napi::Function::New(env, Get_CXCursor_LabelStmt));
-    exports.Set("CXCursor_CompoundStmt", Napi::Function::New(env, Get_CXCursor_CompoundStmt));
-    exports.Set("CXCursor_CaseStmt", Napi::Function::New(env, Get_CXCursor_CaseStmt));
-    exports.Set("CXCursor_DefaultStmt", Napi::Function::New(env, Get_CXCursor_DefaultStmt));
-    exports.Set("CXCursor_IfStmt", Napi::Function::New(env, Get_CXCursor_IfStmt));
-    exports.Set("CXCursor_SwitchStmt", Napi::Function::New(env, Get_CXCursor_SwitchStmt));
-    exports.Set("CXCursor_WhileStmt", Napi::Function::New(env, Get_CXCursor_WhileStmt));
-    exports.Set("CXCursor_DoStmt", Napi::Function::New(env, Get_CXCursor_DoStmt));
-    exports.Set("CXCursor_ForStmt", Napi::Function::New(env, Get_CXCursor_ForStmt));
-    exports.Set("CXCursor_GotoStmt", Napi::Function::New(env, Get_CXCursor_GotoStmt));
-    exports.Set("CXCursor_IndirectGotoStmt", Napi::Function::New(env, Get_CXCursor_IndirectGotoStmt));
-    exports.Set("CXCursor_ContinueStmt", Napi::Function::New(env, Get_CXCursor_ContinueStmt));
-    exports.Set("CXCursor_BreakStmt", Napi::Function::New(env, Get_CXCursor_BreakStmt));
-    exports.Set("CXCursor_ReturnStmt", Napi::Function::New(env, Get_CXCursor_ReturnStmt));
-    exports.Set("CXCursor_GCCAsmStmt", Napi::Function::New(env, Get_CXCursor_GCCAsmStmt));
-    exports.Set("CXCursor_AsmStmt", Napi::Function::New(env, Get_CXCursor_AsmStmt));
-    exports.Set("CXCursor_ObjCAtTryStmt", Napi::Function::New(env, Get_CXCursor_ObjCAtTryStmt));
-    exports.Set("CXCursor_ObjCAtCatchStmt", Napi::Function::New(env, Get_CXCursor_ObjCAtCatchStmt));
-    exports.Set("CXCursor_ObjCAtFinallyStmt", Napi::Function::New(env, Get_CXCursor_ObjCAtFinallyStmt));
-    exports.Set("CXCursor_ObjCAtThrowStmt", Napi::Function::New(env, Get_CXCursor_ObjCAtThrowStmt));
-    exports.Set("CXCursor_ObjCAtSynchronizedStmt", Napi::Function::New(env, Get_CXCursor_ObjCAtSynchronizedStmt));
-    exports.Set("CXCursor_ObjCAutoreleasePoolStmt", Napi::Function::New(env, Get_CXCursor_ObjCAutoreleasePoolStmt));
-    exports.Set("CXCursor_ObjCForCollectionStmt", Napi::Function::New(env, Get_CXCursor_ObjCForCollectionStmt));
-    exports.Set("CXCursor_CXXCatchStmt", Napi::Function::New(env, Get_CXCursor_CXXCatchStmt));
-    exports.Set("CXCursor_CXXTryStmt", Napi::Function::New(env, Get_CXCursor_CXXTryStmt));
-    exports.Set("CXCursor_CXXForRangeStmt", Napi::Function::New(env, Get_CXCursor_CXXForRangeStmt));
-    exports.Set("CXCursor_SEHTryStmt", Napi::Function::New(env, Get_CXCursor_SEHTryStmt));
-    exports.Set("CXCursor_SEHExceptStmt", Napi::Function::New(env, Get_CXCursor_SEHExceptStmt));
-    exports.Set("CXCursor_SEHFinallyStmt", Napi::Function::New(env, Get_CXCursor_SEHFinallyStmt));
-    exports.Set("CXCursor_MSAsmStmt", Napi::Function::New(env, Get_CXCursor_MSAsmStmt));
-    exports.Set("CXCursor_NullStmt", Napi::Function::New(env, Get_CXCursor_NullStmt));
-    exports.Set("CXCursor_DeclStmt", Napi::Function::New(env, Get_CXCursor_DeclStmt));
-    exports.Set("CXCursor_OMPParallelDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelDirective));
-    exports.Set("CXCursor_OMPSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPSimdDirective));
-    exports.Set("CXCursor_OMPForDirective", Napi::Function::New(env, Get_CXCursor_OMPForDirective));
-    exports.Set("CXCursor_OMPSectionsDirective", Napi::Function::New(env, Get_CXCursor_OMPSectionsDirective));
-    exports.Set("CXCursor_OMPSectionDirective", Napi::Function::New(env, Get_CXCursor_OMPSectionDirective));
-    exports.Set("CXCursor_OMPSingleDirective", Napi::Function::New(env, Get_CXCursor_OMPSingleDirective));
-    exports.Set("CXCursor_OMPParallelForDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelForDirective));
-    exports.Set("CXCursor_OMPParallelSectionsDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelSectionsDirective));
-    exports.Set("CXCursor_OMPTaskDirective", Napi::Function::New(env, Get_CXCursor_OMPTaskDirective));
-    exports.Set("CXCursor_OMPMasterDirective", Napi::Function::New(env, Get_CXCursor_OMPMasterDirective));
-    exports.Set("CXCursor_OMPCriticalDirective", Napi::Function::New(env, Get_CXCursor_OMPCriticalDirective));
-    exports.Set("CXCursor_OMPTaskyieldDirective", Napi::Function::New(env, Get_CXCursor_OMPTaskyieldDirective));
-    exports.Set("CXCursor_OMPBarrierDirective", Napi::Function::New(env, Get_CXCursor_OMPBarrierDirective));
-    exports.Set("CXCursor_OMPTaskwaitDirective", Napi::Function::New(env, Get_CXCursor_OMPTaskwaitDirective));
-    exports.Set("CXCursor_OMPFlushDirective", Napi::Function::New(env, Get_CXCursor_OMPFlushDirective));
-    exports.Set("CXCursor_SEHLeaveStmt", Napi::Function::New(env, Get_CXCursor_SEHLeaveStmt));
-    exports.Set("CXCursor_OMPOrderedDirective", Napi::Function::New(env, Get_CXCursor_OMPOrderedDirective));
-    exports.Set("CXCursor_OMPAtomicDirective", Napi::Function::New(env, Get_CXCursor_OMPAtomicDirective));
-    exports.Set("CXCursor_OMPForSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPForSimdDirective));
-    exports.Set("CXCursor_OMPParallelForSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelForSimdDirective));
-    exports.Set("CXCursor_OMPTargetDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetDirective));
-    exports.Set("CXCursor_OMPTeamsDirective", Napi::Function::New(env, Get_CXCursor_OMPTeamsDirective));
-    exports.Set("CXCursor_OMPTaskgroupDirective", Napi::Function::New(env, Get_CXCursor_OMPTaskgroupDirective));
-    exports.Set("CXCursor_OMPCancellationPointDirective", Napi::Function::New(env, Get_CXCursor_OMPCancellationPointDirective));
-    exports.Set("CXCursor_OMPCancelDirective", Napi::Function::New(env, Get_CXCursor_OMPCancelDirective));
-    exports.Set("CXCursor_OMPTargetDataDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetDataDirective));
-    exports.Set("CXCursor_OMPTaskLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPTaskLoopDirective));
-    exports.Set("CXCursor_OMPTaskLoopSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPTaskLoopSimdDirective));
-    exports.Set("CXCursor_OMPDistributeDirective", Napi::Function::New(env, Get_CXCursor_OMPDistributeDirective));
-    exports.Set("CXCursor_OMPTargetEnterDataDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetEnterDataDirective));
-    exports.Set("CXCursor_OMPTargetExitDataDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetExitDataDirective));
-    exports.Set("CXCursor_OMPTargetParallelDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetParallelDirective));
-    exports.Set("CXCursor_OMPTargetParallelForDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetParallelForDirective));
-    exports.Set("CXCursor_OMPTargetUpdateDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetUpdateDirective));
-    exports.Set("CXCursor_OMPDistributeParallelForDirective", Napi::Function::New(env, Get_CXCursor_OMPDistributeParallelForDirective));
-    exports.Set("CXCursor_OMPDistributeParallelForSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPDistributeParallelForSimdDirective));
-    exports.Set("CXCursor_OMPDistributeSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPDistributeSimdDirective));
-    exports.Set("CXCursor_OMPTargetParallelForSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetParallelForSimdDirective));
-    exports.Set("CXCursor_OMPTargetSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetSimdDirective));
-    exports.Set("CXCursor_OMPTeamsDistributeDirective", Napi::Function::New(env, Get_CXCursor_OMPTeamsDistributeDirective));
-    exports.Set("CXCursor_OMPTeamsDistributeSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPTeamsDistributeSimdDirective));
-    exports.Set("CXCursor_OMPTeamsDistributeParallelForSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPTeamsDistributeParallelForSimdDirective));
-    exports.Set("CXCursor_OMPTeamsDistributeParallelForDirective", Napi::Function::New(env, Get_CXCursor_OMPTeamsDistributeParallelForDirective));
-    exports.Set("CXCursor_OMPTargetTeamsDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetTeamsDirective));
-    exports.Set("CXCursor_OMPTargetTeamsDistributeDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetTeamsDistributeDirective));
-    exports.Set("CXCursor_OMPTargetTeamsDistributeParallelForDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetTeamsDistributeParallelForDirective));
-    exports.Set("CXCursor_OMPTargetTeamsDistributeParallelForSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetTeamsDistributeParallelForSimdDirective));
-    exports.Set("CXCursor_OMPTargetTeamsDistributeSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetTeamsDistributeSimdDirective));
-    exports.Set("CXCursor_BuiltinBitCastExpr", Napi::Function::New(env, Get_CXCursor_BuiltinBitCastExpr));
-    exports.Set("CXCursor_OMPMasterTaskLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPMasterTaskLoopDirective));
-    exports.Set("CXCursor_OMPParallelMasterTaskLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelMasterTaskLoopDirective));
-    exports.Set("CXCursor_OMPMasterTaskLoopSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPMasterTaskLoopSimdDirective));
-    exports.Set("CXCursor_OMPParallelMasterTaskLoopSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelMasterTaskLoopSimdDirective));
-    exports.Set("CXCursor_OMPParallelMasterDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelMasterDirective));
-    exports.Set("CXCursor_OMPDepobjDirective", Napi::Function::New(env, Get_CXCursor_OMPDepobjDirective));
-    exports.Set("CXCursor_OMPScanDirective", Napi::Function::New(env, Get_CXCursor_OMPScanDirective));
-    exports.Set("CXCursor_OMPTileDirective", Napi::Function::New(env, Get_CXCursor_OMPTileDirective));
-    exports.Set("CXCursor_OMPCanonicalLoop", Napi::Function::New(env, Get_CXCursor_OMPCanonicalLoop));
-    exports.Set("CXCursor_OMPInteropDirective", Napi::Function::New(env, Get_CXCursor_OMPInteropDirective));
-    exports.Set("CXCursor_OMPDispatchDirective", Napi::Function::New(env, Get_CXCursor_OMPDispatchDirective));
-    exports.Set("CXCursor_OMPMaskedDirective", Napi::Function::New(env, Get_CXCursor_OMPMaskedDirective));
-    exports.Set("CXCursor_OMPUnrollDirective", Napi::Function::New(env, Get_CXCursor_OMPUnrollDirective));
-    exports.Set("CXCursor_OMPMetaDirective", Napi::Function::New(env, Get_CXCursor_OMPMetaDirective));
-    exports.Set("CXCursor_OMPGenericLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPGenericLoopDirective));
-    exports.Set("CXCursor_OMPTeamsGenericLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPTeamsGenericLoopDirective));
-    exports.Set("CXCursor_OMPTargetTeamsGenericLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetTeamsGenericLoopDirective));
-    exports.Set("CXCursor_OMPParallelGenericLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelGenericLoopDirective));
-    exports.Set("CXCursor_OMPTargetParallelGenericLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPTargetParallelGenericLoopDirective));
-    exports.Set("CXCursor_OMPParallelMaskedDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelMaskedDirective));
-    exports.Set("CXCursor_OMPMaskedTaskLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPMaskedTaskLoopDirective));
-    exports.Set("CXCursor_OMPMaskedTaskLoopSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPMaskedTaskLoopSimdDirective));
-    exports.Set("CXCursor_OMPParallelMaskedTaskLoopDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelMaskedTaskLoopDirective));
-    exports.Set("CXCursor_OMPParallelMaskedTaskLoopSimdDirective", Napi::Function::New(env, Get_CXCursor_OMPParallelMaskedTaskLoopSimdDirective));
-    exports.Set("CXCursor_OMPErrorDirective", Napi::Function::New(env, Get_CXCursor_OMPErrorDirective));
-    exports.Set("CXCursor_OMPScopeDirective", Napi::Function::New(env, Get_CXCursor_OMPScopeDirective));
-    exports.Set("CXCursor_OMPReverseDirective", Napi::Function::New(env, Get_CXCursor_OMPReverseDirective));
-    exports.Set("CXCursor_OMPInterchangeDirective", Napi::Function::New(env, Get_CXCursor_OMPInterchangeDirective));
-    exports.Set("CXCursor_OMPAssumeDirective", Napi::Function::New(env, Get_CXCursor_OMPAssumeDirective));
-    exports.Set("CXCursor_OpenACCComputeConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCComputeConstruct));
-    exports.Set("CXCursor_OpenACCLoopConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCLoopConstruct));
-    exports.Set("CXCursor_OpenACCCombinedConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCCombinedConstruct));
-    exports.Set("CXCursor_OpenACCDataConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCDataConstruct));
-    exports.Set("CXCursor_OpenACCEnterDataConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCEnterDataConstruct));
-    exports.Set("CXCursor_OpenACCExitDataConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCExitDataConstruct));
-    exports.Set("CXCursor_OpenACCHostDataConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCHostDataConstruct));
-    exports.Set("CXCursor_OpenACCWaitConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCWaitConstruct));
-    exports.Set("CXCursor_OpenACCInitConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCInitConstruct));
-    exports.Set("CXCursor_OpenACCShutdownConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCShutdownConstruct));
-    exports.Set("CXCursor_OpenACCSetConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCSetConstruct));
-    exports.Set("CXCursor_OpenACCUpdateConstruct", Napi::Function::New(env, Get_CXCursor_OpenACCUpdateConstruct));
-    exports.Set("CXCursor_LastStmt", Napi::Function::New(env, Get_CXCursor_LastStmt));
-    exports.Set("CXCursor_TranslationUnit", Napi::Function::New(env, Get_CXCursor_TranslationUnit));
-    exports.Set("CXCursor_FirstAttr", Napi::Function::New(env, Get_CXCursor_FirstAttr));
-    exports.Set("CXCursor_UnexposedAttr", Napi::Function::New(env, Get_CXCursor_UnexposedAttr));
-    exports.Set("CXCursor_IBActionAttr", Napi::Function::New(env, Get_CXCursor_IBActionAttr));
-    exports.Set("CXCursor_IBOutletAttr", Napi::Function::New(env, Get_CXCursor_IBOutletAttr));
-    exports.Set("CXCursor_IBOutletCollectionAttr", Napi::Function::New(env, Get_CXCursor_IBOutletCollectionAttr));
-    exports.Set("CXCursor_CXXFinalAttr", Napi::Function::New(env, Get_CXCursor_CXXFinalAttr));
-    exports.Set("CXCursor_CXXOverrideAttr", Napi::Function::New(env, Get_CXCursor_CXXOverrideAttr));
-    exports.Set("CXCursor_AnnotateAttr", Napi::Function::New(env, Get_CXCursor_AnnotateAttr));
-    exports.Set("CXCursor_AsmLabelAttr", Napi::Function::New(env, Get_CXCursor_AsmLabelAttr));
-    exports.Set("CXCursor_PackedAttr", Napi::Function::New(env, Get_CXCursor_PackedAttr));
-    exports.Set("CXCursor_PureAttr", Napi::Function::New(env, Get_CXCursor_PureAttr));
-    exports.Set("CXCursor_ConstAttr", Napi::Function::New(env, Get_CXCursor_ConstAttr));
-    exports.Set("CXCursor_NoDuplicateAttr", Napi::Function::New(env, Get_CXCursor_NoDuplicateAttr));
-    exports.Set("CXCursor_CUDAConstantAttr", Napi::Function::New(env, Get_CXCursor_CUDAConstantAttr));
-    exports.Set("CXCursor_CUDADeviceAttr", Napi::Function::New(env, Get_CXCursor_CUDADeviceAttr));
-    exports.Set("CXCursor_CUDAGlobalAttr", Napi::Function::New(env, Get_CXCursor_CUDAGlobalAttr));
-    exports.Set("CXCursor_CUDAHostAttr", Napi::Function::New(env, Get_CXCursor_CUDAHostAttr));
-    exports.Set("CXCursor_CUDASharedAttr", Napi::Function::New(env, Get_CXCursor_CUDASharedAttr));
-    exports.Set("CXCursor_VisibilityAttr", Napi::Function::New(env, Get_CXCursor_VisibilityAttr));
-    exports.Set("CXCursor_DLLExport", Napi::Function::New(env, Get_CXCursor_DLLExport));
-    exports.Set("CXCursor_DLLImport", Napi::Function::New(env, Get_CXCursor_DLLImport));
-    exports.Set("CXCursor_NSReturnsRetained", Napi::Function::New(env, Get_CXCursor_NSReturnsRetained));
-    exports.Set("CXCursor_NSReturnsNotRetained", Napi::Function::New(env, Get_CXCursor_NSReturnsNotRetained));
-    exports.Set("CXCursor_NSReturnsAutoreleased", Napi::Function::New(env, Get_CXCursor_NSReturnsAutoreleased));
-    exports.Set("CXCursor_NSConsumesSelf", Napi::Function::New(env, Get_CXCursor_NSConsumesSelf));
-    exports.Set("CXCursor_NSConsumed", Napi::Function::New(env, Get_CXCursor_NSConsumed));
-    exports.Set("CXCursor_ObjCException", Napi::Function::New(env, Get_CXCursor_ObjCException));
-    exports.Set("CXCursor_ObjCNSObject", Napi::Function::New(env, Get_CXCursor_ObjCNSObject));
-    exports.Set("CXCursor_ObjCIndependentClass", Napi::Function::New(env, Get_CXCursor_ObjCIndependentClass));
-    exports.Set("CXCursor_ObjCPreciseLifetime", Napi::Function::New(env, Get_CXCursor_ObjCPreciseLifetime));
-    exports.Set("CXCursor_ObjCReturnsInnerPointer", Napi::Function::New(env, Get_CXCursor_ObjCReturnsInnerPointer));
-    exports.Set("CXCursor_ObjCRequiresSuper", Napi::Function::New(env, Get_CXCursor_ObjCRequiresSuper));
-    exports.Set("CXCursor_ObjCRootClass", Napi::Function::New(env, Get_CXCursor_ObjCRootClass));
-    exports.Set("CXCursor_ObjCSubclassingRestricted", Napi::Function::New(env, Get_CXCursor_ObjCSubclassingRestricted));
-    exports.Set("CXCursor_ObjCExplicitProtocolImpl", Napi::Function::New(env, Get_CXCursor_ObjCExplicitProtocolImpl));
-    exports.Set("CXCursor_ObjCDesignatedInitializer", Napi::Function::New(env, Get_CXCursor_ObjCDesignatedInitializer));
-    exports.Set("CXCursor_ObjCRuntimeVisible", Napi::Function::New(env, Get_CXCursor_ObjCRuntimeVisible));
-    exports.Set("CXCursor_ObjCBoxable", Napi::Function::New(env, Get_CXCursor_ObjCBoxable));
-    exports.Set("CXCursor_FlagEnum", Napi::Function::New(env, Get_CXCursor_FlagEnum));
-    exports.Set("CXCursor_ConvergentAttr", Napi::Function::New(env, Get_CXCursor_ConvergentAttr));
-    exports.Set("CXCursor_WarnUnusedAttr", Napi::Function::New(env, Get_CXCursor_WarnUnusedAttr));
-    exports.Set("CXCursor_WarnUnusedResultAttr", Napi::Function::New(env, Get_CXCursor_WarnUnusedResultAttr));
-    exports.Set("CXCursor_AlignedAttr", Napi::Function::New(env, Get_CXCursor_AlignedAttr));
-    exports.Set("CXCursor_LastAttr", Napi::Function::New(env, Get_CXCursor_LastAttr));
-    exports.Set("CXCursor_PreprocessingDirective", Napi::Function::New(env, Get_CXCursor_PreprocessingDirective));
-    exports.Set("CXCursor_MacroDefinition", Napi::Function::New(env, Get_CXCursor_MacroDefinition));
-    exports.Set("CXCursor_MacroExpansion", Napi::Function::New(env, Get_CXCursor_MacroExpansion));
-    exports.Set("CXCursor_MacroInstantiation", Napi::Function::New(env, Get_CXCursor_MacroInstantiation));
-    exports.Set("CXCursor_InclusionDirective", Napi::Function::New(env, Get_CXCursor_InclusionDirective));
-    exports.Set("CXCursor_FirstPreprocessing", Napi::Function::New(env, Get_CXCursor_FirstPreprocessing));
-    exports.Set("CXCursor_LastPreprocessing", Napi::Function::New(env, Get_CXCursor_LastPreprocessing));
-    exports.Set("CXCursor_ModuleImportDecl", Napi::Function::New(env, Get_CXCursor_ModuleImportDecl));
-    exports.Set("CXCursor_TypeAliasTemplateDecl", Napi::Function::New(env, Get_CXCursor_TypeAliasTemplateDecl));
-    exports.Set("CXCursor_StaticAssert", Napi::Function::New(env, Get_CXCursor_StaticAssert));
-    exports.Set("CXCursor_FriendDecl", Napi::Function::New(env, Get_CXCursor_FriendDecl));
-    exports.Set("CXCursor_ConceptDecl", Napi::Function::New(env, Get_CXCursor_ConceptDecl));
-    exports.Set("CXCursor_FirstExtraDecl", Napi::Function::New(env, Get_CXCursor_FirstExtraDecl));
-    exports.Set("CXCursor_LastExtraDecl", Napi::Function::New(env, Get_CXCursor_LastExtraDecl));
-    exports.Set("CXCursor_OverloadCandidate", Napi::Function::New(env, Get_CXCursor_OverloadCandidate));
-    exports.Set("CXLinkage_Invalid", Napi::Function::New(env, Get_CXLinkage_Invalid));
-    exports.Set("CXLinkage_NoLinkage", Napi::Function::New(env, Get_CXLinkage_NoLinkage));
-    exports.Set("CXLinkage_Internal", Napi::Function::New(env, Get_CXLinkage_Internal));
-    exports.Set("CXLinkage_UniqueExternal", Napi::Function::New(env, Get_CXLinkage_UniqueExternal));
-    exports.Set("CXLinkage_External", Napi::Function::New(env, Get_CXLinkage_External));
-    exports.Set("CXVisibility_Invalid", Napi::Function::New(env, Get_CXVisibility_Invalid));
-    exports.Set("CXVisibility_Hidden", Napi::Function::New(env, Get_CXVisibility_Hidden));
-    exports.Set("CXVisibility_Protected", Napi::Function::New(env, Get_CXVisibility_Protected));
-    exports.Set("CXVisibility_Default", Napi::Function::New(env, Get_CXVisibility_Default));
-    exports.Set("CXLanguage_Invalid", Napi::Function::New(env, Get_CXLanguage_Invalid));
-    exports.Set("CXLanguage_C", Napi::Function::New(env, Get_CXLanguage_C));
-    exports.Set("CXLanguage_ObjC", Napi::Function::New(env, Get_CXLanguage_ObjC));
-    exports.Set("CXLanguage_CPlusPlus", Napi::Function::New(env, Get_CXLanguage_CPlusPlus));
-    exports.Set("CXTLS_None", Napi::Function::New(env, Get_CXTLS_None));
-    exports.Set("CXTLS_Dynamic", Napi::Function::New(env, Get_CXTLS_Dynamic));
-    exports.Set("CXTLS_Static", Napi::Function::New(env, Get_CXTLS_Static));
-    exports.Set("CXType_Invalid", Napi::Function::New(env, Get_CXType_Invalid));
-    exports.Set("CXType_Unexposed", Napi::Function::New(env, Get_CXType_Unexposed));
-    exports.Set("CXType_Void", Napi::Function::New(env, Get_CXType_Void));
-    exports.Set("CXType_Bool", Napi::Function::New(env, Get_CXType_Bool));
-    exports.Set("CXType_Char_U", Napi::Function::New(env, Get_CXType_Char_U));
-    exports.Set("CXType_UChar", Napi::Function::New(env, Get_CXType_UChar));
-    exports.Set("CXType_Char16", Napi::Function::New(env, Get_CXType_Char16));
-    exports.Set("CXType_Char32", Napi::Function::New(env, Get_CXType_Char32));
-    exports.Set("CXType_UShort", Napi::Function::New(env, Get_CXType_UShort));
-    exports.Set("CXType_UInt", Napi::Function::New(env, Get_CXType_UInt));
-    exports.Set("CXType_ULong", Napi::Function::New(env, Get_CXType_ULong));
-    exports.Set("CXType_ULongLong", Napi::Function::New(env, Get_CXType_ULongLong));
-    exports.Set("CXType_UInt128", Napi::Function::New(env, Get_CXType_UInt128));
-    exports.Set("CXType_Char_S", Napi::Function::New(env, Get_CXType_Char_S));
-    exports.Set("CXType_SChar", Napi::Function::New(env, Get_CXType_SChar));
-    exports.Set("CXType_WChar", Napi::Function::New(env, Get_CXType_WChar));
-    exports.Set("CXType_Short", Napi::Function::New(env, Get_CXType_Short));
-    exports.Set("CXType_Int", Napi::Function::New(env, Get_CXType_Int));
-    exports.Set("CXType_Long", Napi::Function::New(env, Get_CXType_Long));
-    exports.Set("CXType_LongLong", Napi::Function::New(env, Get_CXType_LongLong));
-    exports.Set("CXType_Int128", Napi::Function::New(env, Get_CXType_Int128));
-    exports.Set("CXType_Float", Napi::Function::New(env, Get_CXType_Float));
-    exports.Set("CXType_Double", Napi::Function::New(env, Get_CXType_Double));
-    exports.Set("CXType_LongDouble", Napi::Function::New(env, Get_CXType_LongDouble));
-    exports.Set("CXType_NullPtr", Napi::Function::New(env, Get_CXType_NullPtr));
-    exports.Set("CXType_Overload", Napi::Function::New(env, Get_CXType_Overload));
-    exports.Set("CXType_Dependent", Napi::Function::New(env, Get_CXType_Dependent));
-    exports.Set("CXType_ObjCId", Napi::Function::New(env, Get_CXType_ObjCId));
-    exports.Set("CXType_ObjCClass", Napi::Function::New(env, Get_CXType_ObjCClass));
-    exports.Set("CXType_ObjCSel", Napi::Function::New(env, Get_CXType_ObjCSel));
-    exports.Set("CXType_Float128", Napi::Function::New(env, Get_CXType_Float128));
-    exports.Set("CXType_Half", Napi::Function::New(env, Get_CXType_Half));
-    exports.Set("CXType_Float16", Napi::Function::New(env, Get_CXType_Float16));
-    exports.Set("CXType_ShortAccum", Napi::Function::New(env, Get_CXType_ShortAccum));
-    exports.Set("CXType_Accum", Napi::Function::New(env, Get_CXType_Accum));
-    exports.Set("CXType_LongAccum", Napi::Function::New(env, Get_CXType_LongAccum));
-    exports.Set("CXType_UShortAccum", Napi::Function::New(env, Get_CXType_UShortAccum));
-    exports.Set("CXType_UAccum", Napi::Function::New(env, Get_CXType_UAccum));
-    exports.Set("CXType_ULongAccum", Napi::Function::New(env, Get_CXType_ULongAccum));
-    exports.Set("CXType_BFloat16", Napi::Function::New(env, Get_CXType_BFloat16));
-    exports.Set("CXType_Ibm128", Napi::Function::New(env, Get_CXType_Ibm128));
-    exports.Set("CXType_FirstBuiltin", Napi::Function::New(env, Get_CXType_FirstBuiltin));
-    exports.Set("CXType_LastBuiltin", Napi::Function::New(env, Get_CXType_LastBuiltin));
-    exports.Set("CXType_Complex", Napi::Function::New(env, Get_CXType_Complex));
-    exports.Set("CXType_Pointer", Napi::Function::New(env, Get_CXType_Pointer));
-    exports.Set("CXType_BlockPointer", Napi::Function::New(env, Get_CXType_BlockPointer));
-    exports.Set("CXType_LValueReference", Napi::Function::New(env, Get_CXType_LValueReference));
-    exports.Set("CXType_RValueReference", Napi::Function::New(env, Get_CXType_RValueReference));
-    exports.Set("CXType_Record", Napi::Function::New(env, Get_CXType_Record));
-    exports.Set("CXType_Enum", Napi::Function::New(env, Get_CXType_Enum));
-    exports.Set("CXType_Typedef", Napi::Function::New(env, Get_CXType_Typedef));
-    exports.Set("CXType_ObjCInterface", Napi::Function::New(env, Get_CXType_ObjCInterface));
-    exports.Set("CXType_ObjCObjectPointer", Napi::Function::New(env, Get_CXType_ObjCObjectPointer));
-    exports.Set("CXType_FunctionNoProto", Napi::Function::New(env, Get_CXType_FunctionNoProto));
-    exports.Set("CXType_FunctionProto", Napi::Function::New(env, Get_CXType_FunctionProto));
-    exports.Set("CXType_ConstantArray", Napi::Function::New(env, Get_CXType_ConstantArray));
-    exports.Set("CXType_Vector", Napi::Function::New(env, Get_CXType_Vector));
-    exports.Set("CXType_IncompleteArray", Napi::Function::New(env, Get_CXType_IncompleteArray));
-    exports.Set("CXType_VariableArray", Napi::Function::New(env, Get_CXType_VariableArray));
-    exports.Set("CXType_DependentSizedArray", Napi::Function::New(env, Get_CXType_DependentSizedArray));
-    exports.Set("CXType_MemberPointer", Napi::Function::New(env, Get_CXType_MemberPointer));
-    exports.Set("CXType_Auto", Napi::Function::New(env, Get_CXType_Auto));
-    exports.Set("CXType_Elaborated", Napi::Function::New(env, Get_CXType_Elaborated));
-    exports.Set("CXType_Pipe", Napi::Function::New(env, Get_CXType_Pipe));
-    exports.Set("CXType_OCLImage1dRO", Napi::Function::New(env, Get_CXType_OCLImage1dRO));
-    exports.Set("CXType_OCLImage1dArrayRO", Napi::Function::New(env, Get_CXType_OCLImage1dArrayRO));
-    exports.Set("CXType_OCLImage1dBufferRO", Napi::Function::New(env, Get_CXType_OCLImage1dBufferRO));
-    exports.Set("CXType_OCLImage2dRO", Napi::Function::New(env, Get_CXType_OCLImage2dRO));
-    exports.Set("CXType_OCLImage2dArrayRO", Napi::Function::New(env, Get_CXType_OCLImage2dArrayRO));
-    exports.Set("CXType_OCLImage2dDepthRO", Napi::Function::New(env, Get_CXType_OCLImage2dDepthRO));
-    exports.Set("CXType_OCLImage2dArrayDepthRO", Napi::Function::New(env, Get_CXType_OCLImage2dArrayDepthRO));
-    exports.Set("CXType_OCLImage2dMSAARO", Napi::Function::New(env, Get_CXType_OCLImage2dMSAARO));
-    exports.Set("CXType_OCLImage2dArrayMSAARO", Napi::Function::New(env, Get_CXType_OCLImage2dArrayMSAARO));
-    exports.Set("CXType_OCLImage2dMSAADepthRO", Napi::Function::New(env, Get_CXType_OCLImage2dMSAADepthRO));
-    exports.Set("CXType_OCLImage2dArrayMSAADepthRO", Napi::Function::New(env, Get_CXType_OCLImage2dArrayMSAADepthRO));
-    exports.Set("CXType_OCLImage3dRO", Napi::Function::New(env, Get_CXType_OCLImage3dRO));
-    exports.Set("CXType_OCLImage1dWO", Napi::Function::New(env, Get_CXType_OCLImage1dWO));
-    exports.Set("CXType_OCLImage1dArrayWO", Napi::Function::New(env, Get_CXType_OCLImage1dArrayWO));
-    exports.Set("CXType_OCLImage1dBufferWO", Napi::Function::New(env, Get_CXType_OCLImage1dBufferWO));
-    exports.Set("CXType_OCLImage2dWO", Napi::Function::New(env, Get_CXType_OCLImage2dWO));
-    exports.Set("CXType_OCLImage2dArrayWO", Napi::Function::New(env, Get_CXType_OCLImage2dArrayWO));
-    exports.Set("CXType_OCLImage2dDepthWO", Napi::Function::New(env, Get_CXType_OCLImage2dDepthWO));
-    exports.Set("CXType_OCLImage2dArrayDepthWO", Napi::Function::New(env, Get_CXType_OCLImage2dArrayDepthWO));
-    exports.Set("CXType_OCLImage2dMSAAWO", Napi::Function::New(env, Get_CXType_OCLImage2dMSAAWO));
-    exports.Set("CXType_OCLImage2dArrayMSAAWO", Napi::Function::New(env, Get_CXType_OCLImage2dArrayMSAAWO));
-    exports.Set("CXType_OCLImage2dMSAADepthWO", Napi::Function::New(env, Get_CXType_OCLImage2dMSAADepthWO));
-    exports.Set("CXType_OCLImage2dArrayMSAADepthWO", Napi::Function::New(env, Get_CXType_OCLImage2dArrayMSAADepthWO));
-    exports.Set("CXType_OCLImage3dWO", Napi::Function::New(env, Get_CXType_OCLImage3dWO));
-    exports.Set("CXType_OCLImage1dRW", Napi::Function::New(env, Get_CXType_OCLImage1dRW));
-    exports.Set("CXType_OCLImage1dArrayRW", Napi::Function::New(env, Get_CXType_OCLImage1dArrayRW));
-    exports.Set("CXType_OCLImage1dBufferRW", Napi::Function::New(env, Get_CXType_OCLImage1dBufferRW));
-    exports.Set("CXType_OCLImage2dRW", Napi::Function::New(env, Get_CXType_OCLImage2dRW));
-    exports.Set("CXType_OCLImage2dArrayRW", Napi::Function::New(env, Get_CXType_OCLImage2dArrayRW));
-    exports.Set("CXType_OCLImage2dDepthRW", Napi::Function::New(env, Get_CXType_OCLImage2dDepthRW));
-    exports.Set("CXType_OCLImage2dArrayDepthRW", Napi::Function::New(env, Get_CXType_OCLImage2dArrayDepthRW));
-    exports.Set("CXType_OCLImage2dMSAARW", Napi::Function::New(env, Get_CXType_OCLImage2dMSAARW));
-    exports.Set("CXType_OCLImage2dArrayMSAARW", Napi::Function::New(env, Get_CXType_OCLImage2dArrayMSAARW));
-    exports.Set("CXType_OCLImage2dMSAADepthRW", Napi::Function::New(env, Get_CXType_OCLImage2dMSAADepthRW));
-    exports.Set("CXType_OCLImage2dArrayMSAADepthRW", Napi::Function::New(env, Get_CXType_OCLImage2dArrayMSAADepthRW));
-    exports.Set("CXType_OCLImage3dRW", Napi::Function::New(env, Get_CXType_OCLImage3dRW));
-    exports.Set("CXType_OCLSampler", Napi::Function::New(env, Get_CXType_OCLSampler));
-    exports.Set("CXType_OCLEvent", Napi::Function::New(env, Get_CXType_OCLEvent));
-    exports.Set("CXType_OCLQueue", Napi::Function::New(env, Get_CXType_OCLQueue));
-    exports.Set("CXType_OCLReserveID", Napi::Function::New(env, Get_CXType_OCLReserveID));
-    exports.Set("CXType_ObjCObject", Napi::Function::New(env, Get_CXType_ObjCObject));
-    exports.Set("CXType_ObjCTypeParam", Napi::Function::New(env, Get_CXType_ObjCTypeParam));
-    exports.Set("CXType_Attributed", Napi::Function::New(env, Get_CXType_Attributed));
-    exports.Set("CXType_OCLIntelSubgroupAVCMcePayload", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCMcePayload));
-    exports.Set("CXType_OCLIntelSubgroupAVCImePayload", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImePayload));
-    exports.Set("CXType_OCLIntelSubgroupAVCRefPayload", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCRefPayload));
-    exports.Set("CXType_OCLIntelSubgroupAVCSicPayload", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCSicPayload));
-    exports.Set("CXType_OCLIntelSubgroupAVCMceResult", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCMceResult));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeResult", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeResult));
-    exports.Set("CXType_OCLIntelSubgroupAVCRefResult", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCRefResult));
-    exports.Set("CXType_OCLIntelSubgroupAVCSicResult", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCSicResult));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeResultSingleReferenceStreamout", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeResultSingleReferenceStreamout));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeResultDualReferenceStreamout", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeResultDualReferenceStreamout));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeSingleReferenceStreamin", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeSingleReferenceStreamin));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeDualReferenceStreamin", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeDualReferenceStreamin));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeResultSingleRefStreamout", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeResultSingleRefStreamout));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeResultDualRefStreamout", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeResultDualRefStreamout));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeSingleRefStreamin", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeSingleRefStreamin));
-    exports.Set("CXType_OCLIntelSubgroupAVCImeDualRefStreamin", Napi::Function::New(env, Get_CXType_OCLIntelSubgroupAVCImeDualRefStreamin));
-    exports.Set("CXType_ExtVector", Napi::Function::New(env, Get_CXType_ExtVector));
-    exports.Set("CXType_Atomic", Napi::Function::New(env, Get_CXType_Atomic));
-    exports.Set("CXType_BTFTagAttributed", Napi::Function::New(env, Get_CXType_BTFTagAttributed));
-    exports.Set("CXType_HLSLResource", Napi::Function::New(env, Get_CXType_HLSLResource));
-    exports.Set("CXType_HLSLAttributedResource", Napi::Function::New(env, Get_CXType_HLSLAttributedResource));
-    exports.Set("CXCallingConv_Default", Napi::Function::New(env, Get_CXCallingConv_Default));
-    exports.Set("CXCallingConv_C", Napi::Function::New(env, Get_CXCallingConv_C));
-    exports.Set("CXCallingConv_X86StdCall", Napi::Function::New(env, Get_CXCallingConv_X86StdCall));
-    exports.Set("CXCallingConv_X86FastCall", Napi::Function::New(env, Get_CXCallingConv_X86FastCall));
-    exports.Set("CXCallingConv_X86ThisCall", Napi::Function::New(env, Get_CXCallingConv_X86ThisCall));
-    exports.Set("CXCallingConv_X86Pascal", Napi::Function::New(env, Get_CXCallingConv_X86Pascal));
-    exports.Set("CXCallingConv_AAPCS", Napi::Function::New(env, Get_CXCallingConv_AAPCS));
-    exports.Set("CXCallingConv_AAPCS_VFP", Napi::Function::New(env, Get_CXCallingConv_AAPCS_VFP));
-    exports.Set("CXCallingConv_X86RegCall", Napi::Function::New(env, Get_CXCallingConv_X86RegCall));
-    exports.Set("CXCallingConv_IntelOclBicc", Napi::Function::New(env, Get_CXCallingConv_IntelOclBicc));
-    exports.Set("CXCallingConv_Win64", Napi::Function::New(env, Get_CXCallingConv_Win64));
-    exports.Set("CXCallingConv_X86_64Win64", Napi::Function::New(env, Get_CXCallingConv_X86_64Win64));
-    exports.Set("CXCallingConv_X86_64SysV", Napi::Function::New(env, Get_CXCallingConv_X86_64SysV));
-    exports.Set("CXCallingConv_X86VectorCall", Napi::Function::New(env, Get_CXCallingConv_X86VectorCall));
-    exports.Set("CXCallingConv_Swift", Napi::Function::New(env, Get_CXCallingConv_Swift));
-    exports.Set("CXCallingConv_PreserveMost", Napi::Function::New(env, Get_CXCallingConv_PreserveMost));
-    exports.Set("CXCallingConv_PreserveAll", Napi::Function::New(env, Get_CXCallingConv_PreserveAll));
-    exports.Set("CXCallingConv_AArch64VectorCall", Napi::Function::New(env, Get_CXCallingConv_AArch64VectorCall));
-    exports.Set("CXCallingConv_SwiftAsync", Napi::Function::New(env, Get_CXCallingConv_SwiftAsync));
-    exports.Set("CXCallingConv_AArch64SVEPCS", Napi::Function::New(env, Get_CXCallingConv_AArch64SVEPCS));
-    exports.Set("CXCallingConv_M68kRTD", Napi::Function::New(env, Get_CXCallingConv_M68kRTD));
-    exports.Set("CXCallingConv_PreserveNone", Napi::Function::New(env, Get_CXCallingConv_PreserveNone));
-    exports.Set("CXCallingConv_RISCVVectorCall", Napi::Function::New(env, Get_CXCallingConv_RISCVVectorCall));
-    exports.Set("CXCallingConv_Invalid", Napi::Function::New(env, Get_CXCallingConv_Invalid));
-    exports.Set("CXCallingConv_Unexposed", Napi::Function::New(env, Get_CXCallingConv_Unexposed));
-    exports.Set("CXTemplateArgumentKind_Null", Napi::Function::New(env, Get_CXTemplateArgumentKind_Null));
-    exports.Set("CXTemplateArgumentKind_Type", Napi::Function::New(env, Get_CXTemplateArgumentKind_Type));
-    exports.Set("CXTemplateArgumentKind_Declaration", Napi::Function::New(env, Get_CXTemplateArgumentKind_Declaration));
-    exports.Set("CXTemplateArgumentKind_NullPtr", Napi::Function::New(env, Get_CXTemplateArgumentKind_NullPtr));
-    exports.Set("CXTemplateArgumentKind_Integral", Napi::Function::New(env, Get_CXTemplateArgumentKind_Integral));
-    exports.Set("CXTemplateArgumentKind_Template", Napi::Function::New(env, Get_CXTemplateArgumentKind_Template));
-    exports.Set("CXTemplateArgumentKind_TemplateExpansion", Napi::Function::New(env, Get_CXTemplateArgumentKind_TemplateExpansion));
-    exports.Set("CXTemplateArgumentKind_Expression", Napi::Function::New(env, Get_CXTemplateArgumentKind_Expression));
-    exports.Set("CXTemplateArgumentKind_Pack", Napi::Function::New(env, Get_CXTemplateArgumentKind_Pack));
-    exports.Set("CXTemplateArgumentKind_Invalid", Napi::Function::New(env, Get_CXTemplateArgumentKind_Invalid));
-    exports.Set("CXTypeNullability_NonNull", Napi::Function::New(env, Get_CXTypeNullability_NonNull));
-    exports.Set("CXTypeNullability_Nullable", Napi::Function::New(env, Get_CXTypeNullability_Nullable));
-    exports.Set("CXTypeNullability_Unspecified", Napi::Function::New(env, Get_CXTypeNullability_Unspecified));
-    exports.Set("CXTypeNullability_Invalid", Napi::Function::New(env, Get_CXTypeNullability_Invalid));
-    exports.Set("CXTypeNullability_NullableResult", Napi::Function::New(env, Get_CXTypeNullability_NullableResult));
-    exports.Set("CXTypeLayoutError_Invalid", Napi::Function::New(env, Get_CXTypeLayoutError_Invalid));
-    exports.Set("CXTypeLayoutError_Incomplete", Napi::Function::New(env, Get_CXTypeLayoutError_Incomplete));
-    exports.Set("CXTypeLayoutError_Dependent", Napi::Function::New(env, Get_CXTypeLayoutError_Dependent));
-    exports.Set("CXTypeLayoutError_NotConstantSize", Napi::Function::New(env, Get_CXTypeLayoutError_NotConstantSize));
-    exports.Set("CXTypeLayoutError_InvalidFieldName", Napi::Function::New(env, Get_CXTypeLayoutError_InvalidFieldName));
-    exports.Set("CXTypeLayoutError_Undeduced", Napi::Function::New(env, Get_CXTypeLayoutError_Undeduced));
-    exports.Set("CXRefQualifier_None", Napi::Function::New(env, Get_CXRefQualifier_None));
-    exports.Set("CXRefQualifier_LValue", Napi::Function::New(env, Get_CXRefQualifier_LValue));
-    exports.Set("CXRefQualifier_RValue", Napi::Function::New(env, Get_CXRefQualifier_RValue));
-    exports.Set("CX_CXXInvalidAccessSpecifier", Napi::Function::New(env, Get_CX_CXXInvalidAccessSpecifier));
-    exports.Set("CX_CXXPublic", Napi::Function::New(env, Get_CX_CXXPublic));
-    exports.Set("CX_CXXProtected", Napi::Function::New(env, Get_CX_CXXProtected));
-    exports.Set("CX_CXXPrivate", Napi::Function::New(env, Get_CX_CXXPrivate));
-    exports.Set("CX_SC_Invalid", Napi::Function::New(env, Get_CX_SC_Invalid));
-    exports.Set("CX_SC_None", Napi::Function::New(env, Get_CX_SC_None));
-    exports.Set("CX_SC_Extern", Napi::Function::New(env, Get_CX_SC_Extern));
-    exports.Set("CX_SC_Static", Napi::Function::New(env, Get_CX_SC_Static));
-    exports.Set("CX_SC_PrivateExtern", Napi::Function::New(env, Get_CX_SC_PrivateExtern));
-    exports.Set("CX_SC_OpenCLWorkGroupLocal", Napi::Function::New(env, Get_CX_SC_OpenCLWorkGroupLocal));
-    exports.Set("CX_SC_Auto", Napi::Function::New(env, Get_CX_SC_Auto));
-    exports.Set("CX_SC_Register", Napi::Function::New(env, Get_CX_SC_Register));
-    exports.Set("CX_BO_Invalid", Napi::Function::New(env, Get_CX_BO_Invalid));
-    exports.Set("CX_BO_PtrMemD", Napi::Function::New(env, Get_CX_BO_PtrMemD));
-    exports.Set("CX_BO_PtrMemI", Napi::Function::New(env, Get_CX_BO_PtrMemI));
-    exports.Set("CX_BO_Mul", Napi::Function::New(env, Get_CX_BO_Mul));
-    exports.Set("CX_BO_Div", Napi::Function::New(env, Get_CX_BO_Div));
-    exports.Set("CX_BO_Rem", Napi::Function::New(env, Get_CX_BO_Rem));
-    exports.Set("CX_BO_Add", Napi::Function::New(env, Get_CX_BO_Add));
-    exports.Set("CX_BO_Sub", Napi::Function::New(env, Get_CX_BO_Sub));
-    exports.Set("CX_BO_Shl", Napi::Function::New(env, Get_CX_BO_Shl));
-    exports.Set("CX_BO_Shr", Napi::Function::New(env, Get_CX_BO_Shr));
-    exports.Set("CX_BO_Cmp", Napi::Function::New(env, Get_CX_BO_Cmp));
-    exports.Set("CX_BO_LT", Napi::Function::New(env, Get_CX_BO_LT));
-    exports.Set("CX_BO_GT", Napi::Function::New(env, Get_CX_BO_GT));
-    exports.Set("CX_BO_LE", Napi::Function::New(env, Get_CX_BO_LE));
-    exports.Set("CX_BO_GE", Napi::Function::New(env, Get_CX_BO_GE));
-    exports.Set("CX_BO_EQ", Napi::Function::New(env, Get_CX_BO_EQ));
-    exports.Set("CX_BO_NE", Napi::Function::New(env, Get_CX_BO_NE));
-    exports.Set("CX_BO_And", Napi::Function::New(env, Get_CX_BO_And));
-    exports.Set("CX_BO_Xor", Napi::Function::New(env, Get_CX_BO_Xor));
-    exports.Set("CX_BO_Or", Napi::Function::New(env, Get_CX_BO_Or));
-    exports.Set("CX_BO_LAnd", Napi::Function::New(env, Get_CX_BO_LAnd));
-    exports.Set("CX_BO_LOr", Napi::Function::New(env, Get_CX_BO_LOr));
-    exports.Set("CX_BO_Assign", Napi::Function::New(env, Get_CX_BO_Assign));
-    exports.Set("CX_BO_MulAssign", Napi::Function::New(env, Get_CX_BO_MulAssign));
-    exports.Set("CX_BO_DivAssign", Napi::Function::New(env, Get_CX_BO_DivAssign));
-    exports.Set("CX_BO_RemAssign", Napi::Function::New(env, Get_CX_BO_RemAssign));
-    exports.Set("CX_BO_AddAssign", Napi::Function::New(env, Get_CX_BO_AddAssign));
-    exports.Set("CX_BO_SubAssign", Napi::Function::New(env, Get_CX_BO_SubAssign));
-    exports.Set("CX_BO_ShlAssign", Napi::Function::New(env, Get_CX_BO_ShlAssign));
-    exports.Set("CX_BO_ShrAssign", Napi::Function::New(env, Get_CX_BO_ShrAssign));
-    exports.Set("CX_BO_AndAssign", Napi::Function::New(env, Get_CX_BO_AndAssign));
-    exports.Set("CX_BO_XorAssign", Napi::Function::New(env, Get_CX_BO_XorAssign));
-    exports.Set("CX_BO_OrAssign", Napi::Function::New(env, Get_CX_BO_OrAssign));
-    exports.Set("CX_BO_Comma", Napi::Function::New(env, Get_CX_BO_Comma));
-    exports.Set("CX_BO_LAST", Napi::Function::New(env, Get_CX_BO_LAST));
-    exports.Set("CXChildVisit_Break", Napi::Function::New(env, Get_CXChildVisit_Break));
-    exports.Set("CXChildVisit_Continue", Napi::Function::New(env, Get_CXChildVisit_Continue));
-    exports.Set("CXChildVisit_Recurse", Napi::Function::New(env, Get_CXChildVisit_Recurse));
-    exports.Set("CXPrintingPolicy_Indentation", Napi::Function::New(env, Get_CXPrintingPolicy_Indentation));
-    exports.Set("CXPrintingPolicy_SuppressSpecifiers", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressSpecifiers));
-    exports.Set("CXPrintingPolicy_SuppressTagKeyword", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressTagKeyword));
-    exports.Set("CXPrintingPolicy_IncludeTagDefinition", Napi::Function::New(env, Get_CXPrintingPolicy_IncludeTagDefinition));
-    exports.Set("CXPrintingPolicy_SuppressScope", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressScope));
-    exports.Set("CXPrintingPolicy_SuppressUnwrittenScope", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressUnwrittenScope));
-    exports.Set("CXPrintingPolicy_SuppressInitializers", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressInitializers));
-    exports.Set("CXPrintingPolicy_ConstantArraySizeAsWritten", Napi::Function::New(env, Get_CXPrintingPolicy_ConstantArraySizeAsWritten));
-    exports.Set("CXPrintingPolicy_AnonymousTagLocations", Napi::Function::New(env, Get_CXPrintingPolicy_AnonymousTagLocations));
-    exports.Set("CXPrintingPolicy_SuppressStrongLifetime", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressStrongLifetime));
-    exports.Set("CXPrintingPolicy_SuppressLifetimeQualifiers", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressLifetimeQualifiers));
-    exports.Set("CXPrintingPolicy_SuppressTemplateArgsInCXXConstructors", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressTemplateArgsInCXXConstructors));
-    exports.Set("CXPrintingPolicy_Bool", Napi::Function::New(env, Get_CXPrintingPolicy_Bool));
-    exports.Set("CXPrintingPolicy_Restrict", Napi::Function::New(env, Get_CXPrintingPolicy_Restrict));
-    exports.Set("CXPrintingPolicy_Alignof", Napi::Function::New(env, Get_CXPrintingPolicy_Alignof));
-    exports.Set("CXPrintingPolicy_UnderscoreAlignof", Napi::Function::New(env, Get_CXPrintingPolicy_UnderscoreAlignof));
-    exports.Set("CXPrintingPolicy_UseVoidForZeroParams", Napi::Function::New(env, Get_CXPrintingPolicy_UseVoidForZeroParams));
-    exports.Set("CXPrintingPolicy_TerseOutput", Napi::Function::New(env, Get_CXPrintingPolicy_TerseOutput));
-    exports.Set("CXPrintingPolicy_PolishForDeclaration", Napi::Function::New(env, Get_CXPrintingPolicy_PolishForDeclaration));
-    exports.Set("CXPrintingPolicy_Half", Napi::Function::New(env, Get_CXPrintingPolicy_Half));
-    exports.Set("CXPrintingPolicy_MSWChar", Napi::Function::New(env, Get_CXPrintingPolicy_MSWChar));
-    exports.Set("CXPrintingPolicy_IncludeNewlines", Napi::Function::New(env, Get_CXPrintingPolicy_IncludeNewlines));
-    exports.Set("CXPrintingPolicy_MSVCFormatting", Napi::Function::New(env, Get_CXPrintingPolicy_MSVCFormatting));
-    exports.Set("CXPrintingPolicy_ConstantsAsWritten", Napi::Function::New(env, Get_CXPrintingPolicy_ConstantsAsWritten));
-    exports.Set("CXPrintingPolicy_SuppressImplicitBase", Napi::Function::New(env, Get_CXPrintingPolicy_SuppressImplicitBase));
-    exports.Set("CXPrintingPolicy_FullyQualifiedName", Napi::Function::New(env, Get_CXPrintingPolicy_FullyQualifiedName));
-    exports.Set("CXPrintingPolicy_LastProperty", Napi::Function::New(env, Get_CXPrintingPolicy_LastProperty));
-    exports.Set("CXObjCPropertyAttr_noattr", Napi::Function::New(env, Get_CXObjCPropertyAttr_noattr));
-    exports.Set("CXObjCPropertyAttr_readonly", Napi::Function::New(env, Get_CXObjCPropertyAttr_readonly));
-    exports.Set("CXObjCPropertyAttr_getter", Napi::Function::New(env, Get_CXObjCPropertyAttr_getter));
-    exports.Set("CXObjCPropertyAttr_assign", Napi::Function::New(env, Get_CXObjCPropertyAttr_assign));
-    exports.Set("CXObjCPropertyAttr_readwrite", Napi::Function::New(env, Get_CXObjCPropertyAttr_readwrite));
-    exports.Set("CXObjCPropertyAttr_retain", Napi::Function::New(env, Get_CXObjCPropertyAttr_retain));
-    exports.Set("CXObjCPropertyAttr_copy", Napi::Function::New(env, Get_CXObjCPropertyAttr_copy));
-    exports.Set("CXObjCPropertyAttr_nonatomic", Napi::Function::New(env, Get_CXObjCPropertyAttr_nonatomic));
-    exports.Set("CXObjCPropertyAttr_setter", Napi::Function::New(env, Get_CXObjCPropertyAttr_setter));
-    exports.Set("CXObjCPropertyAttr_atomic", Napi::Function::New(env, Get_CXObjCPropertyAttr_atomic));
-    exports.Set("CXObjCPropertyAttr_weak", Napi::Function::New(env, Get_CXObjCPropertyAttr_weak));
-    exports.Set("CXObjCPropertyAttr_strong", Napi::Function::New(env, Get_CXObjCPropertyAttr_strong));
-    exports.Set("CXObjCPropertyAttr_unsafe_unretained", Napi::Function::New(env, Get_CXObjCPropertyAttr_unsafe_unretained));
-    exports.Set("CXObjCPropertyAttr_class", Napi::Function::New(env, Get_CXObjCPropertyAttr_class));
-    exports.Set("CXObjCDeclQualifier_None", Napi::Function::New(env, Get_CXObjCDeclQualifier_None));
-    exports.Set("CXObjCDeclQualifier_In", Napi::Function::New(env, Get_CXObjCDeclQualifier_In));
-    exports.Set("CXObjCDeclQualifier_Inout", Napi::Function::New(env, Get_CXObjCDeclQualifier_Inout));
-    exports.Set("CXObjCDeclQualifier_Out", Napi::Function::New(env, Get_CXObjCDeclQualifier_Out));
-    exports.Set("CXObjCDeclQualifier_Bycopy", Napi::Function::New(env, Get_CXObjCDeclQualifier_Bycopy));
-    exports.Set("CXObjCDeclQualifier_Byref", Napi::Function::New(env, Get_CXObjCDeclQualifier_Byref));
-    exports.Set("CXObjCDeclQualifier_Oneway", Napi::Function::New(env, Get_CXObjCDeclQualifier_Oneway));
-    exports.Set("CXNameRange_WantQualifier", Napi::Function::New(env, Get_CXNameRange_WantQualifier));
-    exports.Set("CXNameRange_WantTemplateArgs", Napi::Function::New(env, Get_CXNameRange_WantTemplateArgs));
-    exports.Set("CXNameRange_WantSinglePiece", Napi::Function::New(env, Get_CXNameRange_WantSinglePiece));
-    exports.Set("CXToken_Punctuation", Napi::Function::New(env, Get_CXToken_Punctuation));
-    exports.Set("CXToken_Keyword", Napi::Function::New(env, Get_CXToken_Keyword));
-    exports.Set("CXToken_Identifier", Napi::Function::New(env, Get_CXToken_Identifier));
-    exports.Set("CXToken_Literal", Napi::Function::New(env, Get_CXToken_Literal));
-    exports.Set("CXToken_Comment", Napi::Function::New(env, Get_CXToken_Comment));
-    exports.Set("CXCompletionChunk_Optional", Napi::Function::New(env, Get_CXCompletionChunk_Optional));
-    exports.Set("CXCompletionChunk_TypedText", Napi::Function::New(env, Get_CXCompletionChunk_TypedText));
-    exports.Set("CXCompletionChunk_Text", Napi::Function::New(env, Get_CXCompletionChunk_Text));
-    exports.Set("CXCompletionChunk_Placeholder", Napi::Function::New(env, Get_CXCompletionChunk_Placeholder));
-    exports.Set("CXCompletionChunk_Informative", Napi::Function::New(env, Get_CXCompletionChunk_Informative));
-    exports.Set("CXCompletionChunk_CurrentParameter", Napi::Function::New(env, Get_CXCompletionChunk_CurrentParameter));
-    exports.Set("CXCompletionChunk_LeftParen", Napi::Function::New(env, Get_CXCompletionChunk_LeftParen));
-    exports.Set("CXCompletionChunk_RightParen", Napi::Function::New(env, Get_CXCompletionChunk_RightParen));
-    exports.Set("CXCompletionChunk_LeftBracket", Napi::Function::New(env, Get_CXCompletionChunk_LeftBracket));
-    exports.Set("CXCompletionChunk_RightBracket", Napi::Function::New(env, Get_CXCompletionChunk_RightBracket));
-    exports.Set("CXCompletionChunk_LeftBrace", Napi::Function::New(env, Get_CXCompletionChunk_LeftBrace));
-    exports.Set("CXCompletionChunk_RightBrace", Napi::Function::New(env, Get_CXCompletionChunk_RightBrace));
-    exports.Set("CXCompletionChunk_LeftAngle", Napi::Function::New(env, Get_CXCompletionChunk_LeftAngle));
-    exports.Set("CXCompletionChunk_RightAngle", Napi::Function::New(env, Get_CXCompletionChunk_RightAngle));
-    exports.Set("CXCompletionChunk_Comma", Napi::Function::New(env, Get_CXCompletionChunk_Comma));
-    exports.Set("CXCompletionChunk_ResultType", Napi::Function::New(env, Get_CXCompletionChunk_ResultType));
-    exports.Set("CXCompletionChunk_Colon", Napi::Function::New(env, Get_CXCompletionChunk_Colon));
-    exports.Set("CXCompletionChunk_SemiColon", Napi::Function::New(env, Get_CXCompletionChunk_SemiColon));
-    exports.Set("CXCompletionChunk_Equal", Napi::Function::New(env, Get_CXCompletionChunk_Equal));
-    exports.Set("CXCompletionChunk_HorizontalSpace", Napi::Function::New(env, Get_CXCompletionChunk_HorizontalSpace));
-    exports.Set("CXCompletionChunk_VerticalSpace", Napi::Function::New(env, Get_CXCompletionChunk_VerticalSpace));
-    exports.Set("CXCodeComplete_IncludeMacros", Napi::Function::New(env, Get_CXCodeComplete_IncludeMacros));
-    exports.Set("CXCodeComplete_IncludeCodePatterns", Napi::Function::New(env, Get_CXCodeComplete_IncludeCodePatterns));
-    exports.Set("CXCodeComplete_IncludeBriefComments", Napi::Function::New(env, Get_CXCodeComplete_IncludeBriefComments));
-    exports.Set("CXCodeComplete_SkipPreamble", Napi::Function::New(env, Get_CXCodeComplete_SkipPreamble));
-    exports.Set("CXCodeComplete_IncludeCompletionsWithFixIts", Napi::Function::New(env, Get_CXCodeComplete_IncludeCompletionsWithFixIts));
-    exports.Set("CXCompletionContext_Unexposed", Napi::Function::New(env, Get_CXCompletionContext_Unexposed));
-    exports.Set("CXCompletionContext_AnyType", Napi::Function::New(env, Get_CXCompletionContext_AnyType));
-    exports.Set("CXCompletionContext_AnyValue", Napi::Function::New(env, Get_CXCompletionContext_AnyValue));
-    exports.Set("CXCompletionContext_ObjCObjectValue", Napi::Function::New(env, Get_CXCompletionContext_ObjCObjectValue));
-    exports.Set("CXCompletionContext_ObjCSelectorValue", Napi::Function::New(env, Get_CXCompletionContext_ObjCSelectorValue));
-    exports.Set("CXCompletionContext_CXXClassTypeValue", Napi::Function::New(env, Get_CXCompletionContext_CXXClassTypeValue));
-    exports.Set("CXCompletionContext_DotMemberAccess", Napi::Function::New(env, Get_CXCompletionContext_DotMemberAccess));
-    exports.Set("CXCompletionContext_ArrowMemberAccess", Napi::Function::New(env, Get_CXCompletionContext_ArrowMemberAccess));
-    exports.Set("CXCompletionContext_ObjCPropertyAccess", Napi::Function::New(env, Get_CXCompletionContext_ObjCPropertyAccess));
-    exports.Set("CXCompletionContext_EnumTag", Napi::Function::New(env, Get_CXCompletionContext_EnumTag));
-    exports.Set("CXCompletionContext_UnionTag", Napi::Function::New(env, Get_CXCompletionContext_UnionTag));
-    exports.Set("CXCompletionContext_StructTag", Napi::Function::New(env, Get_CXCompletionContext_StructTag));
-    exports.Set("CXCompletionContext_ClassTag", Napi::Function::New(env, Get_CXCompletionContext_ClassTag));
-    exports.Set("CXCompletionContext_Namespace", Napi::Function::New(env, Get_CXCompletionContext_Namespace));
-    exports.Set("CXCompletionContext_NestedNameSpecifier", Napi::Function::New(env, Get_CXCompletionContext_NestedNameSpecifier));
-    exports.Set("CXCompletionContext_ObjCInterface", Napi::Function::New(env, Get_CXCompletionContext_ObjCInterface));
-    exports.Set("CXCompletionContext_ObjCProtocol", Napi::Function::New(env, Get_CXCompletionContext_ObjCProtocol));
-    exports.Set("CXCompletionContext_ObjCCategory", Napi::Function::New(env, Get_CXCompletionContext_ObjCCategory));
-    exports.Set("CXCompletionContext_ObjCInstanceMessage", Napi::Function::New(env, Get_CXCompletionContext_ObjCInstanceMessage));
-    exports.Set("CXCompletionContext_ObjCClassMessage", Napi::Function::New(env, Get_CXCompletionContext_ObjCClassMessage));
-    exports.Set("CXCompletionContext_ObjCSelectorName", Napi::Function::New(env, Get_CXCompletionContext_ObjCSelectorName));
-    exports.Set("CXCompletionContext_MacroName", Napi::Function::New(env, Get_CXCompletionContext_MacroName));
-    exports.Set("CXCompletionContext_NaturalLanguage", Napi::Function::New(env, Get_CXCompletionContext_NaturalLanguage));
-    exports.Set("CXCompletionContext_IncludedFile", Napi::Function::New(env, Get_CXCompletionContext_IncludedFile));
-    exports.Set("CXCompletionContext_Unknown", Napi::Function::New(env, Get_CXCompletionContext_Unknown));
-    exports.Set("CXEval_Int", Napi::Function::New(env, Get_CXEval_Int));
-    exports.Set("CXEval_Float", Napi::Function::New(env, Get_CXEval_Float));
-    exports.Set("CXEval_ObjCStrLiteral", Napi::Function::New(env, Get_CXEval_ObjCStrLiteral));
-    exports.Set("CXEval_StrLiteral", Napi::Function::New(env, Get_CXEval_StrLiteral));
-    exports.Set("CXEval_CFStr", Napi::Function::New(env, Get_CXEval_CFStr));
-    exports.Set("CXEval_Other", Napi::Function::New(env, Get_CXEval_Other));
-    exports.Set("CXEval_UnExposed", Napi::Function::New(env, Get_CXEval_UnExposed));
-    exports.Set("CXVisit_Break", Napi::Function::New(env, Get_CXVisit_Break));
-    exports.Set("CXVisit_Continue", Napi::Function::New(env, Get_CXVisit_Continue));
-    exports.Set("CXResult_Success", Napi::Function::New(env, Get_CXResult_Success));
-    exports.Set("CXResult_Invalid", Napi::Function::New(env, Get_CXResult_Invalid));
-    exports.Set("CXResult_VisitBreak", Napi::Function::New(env, Get_CXResult_VisitBreak));
-    exports.Set("CXIdxEntity_Unexposed", Napi::Function::New(env, Get_CXIdxEntity_Unexposed));
-    exports.Set("CXIdxEntity_Typedef", Napi::Function::New(env, Get_CXIdxEntity_Typedef));
-    exports.Set("CXIdxEntity_Function", Napi::Function::New(env, Get_CXIdxEntity_Function));
-    exports.Set("CXIdxEntity_Variable", Napi::Function::New(env, Get_CXIdxEntity_Variable));
-    exports.Set("CXIdxEntity_Field", Napi::Function::New(env, Get_CXIdxEntity_Field));
-    exports.Set("CXIdxEntity_EnumConstant", Napi::Function::New(env, Get_CXIdxEntity_EnumConstant));
-    exports.Set("CXIdxEntity_ObjCClass", Napi::Function::New(env, Get_CXIdxEntity_ObjCClass));
-    exports.Set("CXIdxEntity_ObjCProtocol", Napi::Function::New(env, Get_CXIdxEntity_ObjCProtocol));
-    exports.Set("CXIdxEntity_ObjCCategory", Napi::Function::New(env, Get_CXIdxEntity_ObjCCategory));
-    exports.Set("CXIdxEntity_ObjCInstanceMethod", Napi::Function::New(env, Get_CXIdxEntity_ObjCInstanceMethod));
-    exports.Set("CXIdxEntity_ObjCClassMethod", Napi::Function::New(env, Get_CXIdxEntity_ObjCClassMethod));
-    exports.Set("CXIdxEntity_ObjCProperty", Napi::Function::New(env, Get_CXIdxEntity_ObjCProperty));
-    exports.Set("CXIdxEntity_ObjCIvar", Napi::Function::New(env, Get_CXIdxEntity_ObjCIvar));
-    exports.Set("CXIdxEntity_Enum", Napi::Function::New(env, Get_CXIdxEntity_Enum));
-    exports.Set("CXIdxEntity_Struct", Napi::Function::New(env, Get_CXIdxEntity_Struct));
-    exports.Set("CXIdxEntity_Union", Napi::Function::New(env, Get_CXIdxEntity_Union));
-    exports.Set("CXIdxEntity_CXXClass", Napi::Function::New(env, Get_CXIdxEntity_CXXClass));
-    exports.Set("CXIdxEntity_CXXNamespace", Napi::Function::New(env, Get_CXIdxEntity_CXXNamespace));
-    exports.Set("CXIdxEntity_CXXNamespaceAlias", Napi::Function::New(env, Get_CXIdxEntity_CXXNamespaceAlias));
-    exports.Set("CXIdxEntity_CXXStaticVariable", Napi::Function::New(env, Get_CXIdxEntity_CXXStaticVariable));
-    exports.Set("CXIdxEntity_CXXStaticMethod", Napi::Function::New(env, Get_CXIdxEntity_CXXStaticMethod));
-    exports.Set("CXIdxEntity_CXXInstanceMethod", Napi::Function::New(env, Get_CXIdxEntity_CXXInstanceMethod));
-    exports.Set("CXIdxEntity_CXXConstructor", Napi::Function::New(env, Get_CXIdxEntity_CXXConstructor));
-    exports.Set("CXIdxEntity_CXXDestructor", Napi::Function::New(env, Get_CXIdxEntity_CXXDestructor));
-    exports.Set("CXIdxEntity_CXXConversionFunction", Napi::Function::New(env, Get_CXIdxEntity_CXXConversionFunction));
-    exports.Set("CXIdxEntity_CXXTypeAlias", Napi::Function::New(env, Get_CXIdxEntity_CXXTypeAlias));
-    exports.Set("CXIdxEntity_CXXInterface", Napi::Function::New(env, Get_CXIdxEntity_CXXInterface));
-    exports.Set("CXIdxEntity_CXXConcept", Napi::Function::New(env, Get_CXIdxEntity_CXXConcept));
-    exports.Set("CXIdxEntityLang_None", Napi::Function::New(env, Get_CXIdxEntityLang_None));
-    exports.Set("CXIdxEntityLang_C", Napi::Function::New(env, Get_CXIdxEntityLang_C));
-    exports.Set("CXIdxEntityLang_ObjC", Napi::Function::New(env, Get_CXIdxEntityLang_ObjC));
-    exports.Set("CXIdxEntityLang_CXX", Napi::Function::New(env, Get_CXIdxEntityLang_CXX));
-    exports.Set("CXIdxEntityLang_Swift", Napi::Function::New(env, Get_CXIdxEntityLang_Swift));
-    exports.Set("CXIdxEntity_NonTemplate", Napi::Function::New(env, Get_CXIdxEntity_NonTemplate));
-    exports.Set("CXIdxEntity_Template", Napi::Function::New(env, Get_CXIdxEntity_Template));
-    exports.Set("CXIdxEntity_TemplatePartialSpecialization", Napi::Function::New(env, Get_CXIdxEntity_TemplatePartialSpecialization));
-    exports.Set("CXIdxEntity_TemplateSpecialization", Napi::Function::New(env, Get_CXIdxEntity_TemplateSpecialization));
-    exports.Set("CXIdxAttr_Unexposed", Napi::Function::New(env, Get_CXIdxAttr_Unexposed));
-    exports.Set("CXIdxAttr_IBAction", Napi::Function::New(env, Get_CXIdxAttr_IBAction));
-    exports.Set("CXIdxAttr_IBOutlet", Napi::Function::New(env, Get_CXIdxAttr_IBOutlet));
-    exports.Set("CXIdxAttr_IBOutletCollection", Napi::Function::New(env, Get_CXIdxAttr_IBOutletCollection));
-    exports.Set("CXIdxDeclFlag_Skipped", Napi::Function::New(env, Get_CXIdxDeclFlag_Skipped));
-    exports.Set("CXIdxObjCContainer_ForwardRef", Napi::Function::New(env, Get_CXIdxObjCContainer_ForwardRef));
-    exports.Set("CXIdxObjCContainer_Interface", Napi::Function::New(env, Get_CXIdxObjCContainer_Interface));
-    exports.Set("CXIdxObjCContainer_Implementation", Napi::Function::New(env, Get_CXIdxObjCContainer_Implementation));
-    exports.Set("CXIdxEntityRef_Direct", Napi::Function::New(env, Get_CXIdxEntityRef_Direct));
-    exports.Set("CXIdxEntityRef_Implicit", Napi::Function::New(env, Get_CXIdxEntityRef_Implicit));
-    exports.Set("CXSymbolRole_None", Napi::Function::New(env, Get_CXSymbolRole_None));
-    exports.Set("CXSymbolRole_Declaration", Napi::Function::New(env, Get_CXSymbolRole_Declaration));
-    exports.Set("CXSymbolRole_Definition", Napi::Function::New(env, Get_CXSymbolRole_Definition));
-    exports.Set("CXSymbolRole_Reference", Napi::Function::New(env, Get_CXSymbolRole_Reference));
-    exports.Set("CXSymbolRole_Read", Napi::Function::New(env, Get_CXSymbolRole_Read));
-    exports.Set("CXSymbolRole_Write", Napi::Function::New(env, Get_CXSymbolRole_Write));
-    exports.Set("CXSymbolRole_Call", Napi::Function::New(env, Get_CXSymbolRole_Call));
-    exports.Set("CXSymbolRole_Dynamic", Napi::Function::New(env, Get_CXSymbolRole_Dynamic));
-    exports.Set("CXSymbolRole_AddressOf", Napi::Function::New(env, Get_CXSymbolRole_AddressOf));
-    exports.Set("CXSymbolRole_Implicit", Napi::Function::New(env, Get_CXSymbolRole_Implicit));
-    exports.Set("CXIndexOpt_None", Napi::Function::New(env, Get_CXIndexOpt_None));
-    exports.Set("CXIndexOpt_SuppressRedundantRefs", Napi::Function::New(env, Get_CXIndexOpt_SuppressRedundantRefs));
-    exports.Set("CXIndexOpt_IndexFunctionLocalSymbols", Napi::Function::New(env, Get_CXIndexOpt_IndexFunctionLocalSymbols));
-    exports.Set("CXIndexOpt_IndexImplicitTemplateInstantiations", Napi::Function::New(env, Get_CXIndexOpt_IndexImplicitTemplateInstantiations));
-    exports.Set("CXIndexOpt_SuppressWarnings", Napi::Function::New(env, Get_CXIndexOpt_SuppressWarnings));
-    exports.Set("CXIndexOpt_SkipParsedBodiesInSession", Napi::Function::New(env, Get_CXIndexOpt_SkipParsedBodiesInSession));
-    exports.Set("CXBinaryOperator_Invalid", Napi::Function::New(env, Get_CXBinaryOperator_Invalid));
-    exports.Set("CXBinaryOperator_PtrMemD", Napi::Function::New(env, Get_CXBinaryOperator_PtrMemD));
-    exports.Set("CXBinaryOperator_PtrMemI", Napi::Function::New(env, Get_CXBinaryOperator_PtrMemI));
-    exports.Set("CXBinaryOperator_Mul", Napi::Function::New(env, Get_CXBinaryOperator_Mul));
-    exports.Set("CXBinaryOperator_Div", Napi::Function::New(env, Get_CXBinaryOperator_Div));
-    exports.Set("CXBinaryOperator_Rem", Napi::Function::New(env, Get_CXBinaryOperator_Rem));
-    exports.Set("CXBinaryOperator_Add", Napi::Function::New(env, Get_CXBinaryOperator_Add));
-    exports.Set("CXBinaryOperator_Sub", Napi::Function::New(env, Get_CXBinaryOperator_Sub));
-    exports.Set("CXBinaryOperator_Shl", Napi::Function::New(env, Get_CXBinaryOperator_Shl));
-    exports.Set("CXBinaryOperator_Shr", Napi::Function::New(env, Get_CXBinaryOperator_Shr));
-    exports.Set("CXBinaryOperator_Cmp", Napi::Function::New(env, Get_CXBinaryOperator_Cmp));
-    exports.Set("CXBinaryOperator_LT", Napi::Function::New(env, Get_CXBinaryOperator_LT));
-    exports.Set("CXBinaryOperator_GT", Napi::Function::New(env, Get_CXBinaryOperator_GT));
-    exports.Set("CXBinaryOperator_LE", Napi::Function::New(env, Get_CXBinaryOperator_LE));
-    exports.Set("CXBinaryOperator_GE", Napi::Function::New(env, Get_CXBinaryOperator_GE));
-    exports.Set("CXBinaryOperator_EQ", Napi::Function::New(env, Get_CXBinaryOperator_EQ));
-    exports.Set("CXBinaryOperator_NE", Napi::Function::New(env, Get_CXBinaryOperator_NE));
-    exports.Set("CXBinaryOperator_And", Napi::Function::New(env, Get_CXBinaryOperator_And));
-    exports.Set("CXBinaryOperator_Xor", Napi::Function::New(env, Get_CXBinaryOperator_Xor));
-    exports.Set("CXBinaryOperator_Or", Napi::Function::New(env, Get_CXBinaryOperator_Or));
-    exports.Set("CXBinaryOperator_LAnd", Napi::Function::New(env, Get_CXBinaryOperator_LAnd));
-    exports.Set("CXBinaryOperator_LOr", Napi::Function::New(env, Get_CXBinaryOperator_LOr));
-    exports.Set("CXBinaryOperator_Assign", Napi::Function::New(env, Get_CXBinaryOperator_Assign));
-    exports.Set("CXBinaryOperator_MulAssign", Napi::Function::New(env, Get_CXBinaryOperator_MulAssign));
-    exports.Set("CXBinaryOperator_DivAssign", Napi::Function::New(env, Get_CXBinaryOperator_DivAssign));
-    exports.Set("CXBinaryOperator_RemAssign", Napi::Function::New(env, Get_CXBinaryOperator_RemAssign));
-    exports.Set("CXBinaryOperator_AddAssign", Napi::Function::New(env, Get_CXBinaryOperator_AddAssign));
-    exports.Set("CXBinaryOperator_SubAssign", Napi::Function::New(env, Get_CXBinaryOperator_SubAssign));
-    exports.Set("CXBinaryOperator_ShlAssign", Napi::Function::New(env, Get_CXBinaryOperator_ShlAssign));
-    exports.Set("CXBinaryOperator_ShrAssign", Napi::Function::New(env, Get_CXBinaryOperator_ShrAssign));
-    exports.Set("CXBinaryOperator_AndAssign", Napi::Function::New(env, Get_CXBinaryOperator_AndAssign));
-    exports.Set("CXBinaryOperator_XorAssign", Napi::Function::New(env, Get_CXBinaryOperator_XorAssign));
-    exports.Set("CXBinaryOperator_OrAssign", Napi::Function::New(env, Get_CXBinaryOperator_OrAssign));
-    exports.Set("CXBinaryOperator_Comma", Napi::Function::New(env, Get_CXBinaryOperator_Comma));
-    exports.Set("CXUnaryOperator_Invalid", Napi::Function::New(env, Get_CXUnaryOperator_Invalid));
-    exports.Set("CXUnaryOperator_PostInc", Napi::Function::New(env, Get_CXUnaryOperator_PostInc));
-    exports.Set("CXUnaryOperator_PostDec", Napi::Function::New(env, Get_CXUnaryOperator_PostDec));
-    exports.Set("CXUnaryOperator_PreInc", Napi::Function::New(env, Get_CXUnaryOperator_PreInc));
-    exports.Set("CXUnaryOperator_PreDec", Napi::Function::New(env, Get_CXUnaryOperator_PreDec));
-    exports.Set("CXUnaryOperator_AddrOf", Napi::Function::New(env, Get_CXUnaryOperator_AddrOf));
-    exports.Set("CXUnaryOperator_Deref", Napi::Function::New(env, Get_CXUnaryOperator_Deref));
-    exports.Set("CXUnaryOperator_Plus", Napi::Function::New(env, Get_CXUnaryOperator_Plus));
-    exports.Set("CXUnaryOperator_Minus", Napi::Function::New(env, Get_CXUnaryOperator_Minus));
-    exports.Set("CXUnaryOperator_Not", Napi::Function::New(env, Get_CXUnaryOperator_Not));
-    exports.Set("CXUnaryOperator_LNot", Napi::Function::New(env, Get_CXUnaryOperator_LNot));
-    exports.Set("CXUnaryOperator_Real", Napi::Function::New(env, Get_CXUnaryOperator_Real));
-    exports.Set("CXUnaryOperator_Imag", Napi::Function::New(env, Get_CXUnaryOperator_Imag));
-    exports.Set("CXUnaryOperator_Extension", Napi::Function::New(env, Get_CXUnaryOperator_Extension));
-    exports.Set("CXUnaryOperator_Coawait", Napi::Function::New(env, Get_CXUnaryOperator_Coawait));
+    exports.Set("CXError_Success", Napi::Number::New(env, CXError_Success));
+    exports.Set("CXError_Failure", Napi::Number::New(env, CXError_Failure));
+    exports.Set("CXError_Crashed", Napi::Number::New(env, CXError_Crashed));
+    exports.Set("CXError_InvalidArguments", Napi::Number::New(env, CXError_InvalidArguments));
+    exports.Set("CXError_ASTReadError", Napi::Number::New(env, CXError_ASTReadError));
+    exports.Set("CXDiagnostic_Ignored", Napi::Number::New(env, CXDiagnostic_Ignored));
+    exports.Set("CXDiagnostic_Note", Napi::Number::New(env, CXDiagnostic_Note));
+    exports.Set("CXDiagnostic_Warning", Napi::Number::New(env, CXDiagnostic_Warning));
+    exports.Set("CXDiagnostic_Error", Napi::Number::New(env, CXDiagnostic_Error));
+    exports.Set("CXDiagnostic_Fatal", Napi::Number::New(env, CXDiagnostic_Fatal));
+    exports.Set("CXLoadDiag_None", Napi::Number::New(env, CXLoadDiag_None));
+    exports.Set("CXLoadDiag_Unknown", Napi::Number::New(env, CXLoadDiag_Unknown));
+    exports.Set("CXLoadDiag_CannotLoad", Napi::Number::New(env, CXLoadDiag_CannotLoad));
+    exports.Set("CXLoadDiag_InvalidFile", Napi::Number::New(env, CXLoadDiag_InvalidFile));
+    exports.Set("CXDiagnostic_DisplaySourceLocation", Napi::Number::New(env, CXDiagnostic_DisplaySourceLocation));
+    exports.Set("CXDiagnostic_DisplayColumn", Napi::Number::New(env, CXDiagnostic_DisplayColumn));
+    exports.Set("CXDiagnostic_DisplaySourceRanges", Napi::Number::New(env, CXDiagnostic_DisplaySourceRanges));
+    exports.Set("CXDiagnostic_DisplayOption", Napi::Number::New(env, CXDiagnostic_DisplayOption));
+    exports.Set("CXDiagnostic_DisplayCategoryId", Napi::Number::New(env, CXDiagnostic_DisplayCategoryId));
+    exports.Set("CXDiagnostic_DisplayCategoryName", Napi::Number::New(env, CXDiagnostic_DisplayCategoryName));
+    exports.Set("CXAvailability_Available", Napi::Number::New(env, CXAvailability_Available));
+    exports.Set("CXAvailability_Deprecated", Napi::Number::New(env, CXAvailability_Deprecated));
+    exports.Set("CXAvailability_NotAvailable", Napi::Number::New(env, CXAvailability_NotAvailable));
+    exports.Set("CXAvailability_NotAccessible", Napi::Number::New(env, CXAvailability_NotAccessible));
+    exports.Set("CXCursor_ExceptionSpecificationKind_None", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_None));
+    exports.Set("CXCursor_ExceptionSpecificationKind_DynamicNone", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_DynamicNone));
+    exports.Set("CXCursor_ExceptionSpecificationKind_Dynamic", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_Dynamic));
+    exports.Set("CXCursor_ExceptionSpecificationKind_MSAny", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_MSAny));
+    exports.Set("CXCursor_ExceptionSpecificationKind_BasicNoexcept", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_BasicNoexcept));
+    exports.Set("CXCursor_ExceptionSpecificationKind_ComputedNoexcept", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_ComputedNoexcept));
+    exports.Set("CXCursor_ExceptionSpecificationKind_Unevaluated", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_Unevaluated));
+    exports.Set("CXCursor_ExceptionSpecificationKind_Uninstantiated", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_Uninstantiated));
+    exports.Set("CXCursor_ExceptionSpecificationKind_Unparsed", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_Unparsed));
+    exports.Set("CXCursor_ExceptionSpecificationKind_NoThrow", Napi::Number::New(env, CXCursor_ExceptionSpecificationKind_NoThrow));
+    exports.Set("CXChoice_Default", Napi::Number::New(env, CXChoice_Default));
+    exports.Set("CXChoice_Enabled", Napi::Number::New(env, CXChoice_Enabled));
+    exports.Set("CXChoice_Disabled", Napi::Number::New(env, CXChoice_Disabled));
+    exports.Set("CXGlobalOpt_None", Napi::Number::New(env, CXGlobalOpt_None));
+    exports.Set("CXGlobalOpt_ThreadBackgroundPriorityForIndexing", Napi::Number::New(env, CXGlobalOpt_ThreadBackgroundPriorityForIndexing));
+    exports.Set("CXGlobalOpt_ThreadBackgroundPriorityForEditing", Napi::Number::New(env, CXGlobalOpt_ThreadBackgroundPriorityForEditing));
+    exports.Set("CXGlobalOpt_ThreadBackgroundPriorityForAll", Napi::Number::New(env, CXGlobalOpt_ThreadBackgroundPriorityForAll));
+    exports.Set("CXTranslationUnit_None", Napi::Number::New(env, CXTranslationUnit_None));
+    exports.Set("CXTranslationUnit_DetailedPreprocessingRecord", Napi::Number::New(env, CXTranslationUnit_DetailedPreprocessingRecord));
+    exports.Set("CXTranslationUnit_Incomplete", Napi::Number::New(env, CXTranslationUnit_Incomplete));
+    exports.Set("CXTranslationUnit_PrecompiledPreamble", Napi::Number::New(env, CXTranslationUnit_PrecompiledPreamble));
+    exports.Set("CXTranslationUnit_CacheCompletionResults", Napi::Number::New(env, CXTranslationUnit_CacheCompletionResults));
+    exports.Set("CXTranslationUnit_ForSerialization", Napi::Number::New(env, CXTranslationUnit_ForSerialization));
+    exports.Set("CXTranslationUnit_CXXChainedPCH", Napi::Number::New(env, CXTranslationUnit_CXXChainedPCH));
+    exports.Set("CXTranslationUnit_SkipFunctionBodies", Napi::Number::New(env, CXTranslationUnit_SkipFunctionBodies));
+    exports.Set("CXTranslationUnit_IncludeBriefCommentsInCodeCompletion", Napi::Number::New(env, CXTranslationUnit_IncludeBriefCommentsInCodeCompletion));
+    exports.Set("CXTranslationUnit_CreatePreambleOnFirstParse", Napi::Number::New(env, CXTranslationUnit_CreatePreambleOnFirstParse));
+    exports.Set("CXTranslationUnit_KeepGoing", Napi::Number::New(env, CXTranslationUnit_KeepGoing));
+    exports.Set("CXTranslationUnit_SingleFileParse", Napi::Number::New(env, CXTranslationUnit_SingleFileParse));
+    exports.Set("CXTranslationUnit_LimitSkipFunctionBodiesToPreamble", Napi::Number::New(env, CXTranslationUnit_LimitSkipFunctionBodiesToPreamble));
+    exports.Set("CXTranslationUnit_IncludeAttributedTypes", Napi::Number::New(env, CXTranslationUnit_IncludeAttributedTypes));
+    exports.Set("CXTranslationUnit_VisitImplicitAttributes", Napi::Number::New(env, CXTranslationUnit_VisitImplicitAttributes));
+    exports.Set("CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles", Napi::Number::New(env, CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles));
+    exports.Set("CXTranslationUnit_RetainExcludedConditionalBlocks", Napi::Number::New(env, CXTranslationUnit_RetainExcludedConditionalBlocks));
+    exports.Set("CXSaveTranslationUnit_None", Napi::Number::New(env, CXSaveTranslationUnit_None));
+    exports.Set("CXSaveError_None", Napi::Number::New(env, CXSaveError_None));
+    exports.Set("CXSaveError_Unknown", Napi::Number::New(env, CXSaveError_Unknown));
+    exports.Set("CXSaveError_TranslationErrors", Napi::Number::New(env, CXSaveError_TranslationErrors));
+    exports.Set("CXSaveError_InvalidTU", Napi::Number::New(env, CXSaveError_InvalidTU));
+    exports.Set("CXReparse_None", Napi::Number::New(env, CXReparse_None));
+    exports.Set("CXTUResourceUsage_AST", Napi::Number::New(env, CXTUResourceUsage_AST));
+    exports.Set("CXTUResourceUsage_Identifiers", Napi::Number::New(env, CXTUResourceUsage_Identifiers));
+    exports.Set("CXTUResourceUsage_Selectors", Napi::Number::New(env, CXTUResourceUsage_Selectors));
+    exports.Set("CXTUResourceUsage_GlobalCompletionResults", Napi::Number::New(env, CXTUResourceUsage_GlobalCompletionResults));
+    exports.Set("CXTUResourceUsage_SourceManagerContentCache", Napi::Number::New(env, CXTUResourceUsage_SourceManagerContentCache));
+    exports.Set("CXTUResourceUsage_AST_SideTables", Napi::Number::New(env, CXTUResourceUsage_AST_SideTables));
+    exports.Set("CXTUResourceUsage_SourceManager_Membuffer_Malloc", Napi::Number::New(env, CXTUResourceUsage_SourceManager_Membuffer_Malloc));
+    exports.Set("CXTUResourceUsage_SourceManager_Membuffer_MMap", Napi::Number::New(env, CXTUResourceUsage_SourceManager_Membuffer_MMap));
+    exports.Set("CXTUResourceUsage_ExternalASTSource_Membuffer_Malloc", Napi::Number::New(env, CXTUResourceUsage_ExternalASTSource_Membuffer_Malloc));
+    exports.Set("CXTUResourceUsage_ExternalASTSource_Membuffer_MMap", Napi::Number::New(env, CXTUResourceUsage_ExternalASTSource_Membuffer_MMap));
+    exports.Set("CXTUResourceUsage_Preprocessor", Napi::Number::New(env, CXTUResourceUsage_Preprocessor));
+    exports.Set("CXTUResourceUsage_PreprocessingRecord", Napi::Number::New(env, CXTUResourceUsage_PreprocessingRecord));
+    exports.Set("CXTUResourceUsage_SourceManager_DataStructures", Napi::Number::New(env, CXTUResourceUsage_SourceManager_DataStructures));
+    exports.Set("CXTUResourceUsage_Preprocessor_HeaderSearch", Napi::Number::New(env, CXTUResourceUsage_Preprocessor_HeaderSearch));
+    exports.Set("CXTUResourceUsage_MEMORY_IN_BYTES_BEGIN", Napi::Number::New(env, CXTUResourceUsage_MEMORY_IN_BYTES_BEGIN));
+    exports.Set("CXTUResourceUsage_MEMORY_IN_BYTES_END", Napi::Number::New(env, CXTUResourceUsage_MEMORY_IN_BYTES_END));
+    exports.Set("CXTUResourceUsage_First", Napi::Number::New(env, CXTUResourceUsage_First));
+    exports.Set("CXTUResourceUsage_Last", Napi::Number::New(env, CXTUResourceUsage_Last));
+    exports.Set("CXCursor_UnexposedDecl", Napi::Number::New(env, CXCursor_UnexposedDecl));
+    exports.Set("CXCursor_StructDecl", Napi::Number::New(env, CXCursor_StructDecl));
+    exports.Set("CXCursor_UnionDecl", Napi::Number::New(env, CXCursor_UnionDecl));
+    exports.Set("CXCursor_ClassDecl", Napi::Number::New(env, CXCursor_ClassDecl));
+    exports.Set("CXCursor_EnumDecl", Napi::Number::New(env, CXCursor_EnumDecl));
+    exports.Set("CXCursor_FieldDecl", Napi::Number::New(env, CXCursor_FieldDecl));
+    exports.Set("CXCursor_EnumConstantDecl", Napi::Number::New(env, CXCursor_EnumConstantDecl));
+    exports.Set("CXCursor_FunctionDecl", Napi::Number::New(env, CXCursor_FunctionDecl));
+    exports.Set("CXCursor_VarDecl", Napi::Number::New(env, CXCursor_VarDecl));
+    exports.Set("CXCursor_ParmDecl", Napi::Number::New(env, CXCursor_ParmDecl));
+    exports.Set("CXCursor_ObjCInterfaceDecl", Napi::Number::New(env, CXCursor_ObjCInterfaceDecl));
+    exports.Set("CXCursor_ObjCCategoryDecl", Napi::Number::New(env, CXCursor_ObjCCategoryDecl));
+    exports.Set("CXCursor_ObjCProtocolDecl", Napi::Number::New(env, CXCursor_ObjCProtocolDecl));
+    exports.Set("CXCursor_ObjCPropertyDecl", Napi::Number::New(env, CXCursor_ObjCPropertyDecl));
+    exports.Set("CXCursor_ObjCIvarDecl", Napi::Number::New(env, CXCursor_ObjCIvarDecl));
+    exports.Set("CXCursor_ObjCInstanceMethodDecl", Napi::Number::New(env, CXCursor_ObjCInstanceMethodDecl));
+    exports.Set("CXCursor_ObjCClassMethodDecl", Napi::Number::New(env, CXCursor_ObjCClassMethodDecl));
+    exports.Set("CXCursor_ObjCImplementationDecl", Napi::Number::New(env, CXCursor_ObjCImplementationDecl));
+    exports.Set("CXCursor_ObjCCategoryImplDecl", Napi::Number::New(env, CXCursor_ObjCCategoryImplDecl));
+    exports.Set("CXCursor_TypedefDecl", Napi::Number::New(env, CXCursor_TypedefDecl));
+    exports.Set("CXCursor_CXXMethod", Napi::Number::New(env, CXCursor_CXXMethod));
+    exports.Set("CXCursor_Namespace", Napi::Number::New(env, CXCursor_Namespace));
+    exports.Set("CXCursor_LinkageSpec", Napi::Number::New(env, CXCursor_LinkageSpec));
+    exports.Set("CXCursor_Constructor", Napi::Number::New(env, CXCursor_Constructor));
+    exports.Set("CXCursor_Destructor", Napi::Number::New(env, CXCursor_Destructor));
+    exports.Set("CXCursor_ConversionFunction", Napi::Number::New(env, CXCursor_ConversionFunction));
+    exports.Set("CXCursor_TemplateTypeParameter", Napi::Number::New(env, CXCursor_TemplateTypeParameter));
+    exports.Set("CXCursor_NonTypeTemplateParameter", Napi::Number::New(env, CXCursor_NonTypeTemplateParameter));
+    exports.Set("CXCursor_TemplateTemplateParameter", Napi::Number::New(env, CXCursor_TemplateTemplateParameter));
+    exports.Set("CXCursor_FunctionTemplate", Napi::Number::New(env, CXCursor_FunctionTemplate));
+    exports.Set("CXCursor_ClassTemplate", Napi::Number::New(env, CXCursor_ClassTemplate));
+    exports.Set("CXCursor_ClassTemplatePartialSpecialization", Napi::Number::New(env, CXCursor_ClassTemplatePartialSpecialization));
+    exports.Set("CXCursor_NamespaceAlias", Napi::Number::New(env, CXCursor_NamespaceAlias));
+    exports.Set("CXCursor_UsingDirective", Napi::Number::New(env, CXCursor_UsingDirective));
+    exports.Set("CXCursor_UsingDeclaration", Napi::Number::New(env, CXCursor_UsingDeclaration));
+    exports.Set("CXCursor_TypeAliasDecl", Napi::Number::New(env, CXCursor_TypeAliasDecl));
+    exports.Set("CXCursor_ObjCSynthesizeDecl", Napi::Number::New(env, CXCursor_ObjCSynthesizeDecl));
+    exports.Set("CXCursor_ObjCDynamicDecl", Napi::Number::New(env, CXCursor_ObjCDynamicDecl));
+    exports.Set("CXCursor_CXXAccessSpecifier", Napi::Number::New(env, CXCursor_CXXAccessSpecifier));
+    exports.Set("CXCursor_FirstDecl", Napi::Number::New(env, CXCursor_FirstDecl));
+    exports.Set("CXCursor_LastDecl", Napi::Number::New(env, CXCursor_LastDecl));
+    exports.Set("CXCursor_FirstRef", Napi::Number::New(env, CXCursor_FirstRef));
+    exports.Set("CXCursor_ObjCSuperClassRef", Napi::Number::New(env, CXCursor_ObjCSuperClassRef));
+    exports.Set("CXCursor_ObjCProtocolRef", Napi::Number::New(env, CXCursor_ObjCProtocolRef));
+    exports.Set("CXCursor_ObjCClassRef", Napi::Number::New(env, CXCursor_ObjCClassRef));
+    exports.Set("CXCursor_TypeRef", Napi::Number::New(env, CXCursor_TypeRef));
+    exports.Set("CXCursor_CXXBaseSpecifier", Napi::Number::New(env, CXCursor_CXXBaseSpecifier));
+    exports.Set("CXCursor_TemplateRef", Napi::Number::New(env, CXCursor_TemplateRef));
+    exports.Set("CXCursor_NamespaceRef", Napi::Number::New(env, CXCursor_NamespaceRef));
+    exports.Set("CXCursor_MemberRef", Napi::Number::New(env, CXCursor_MemberRef));
+    exports.Set("CXCursor_LabelRef", Napi::Number::New(env, CXCursor_LabelRef));
+    exports.Set("CXCursor_OverloadedDeclRef", Napi::Number::New(env, CXCursor_OverloadedDeclRef));
+    exports.Set("CXCursor_VariableRef", Napi::Number::New(env, CXCursor_VariableRef));
+    exports.Set("CXCursor_LastRef", Napi::Number::New(env, CXCursor_LastRef));
+    exports.Set("CXCursor_FirstInvalid", Napi::Number::New(env, CXCursor_FirstInvalid));
+    exports.Set("CXCursor_InvalidFile", Napi::Number::New(env, CXCursor_InvalidFile));
+    exports.Set("CXCursor_NoDeclFound", Napi::Number::New(env, CXCursor_NoDeclFound));
+    exports.Set("CXCursor_NotImplemented", Napi::Number::New(env, CXCursor_NotImplemented));
+    exports.Set("CXCursor_InvalidCode", Napi::Number::New(env, CXCursor_InvalidCode));
+    exports.Set("CXCursor_LastInvalid", Napi::Number::New(env, CXCursor_LastInvalid));
+    exports.Set("CXCursor_FirstExpr", Napi::Number::New(env, CXCursor_FirstExpr));
+    exports.Set("CXCursor_UnexposedExpr", Napi::Number::New(env, CXCursor_UnexposedExpr));
+    exports.Set("CXCursor_DeclRefExpr", Napi::Number::New(env, CXCursor_DeclRefExpr));
+    exports.Set("CXCursor_MemberRefExpr", Napi::Number::New(env, CXCursor_MemberRefExpr));
+    exports.Set("CXCursor_CallExpr", Napi::Number::New(env, CXCursor_CallExpr));
+    exports.Set("CXCursor_ObjCMessageExpr", Napi::Number::New(env, CXCursor_ObjCMessageExpr));
+    exports.Set("CXCursor_BlockExpr", Napi::Number::New(env, CXCursor_BlockExpr));
+    exports.Set("CXCursor_IntegerLiteral", Napi::Number::New(env, CXCursor_IntegerLiteral));
+    exports.Set("CXCursor_FloatingLiteral", Napi::Number::New(env, CXCursor_FloatingLiteral));
+    exports.Set("CXCursor_ImaginaryLiteral", Napi::Number::New(env, CXCursor_ImaginaryLiteral));
+    exports.Set("CXCursor_StringLiteral", Napi::Number::New(env, CXCursor_StringLiteral));
+    exports.Set("CXCursor_CharacterLiteral", Napi::Number::New(env, CXCursor_CharacterLiteral));
+    exports.Set("CXCursor_ParenExpr", Napi::Number::New(env, CXCursor_ParenExpr));
+    exports.Set("CXCursor_UnaryOperator", Napi::Number::New(env, CXCursor_UnaryOperator));
+    exports.Set("CXCursor_ArraySubscriptExpr", Napi::Number::New(env, CXCursor_ArraySubscriptExpr));
+    exports.Set("CXCursor_BinaryOperator", Napi::Number::New(env, CXCursor_BinaryOperator));
+    exports.Set("CXCursor_CompoundAssignOperator", Napi::Number::New(env, CXCursor_CompoundAssignOperator));
+    exports.Set("CXCursor_ConditionalOperator", Napi::Number::New(env, CXCursor_ConditionalOperator));
+    exports.Set("CXCursor_CStyleCastExpr", Napi::Number::New(env, CXCursor_CStyleCastExpr));
+    exports.Set("CXCursor_CompoundLiteralExpr", Napi::Number::New(env, CXCursor_CompoundLiteralExpr));
+    exports.Set("CXCursor_InitListExpr", Napi::Number::New(env, CXCursor_InitListExpr));
+    exports.Set("CXCursor_AddrLabelExpr", Napi::Number::New(env, CXCursor_AddrLabelExpr));
+    exports.Set("CXCursor_StmtExpr", Napi::Number::New(env, CXCursor_StmtExpr));
+    exports.Set("CXCursor_GenericSelectionExpr", Napi::Number::New(env, CXCursor_GenericSelectionExpr));
+    exports.Set("CXCursor_GNUNullExpr", Napi::Number::New(env, CXCursor_GNUNullExpr));
+    exports.Set("CXCursor_CXXStaticCastExpr", Napi::Number::New(env, CXCursor_CXXStaticCastExpr));
+    exports.Set("CXCursor_CXXDynamicCastExpr", Napi::Number::New(env, CXCursor_CXXDynamicCastExpr));
+    exports.Set("CXCursor_CXXReinterpretCastExpr", Napi::Number::New(env, CXCursor_CXXReinterpretCastExpr));
+    exports.Set("CXCursor_CXXConstCastExpr", Napi::Number::New(env, CXCursor_CXXConstCastExpr));
+    exports.Set("CXCursor_CXXFunctionalCastExpr", Napi::Number::New(env, CXCursor_CXXFunctionalCastExpr));
+    exports.Set("CXCursor_CXXTypeidExpr", Napi::Number::New(env, CXCursor_CXXTypeidExpr));
+    exports.Set("CXCursor_CXXBoolLiteralExpr", Napi::Number::New(env, CXCursor_CXXBoolLiteralExpr));
+    exports.Set("CXCursor_CXXNullPtrLiteralExpr", Napi::Number::New(env, CXCursor_CXXNullPtrLiteralExpr));
+    exports.Set("CXCursor_CXXThisExpr", Napi::Number::New(env, CXCursor_CXXThisExpr));
+    exports.Set("CXCursor_CXXThrowExpr", Napi::Number::New(env, CXCursor_CXXThrowExpr));
+    exports.Set("CXCursor_CXXNewExpr", Napi::Number::New(env, CXCursor_CXXNewExpr));
+    exports.Set("CXCursor_CXXDeleteExpr", Napi::Number::New(env, CXCursor_CXXDeleteExpr));
+    exports.Set("CXCursor_UnaryExpr", Napi::Number::New(env, CXCursor_UnaryExpr));
+    exports.Set("CXCursor_ObjCStringLiteral", Napi::Number::New(env, CXCursor_ObjCStringLiteral));
+    exports.Set("CXCursor_ObjCEncodeExpr", Napi::Number::New(env, CXCursor_ObjCEncodeExpr));
+    exports.Set("CXCursor_ObjCSelectorExpr", Napi::Number::New(env, CXCursor_ObjCSelectorExpr));
+    exports.Set("CXCursor_ObjCProtocolExpr", Napi::Number::New(env, CXCursor_ObjCProtocolExpr));
+    exports.Set("CXCursor_ObjCBridgedCastExpr", Napi::Number::New(env, CXCursor_ObjCBridgedCastExpr));
+    exports.Set("CXCursor_PackExpansionExpr", Napi::Number::New(env, CXCursor_PackExpansionExpr));
+    exports.Set("CXCursor_SizeOfPackExpr", Napi::Number::New(env, CXCursor_SizeOfPackExpr));
+    exports.Set("CXCursor_LambdaExpr", Napi::Number::New(env, CXCursor_LambdaExpr));
+    exports.Set("CXCursor_ObjCBoolLiteralExpr", Napi::Number::New(env, CXCursor_ObjCBoolLiteralExpr));
+    exports.Set("CXCursor_ObjCSelfExpr", Napi::Number::New(env, CXCursor_ObjCSelfExpr));
+    exports.Set("CXCursor_ArraySectionExpr", Napi::Number::New(env, CXCursor_ArraySectionExpr));
+    exports.Set("CXCursor_ObjCAvailabilityCheckExpr", Napi::Number::New(env, CXCursor_ObjCAvailabilityCheckExpr));
+    exports.Set("CXCursor_FixedPointLiteral", Napi::Number::New(env, CXCursor_FixedPointLiteral));
+    exports.Set("CXCursor_OMPArrayShapingExpr", Napi::Number::New(env, CXCursor_OMPArrayShapingExpr));
+    exports.Set("CXCursor_OMPIteratorExpr", Napi::Number::New(env, CXCursor_OMPIteratorExpr));
+    exports.Set("CXCursor_CXXAddrspaceCastExpr", Napi::Number::New(env, CXCursor_CXXAddrspaceCastExpr));
+    exports.Set("CXCursor_ConceptSpecializationExpr", Napi::Number::New(env, CXCursor_ConceptSpecializationExpr));
+    exports.Set("CXCursor_RequiresExpr", Napi::Number::New(env, CXCursor_RequiresExpr));
+    exports.Set("CXCursor_CXXParenListInitExpr", Napi::Number::New(env, CXCursor_CXXParenListInitExpr));
+    exports.Set("CXCursor_PackIndexingExpr", Napi::Number::New(env, CXCursor_PackIndexingExpr));
+    exports.Set("CXCursor_LastExpr", Napi::Number::New(env, CXCursor_LastExpr));
+    exports.Set("CXCursor_FirstStmt", Napi::Number::New(env, CXCursor_FirstStmt));
+    exports.Set("CXCursor_UnexposedStmt", Napi::Number::New(env, CXCursor_UnexposedStmt));
+    exports.Set("CXCursor_LabelStmt", Napi::Number::New(env, CXCursor_LabelStmt));
+    exports.Set("CXCursor_CompoundStmt", Napi::Number::New(env, CXCursor_CompoundStmt));
+    exports.Set("CXCursor_CaseStmt", Napi::Number::New(env, CXCursor_CaseStmt));
+    exports.Set("CXCursor_DefaultStmt", Napi::Number::New(env, CXCursor_DefaultStmt));
+    exports.Set("CXCursor_IfStmt", Napi::Number::New(env, CXCursor_IfStmt));
+    exports.Set("CXCursor_SwitchStmt", Napi::Number::New(env, CXCursor_SwitchStmt));
+    exports.Set("CXCursor_WhileStmt", Napi::Number::New(env, CXCursor_WhileStmt));
+    exports.Set("CXCursor_DoStmt", Napi::Number::New(env, CXCursor_DoStmt));
+    exports.Set("CXCursor_ForStmt", Napi::Number::New(env, CXCursor_ForStmt));
+    exports.Set("CXCursor_GotoStmt", Napi::Number::New(env, CXCursor_GotoStmt));
+    exports.Set("CXCursor_IndirectGotoStmt", Napi::Number::New(env, CXCursor_IndirectGotoStmt));
+    exports.Set("CXCursor_ContinueStmt", Napi::Number::New(env, CXCursor_ContinueStmt));
+    exports.Set("CXCursor_BreakStmt", Napi::Number::New(env, CXCursor_BreakStmt));
+    exports.Set("CXCursor_ReturnStmt", Napi::Number::New(env, CXCursor_ReturnStmt));
+    exports.Set("CXCursor_GCCAsmStmt", Napi::Number::New(env, CXCursor_GCCAsmStmt));
+    exports.Set("CXCursor_AsmStmt", Napi::Number::New(env, CXCursor_AsmStmt));
+    exports.Set("CXCursor_ObjCAtTryStmt", Napi::Number::New(env, CXCursor_ObjCAtTryStmt));
+    exports.Set("CXCursor_ObjCAtCatchStmt", Napi::Number::New(env, CXCursor_ObjCAtCatchStmt));
+    exports.Set("CXCursor_ObjCAtFinallyStmt", Napi::Number::New(env, CXCursor_ObjCAtFinallyStmt));
+    exports.Set("CXCursor_ObjCAtThrowStmt", Napi::Number::New(env, CXCursor_ObjCAtThrowStmt));
+    exports.Set("CXCursor_ObjCAtSynchronizedStmt", Napi::Number::New(env, CXCursor_ObjCAtSynchronizedStmt));
+    exports.Set("CXCursor_ObjCAutoreleasePoolStmt", Napi::Number::New(env, CXCursor_ObjCAutoreleasePoolStmt));
+    exports.Set("CXCursor_ObjCForCollectionStmt", Napi::Number::New(env, CXCursor_ObjCForCollectionStmt));
+    exports.Set("CXCursor_CXXCatchStmt", Napi::Number::New(env, CXCursor_CXXCatchStmt));
+    exports.Set("CXCursor_CXXTryStmt", Napi::Number::New(env, CXCursor_CXXTryStmt));
+    exports.Set("CXCursor_CXXForRangeStmt", Napi::Number::New(env, CXCursor_CXXForRangeStmt));
+    exports.Set("CXCursor_SEHTryStmt", Napi::Number::New(env, CXCursor_SEHTryStmt));
+    exports.Set("CXCursor_SEHExceptStmt", Napi::Number::New(env, CXCursor_SEHExceptStmt));
+    exports.Set("CXCursor_SEHFinallyStmt", Napi::Number::New(env, CXCursor_SEHFinallyStmt));
+    exports.Set("CXCursor_MSAsmStmt", Napi::Number::New(env, CXCursor_MSAsmStmt));
+    exports.Set("CXCursor_NullStmt", Napi::Number::New(env, CXCursor_NullStmt));
+    exports.Set("CXCursor_DeclStmt", Napi::Number::New(env, CXCursor_DeclStmt));
+    exports.Set("CXCursor_OMPParallelDirective", Napi::Number::New(env, CXCursor_OMPParallelDirective));
+    exports.Set("CXCursor_OMPSimdDirective", Napi::Number::New(env, CXCursor_OMPSimdDirective));
+    exports.Set("CXCursor_OMPForDirective", Napi::Number::New(env, CXCursor_OMPForDirective));
+    exports.Set("CXCursor_OMPSectionsDirective", Napi::Number::New(env, CXCursor_OMPSectionsDirective));
+    exports.Set("CXCursor_OMPSectionDirective", Napi::Number::New(env, CXCursor_OMPSectionDirective));
+    exports.Set("CXCursor_OMPSingleDirective", Napi::Number::New(env, CXCursor_OMPSingleDirective));
+    exports.Set("CXCursor_OMPParallelForDirective", Napi::Number::New(env, CXCursor_OMPParallelForDirective));
+    exports.Set("CXCursor_OMPParallelSectionsDirective", Napi::Number::New(env, CXCursor_OMPParallelSectionsDirective));
+    exports.Set("CXCursor_OMPTaskDirective", Napi::Number::New(env, CXCursor_OMPTaskDirective));
+    exports.Set("CXCursor_OMPMasterDirective", Napi::Number::New(env, CXCursor_OMPMasterDirective));
+    exports.Set("CXCursor_OMPCriticalDirective", Napi::Number::New(env, CXCursor_OMPCriticalDirective));
+    exports.Set("CXCursor_OMPTaskyieldDirective", Napi::Number::New(env, CXCursor_OMPTaskyieldDirective));
+    exports.Set("CXCursor_OMPBarrierDirective", Napi::Number::New(env, CXCursor_OMPBarrierDirective));
+    exports.Set("CXCursor_OMPTaskwaitDirective", Napi::Number::New(env, CXCursor_OMPTaskwaitDirective));
+    exports.Set("CXCursor_OMPFlushDirective", Napi::Number::New(env, CXCursor_OMPFlushDirective));
+    exports.Set("CXCursor_SEHLeaveStmt", Napi::Number::New(env, CXCursor_SEHLeaveStmt));
+    exports.Set("CXCursor_OMPOrderedDirective", Napi::Number::New(env, CXCursor_OMPOrderedDirective));
+    exports.Set("CXCursor_OMPAtomicDirective", Napi::Number::New(env, CXCursor_OMPAtomicDirective));
+    exports.Set("CXCursor_OMPForSimdDirective", Napi::Number::New(env, CXCursor_OMPForSimdDirective));
+    exports.Set("CXCursor_OMPParallelForSimdDirective", Napi::Number::New(env, CXCursor_OMPParallelForSimdDirective));
+    exports.Set("CXCursor_OMPTargetDirective", Napi::Number::New(env, CXCursor_OMPTargetDirective));
+    exports.Set("CXCursor_OMPTeamsDirective", Napi::Number::New(env, CXCursor_OMPTeamsDirective));
+    exports.Set("CXCursor_OMPTaskgroupDirective", Napi::Number::New(env, CXCursor_OMPTaskgroupDirective));
+    exports.Set("CXCursor_OMPCancellationPointDirective", Napi::Number::New(env, CXCursor_OMPCancellationPointDirective));
+    exports.Set("CXCursor_OMPCancelDirective", Napi::Number::New(env, CXCursor_OMPCancelDirective));
+    exports.Set("CXCursor_OMPTargetDataDirective", Napi::Number::New(env, CXCursor_OMPTargetDataDirective));
+    exports.Set("CXCursor_OMPTaskLoopDirective", Napi::Number::New(env, CXCursor_OMPTaskLoopDirective));
+    exports.Set("CXCursor_OMPTaskLoopSimdDirective", Napi::Number::New(env, CXCursor_OMPTaskLoopSimdDirective));
+    exports.Set("CXCursor_OMPDistributeDirective", Napi::Number::New(env, CXCursor_OMPDistributeDirective));
+    exports.Set("CXCursor_OMPTargetEnterDataDirective", Napi::Number::New(env, CXCursor_OMPTargetEnterDataDirective));
+    exports.Set("CXCursor_OMPTargetExitDataDirective", Napi::Number::New(env, CXCursor_OMPTargetExitDataDirective));
+    exports.Set("CXCursor_OMPTargetParallelDirective", Napi::Number::New(env, CXCursor_OMPTargetParallelDirective));
+    exports.Set("CXCursor_OMPTargetParallelForDirective", Napi::Number::New(env, CXCursor_OMPTargetParallelForDirective));
+    exports.Set("CXCursor_OMPTargetUpdateDirective", Napi::Number::New(env, CXCursor_OMPTargetUpdateDirective));
+    exports.Set("CXCursor_OMPDistributeParallelForDirective", Napi::Number::New(env, CXCursor_OMPDistributeParallelForDirective));
+    exports.Set("CXCursor_OMPDistributeParallelForSimdDirective", Napi::Number::New(env, CXCursor_OMPDistributeParallelForSimdDirective));
+    exports.Set("CXCursor_OMPDistributeSimdDirective", Napi::Number::New(env, CXCursor_OMPDistributeSimdDirective));
+    exports.Set("CXCursor_OMPTargetParallelForSimdDirective", Napi::Number::New(env, CXCursor_OMPTargetParallelForSimdDirective));
+    exports.Set("CXCursor_OMPTargetSimdDirective", Napi::Number::New(env, CXCursor_OMPTargetSimdDirective));
+    exports.Set("CXCursor_OMPTeamsDistributeDirective", Napi::Number::New(env, CXCursor_OMPTeamsDistributeDirective));
+    exports.Set("CXCursor_OMPTeamsDistributeSimdDirective", Napi::Number::New(env, CXCursor_OMPTeamsDistributeSimdDirective));
+    exports.Set("CXCursor_OMPTeamsDistributeParallelForSimdDirective", Napi::Number::New(env, CXCursor_OMPTeamsDistributeParallelForSimdDirective));
+    exports.Set("CXCursor_OMPTeamsDistributeParallelForDirective", Napi::Number::New(env, CXCursor_OMPTeamsDistributeParallelForDirective));
+    exports.Set("CXCursor_OMPTargetTeamsDirective", Napi::Number::New(env, CXCursor_OMPTargetTeamsDirective));
+    exports.Set("CXCursor_OMPTargetTeamsDistributeDirective", Napi::Number::New(env, CXCursor_OMPTargetTeamsDistributeDirective));
+    exports.Set("CXCursor_OMPTargetTeamsDistributeParallelForDirective", Napi::Number::New(env, CXCursor_OMPTargetTeamsDistributeParallelForDirective));
+    exports.Set("CXCursor_OMPTargetTeamsDistributeParallelForSimdDirective", Napi::Number::New(env, CXCursor_OMPTargetTeamsDistributeParallelForSimdDirective));
+    exports.Set("CXCursor_OMPTargetTeamsDistributeSimdDirective", Napi::Number::New(env, CXCursor_OMPTargetTeamsDistributeSimdDirective));
+    exports.Set("CXCursor_BuiltinBitCastExpr", Napi::Number::New(env, CXCursor_BuiltinBitCastExpr));
+    exports.Set("CXCursor_OMPMasterTaskLoopDirective", Napi::Number::New(env, CXCursor_OMPMasterTaskLoopDirective));
+    exports.Set("CXCursor_OMPParallelMasterTaskLoopDirective", Napi::Number::New(env, CXCursor_OMPParallelMasterTaskLoopDirective));
+    exports.Set("CXCursor_OMPMasterTaskLoopSimdDirective", Napi::Number::New(env, CXCursor_OMPMasterTaskLoopSimdDirective));
+    exports.Set("CXCursor_OMPParallelMasterTaskLoopSimdDirective", Napi::Number::New(env, CXCursor_OMPParallelMasterTaskLoopSimdDirective));
+    exports.Set("CXCursor_OMPParallelMasterDirective", Napi::Number::New(env, CXCursor_OMPParallelMasterDirective));
+    exports.Set("CXCursor_OMPDepobjDirective", Napi::Number::New(env, CXCursor_OMPDepobjDirective));
+    exports.Set("CXCursor_OMPScanDirective", Napi::Number::New(env, CXCursor_OMPScanDirective));
+    exports.Set("CXCursor_OMPTileDirective", Napi::Number::New(env, CXCursor_OMPTileDirective));
+    exports.Set("CXCursor_OMPCanonicalLoop", Napi::Number::New(env, CXCursor_OMPCanonicalLoop));
+    exports.Set("CXCursor_OMPInteropDirective", Napi::Number::New(env, CXCursor_OMPInteropDirective));
+    exports.Set("CXCursor_OMPDispatchDirective", Napi::Number::New(env, CXCursor_OMPDispatchDirective));
+    exports.Set("CXCursor_OMPMaskedDirective", Napi::Number::New(env, CXCursor_OMPMaskedDirective));
+    exports.Set("CXCursor_OMPUnrollDirective", Napi::Number::New(env, CXCursor_OMPUnrollDirective));
+    exports.Set("CXCursor_OMPMetaDirective", Napi::Number::New(env, CXCursor_OMPMetaDirective));
+    exports.Set("CXCursor_OMPGenericLoopDirective", Napi::Number::New(env, CXCursor_OMPGenericLoopDirective));
+    exports.Set("CXCursor_OMPTeamsGenericLoopDirective", Napi::Number::New(env, CXCursor_OMPTeamsGenericLoopDirective));
+    exports.Set("CXCursor_OMPTargetTeamsGenericLoopDirective", Napi::Number::New(env, CXCursor_OMPTargetTeamsGenericLoopDirective));
+    exports.Set("CXCursor_OMPParallelGenericLoopDirective", Napi::Number::New(env, CXCursor_OMPParallelGenericLoopDirective));
+    exports.Set("CXCursor_OMPTargetParallelGenericLoopDirective", Napi::Number::New(env, CXCursor_OMPTargetParallelGenericLoopDirective));
+    exports.Set("CXCursor_OMPParallelMaskedDirective", Napi::Number::New(env, CXCursor_OMPParallelMaskedDirective));
+    exports.Set("CXCursor_OMPMaskedTaskLoopDirective", Napi::Number::New(env, CXCursor_OMPMaskedTaskLoopDirective));
+    exports.Set("CXCursor_OMPMaskedTaskLoopSimdDirective", Napi::Number::New(env, CXCursor_OMPMaskedTaskLoopSimdDirective));
+    exports.Set("CXCursor_OMPParallelMaskedTaskLoopDirective", Napi::Number::New(env, CXCursor_OMPParallelMaskedTaskLoopDirective));
+    exports.Set("CXCursor_OMPParallelMaskedTaskLoopSimdDirective", Napi::Number::New(env, CXCursor_OMPParallelMaskedTaskLoopSimdDirective));
+    exports.Set("CXCursor_OMPErrorDirective", Napi::Number::New(env, CXCursor_OMPErrorDirective));
+    exports.Set("CXCursor_OMPScopeDirective", Napi::Number::New(env, CXCursor_OMPScopeDirective));
+    exports.Set("CXCursor_OMPReverseDirective", Napi::Number::New(env, CXCursor_OMPReverseDirective));
+    exports.Set("CXCursor_OMPInterchangeDirective", Napi::Number::New(env, CXCursor_OMPInterchangeDirective));
+    exports.Set("CXCursor_OMPAssumeDirective", Napi::Number::New(env, CXCursor_OMPAssumeDirective));
+    exports.Set("CXCursor_OpenACCComputeConstruct", Napi::Number::New(env, CXCursor_OpenACCComputeConstruct));
+    exports.Set("CXCursor_OpenACCLoopConstruct", Napi::Number::New(env, CXCursor_OpenACCLoopConstruct));
+    exports.Set("CXCursor_OpenACCCombinedConstruct", Napi::Number::New(env, CXCursor_OpenACCCombinedConstruct));
+    exports.Set("CXCursor_OpenACCDataConstruct", Napi::Number::New(env, CXCursor_OpenACCDataConstruct));
+    exports.Set("CXCursor_OpenACCEnterDataConstruct", Napi::Number::New(env, CXCursor_OpenACCEnterDataConstruct));
+    exports.Set("CXCursor_OpenACCExitDataConstruct", Napi::Number::New(env, CXCursor_OpenACCExitDataConstruct));
+    exports.Set("CXCursor_OpenACCHostDataConstruct", Napi::Number::New(env, CXCursor_OpenACCHostDataConstruct));
+    exports.Set("CXCursor_OpenACCWaitConstruct", Napi::Number::New(env, CXCursor_OpenACCWaitConstruct));
+    exports.Set("CXCursor_OpenACCInitConstruct", Napi::Number::New(env, CXCursor_OpenACCInitConstruct));
+    exports.Set("CXCursor_OpenACCShutdownConstruct", Napi::Number::New(env, CXCursor_OpenACCShutdownConstruct));
+    exports.Set("CXCursor_OpenACCSetConstruct", Napi::Number::New(env, CXCursor_OpenACCSetConstruct));
+    exports.Set("CXCursor_OpenACCUpdateConstruct", Napi::Number::New(env, CXCursor_OpenACCUpdateConstruct));
+    exports.Set("CXCursor_LastStmt", Napi::Number::New(env, CXCursor_LastStmt));
+    exports.Set("CXCursor_TranslationUnit", Napi::Number::New(env, CXCursor_TranslationUnit));
+    exports.Set("CXCursor_FirstAttr", Napi::Number::New(env, CXCursor_FirstAttr));
+    exports.Set("CXCursor_UnexposedAttr", Napi::Number::New(env, CXCursor_UnexposedAttr));
+    exports.Set("CXCursor_IBActionAttr", Napi::Number::New(env, CXCursor_IBActionAttr));
+    exports.Set("CXCursor_IBOutletAttr", Napi::Number::New(env, CXCursor_IBOutletAttr));
+    exports.Set("CXCursor_IBOutletCollectionAttr", Napi::Number::New(env, CXCursor_IBOutletCollectionAttr));
+    exports.Set("CXCursor_CXXFinalAttr", Napi::Number::New(env, CXCursor_CXXFinalAttr));
+    exports.Set("CXCursor_CXXOverrideAttr", Napi::Number::New(env, CXCursor_CXXOverrideAttr));
+    exports.Set("CXCursor_AnnotateAttr", Napi::Number::New(env, CXCursor_AnnotateAttr));
+    exports.Set("CXCursor_AsmLabelAttr", Napi::Number::New(env, CXCursor_AsmLabelAttr));
+    exports.Set("CXCursor_PackedAttr", Napi::Number::New(env, CXCursor_PackedAttr));
+    exports.Set("CXCursor_PureAttr", Napi::Number::New(env, CXCursor_PureAttr));
+    exports.Set("CXCursor_ConstAttr", Napi::Number::New(env, CXCursor_ConstAttr));
+    exports.Set("CXCursor_NoDuplicateAttr", Napi::Number::New(env, CXCursor_NoDuplicateAttr));
+    exports.Set("CXCursor_CUDAConstantAttr", Napi::Number::New(env, CXCursor_CUDAConstantAttr));
+    exports.Set("CXCursor_CUDADeviceAttr", Napi::Number::New(env, CXCursor_CUDADeviceAttr));
+    exports.Set("CXCursor_CUDAGlobalAttr", Napi::Number::New(env, CXCursor_CUDAGlobalAttr));
+    exports.Set("CXCursor_CUDAHostAttr", Napi::Number::New(env, CXCursor_CUDAHostAttr));
+    exports.Set("CXCursor_CUDASharedAttr", Napi::Number::New(env, CXCursor_CUDASharedAttr));
+    exports.Set("CXCursor_VisibilityAttr", Napi::Number::New(env, CXCursor_VisibilityAttr));
+    exports.Set("CXCursor_DLLExport", Napi::Number::New(env, CXCursor_DLLExport));
+    exports.Set("CXCursor_DLLImport", Napi::Number::New(env, CXCursor_DLLImport));
+    exports.Set("CXCursor_NSReturnsRetained", Napi::Number::New(env, CXCursor_NSReturnsRetained));
+    exports.Set("CXCursor_NSReturnsNotRetained", Napi::Number::New(env, CXCursor_NSReturnsNotRetained));
+    exports.Set("CXCursor_NSReturnsAutoreleased", Napi::Number::New(env, CXCursor_NSReturnsAutoreleased));
+    exports.Set("CXCursor_NSConsumesSelf", Napi::Number::New(env, CXCursor_NSConsumesSelf));
+    exports.Set("CXCursor_NSConsumed", Napi::Number::New(env, CXCursor_NSConsumed));
+    exports.Set("CXCursor_ObjCException", Napi::Number::New(env, CXCursor_ObjCException));
+    exports.Set("CXCursor_ObjCNSObject", Napi::Number::New(env, CXCursor_ObjCNSObject));
+    exports.Set("CXCursor_ObjCIndependentClass", Napi::Number::New(env, CXCursor_ObjCIndependentClass));
+    exports.Set("CXCursor_ObjCPreciseLifetime", Napi::Number::New(env, CXCursor_ObjCPreciseLifetime));
+    exports.Set("CXCursor_ObjCReturnsInnerPointer", Napi::Number::New(env, CXCursor_ObjCReturnsInnerPointer));
+    exports.Set("CXCursor_ObjCRequiresSuper", Napi::Number::New(env, CXCursor_ObjCRequiresSuper));
+    exports.Set("CXCursor_ObjCRootClass", Napi::Number::New(env, CXCursor_ObjCRootClass));
+    exports.Set("CXCursor_ObjCSubclassingRestricted", Napi::Number::New(env, CXCursor_ObjCSubclassingRestricted));
+    exports.Set("CXCursor_ObjCExplicitProtocolImpl", Napi::Number::New(env, CXCursor_ObjCExplicitProtocolImpl));
+    exports.Set("CXCursor_ObjCDesignatedInitializer", Napi::Number::New(env, CXCursor_ObjCDesignatedInitializer));
+    exports.Set("CXCursor_ObjCRuntimeVisible", Napi::Number::New(env, CXCursor_ObjCRuntimeVisible));
+    exports.Set("CXCursor_ObjCBoxable", Napi::Number::New(env, CXCursor_ObjCBoxable));
+    exports.Set("CXCursor_FlagEnum", Napi::Number::New(env, CXCursor_FlagEnum));
+    exports.Set("CXCursor_ConvergentAttr", Napi::Number::New(env, CXCursor_ConvergentAttr));
+    exports.Set("CXCursor_WarnUnusedAttr", Napi::Number::New(env, CXCursor_WarnUnusedAttr));
+    exports.Set("CXCursor_WarnUnusedResultAttr", Napi::Number::New(env, CXCursor_WarnUnusedResultAttr));
+    exports.Set("CXCursor_AlignedAttr", Napi::Number::New(env, CXCursor_AlignedAttr));
+    exports.Set("CXCursor_LastAttr", Napi::Number::New(env, CXCursor_LastAttr));
+    exports.Set("CXCursor_PreprocessingDirective", Napi::Number::New(env, CXCursor_PreprocessingDirective));
+    exports.Set("CXCursor_MacroDefinition", Napi::Number::New(env, CXCursor_MacroDefinition));
+    exports.Set("CXCursor_MacroExpansion", Napi::Number::New(env, CXCursor_MacroExpansion));
+    exports.Set("CXCursor_MacroInstantiation", Napi::Number::New(env, CXCursor_MacroInstantiation));
+    exports.Set("CXCursor_InclusionDirective", Napi::Number::New(env, CXCursor_InclusionDirective));
+    exports.Set("CXCursor_FirstPreprocessing", Napi::Number::New(env, CXCursor_FirstPreprocessing));
+    exports.Set("CXCursor_LastPreprocessing", Napi::Number::New(env, CXCursor_LastPreprocessing));
+    exports.Set("CXCursor_ModuleImportDecl", Napi::Number::New(env, CXCursor_ModuleImportDecl));
+    exports.Set("CXCursor_TypeAliasTemplateDecl", Napi::Number::New(env, CXCursor_TypeAliasTemplateDecl));
+    exports.Set("CXCursor_StaticAssert", Napi::Number::New(env, CXCursor_StaticAssert));
+    exports.Set("CXCursor_FriendDecl", Napi::Number::New(env, CXCursor_FriendDecl));
+    exports.Set("CXCursor_ConceptDecl", Napi::Number::New(env, CXCursor_ConceptDecl));
+    exports.Set("CXCursor_FirstExtraDecl", Napi::Number::New(env, CXCursor_FirstExtraDecl));
+    exports.Set("CXCursor_LastExtraDecl", Napi::Number::New(env, CXCursor_LastExtraDecl));
+    exports.Set("CXCursor_OverloadCandidate", Napi::Number::New(env, CXCursor_OverloadCandidate));
+    exports.Set("CXLinkage_Invalid", Napi::Number::New(env, CXLinkage_Invalid));
+    exports.Set("CXLinkage_NoLinkage", Napi::Number::New(env, CXLinkage_NoLinkage));
+    exports.Set("CXLinkage_Internal", Napi::Number::New(env, CXLinkage_Internal));
+    exports.Set("CXLinkage_UniqueExternal", Napi::Number::New(env, CXLinkage_UniqueExternal));
+    exports.Set("CXLinkage_External", Napi::Number::New(env, CXLinkage_External));
+    exports.Set("CXVisibility_Invalid", Napi::Number::New(env, CXVisibility_Invalid));
+    exports.Set("CXVisibility_Hidden", Napi::Number::New(env, CXVisibility_Hidden));
+    exports.Set("CXVisibility_Protected", Napi::Number::New(env, CXVisibility_Protected));
+    exports.Set("CXVisibility_Default", Napi::Number::New(env, CXVisibility_Default));
+    exports.Set("CXLanguage_Invalid", Napi::Number::New(env, CXLanguage_Invalid));
+    exports.Set("CXLanguage_C", Napi::Number::New(env, CXLanguage_C));
+    exports.Set("CXLanguage_ObjC", Napi::Number::New(env, CXLanguage_ObjC));
+    exports.Set("CXLanguage_CPlusPlus", Napi::Number::New(env, CXLanguage_CPlusPlus));
+    exports.Set("CXTLS_None", Napi::Number::New(env, CXTLS_None));
+    exports.Set("CXTLS_Dynamic", Napi::Number::New(env, CXTLS_Dynamic));
+    exports.Set("CXTLS_Static", Napi::Number::New(env, CXTLS_Static));
+    exports.Set("CXType_Invalid", Napi::Number::New(env, CXType_Invalid));
+    exports.Set("CXType_Unexposed", Napi::Number::New(env, CXType_Unexposed));
+    exports.Set("CXType_Void", Napi::Number::New(env, CXType_Void));
+    exports.Set("CXType_Bool", Napi::Number::New(env, CXType_Bool));
+    exports.Set("CXType_Char_U", Napi::Number::New(env, CXType_Char_U));
+    exports.Set("CXType_UChar", Napi::Number::New(env, CXType_UChar));
+    exports.Set("CXType_Char16", Napi::Number::New(env, CXType_Char16));
+    exports.Set("CXType_Char32", Napi::Number::New(env, CXType_Char32));
+    exports.Set("CXType_UShort", Napi::Number::New(env, CXType_UShort));
+    exports.Set("CXType_UInt", Napi::Number::New(env, CXType_UInt));
+    exports.Set("CXType_ULong", Napi::Number::New(env, CXType_ULong));
+    exports.Set("CXType_ULongLong", Napi::Number::New(env, CXType_ULongLong));
+    exports.Set("CXType_UInt128", Napi::Number::New(env, CXType_UInt128));
+    exports.Set("CXType_Char_S", Napi::Number::New(env, CXType_Char_S));
+    exports.Set("CXType_SChar", Napi::Number::New(env, CXType_SChar));
+    exports.Set("CXType_WChar", Napi::Number::New(env, CXType_WChar));
+    exports.Set("CXType_Short", Napi::Number::New(env, CXType_Short));
+    exports.Set("CXType_Int", Napi::Number::New(env, CXType_Int));
+    exports.Set("CXType_Long", Napi::Number::New(env, CXType_Long));
+    exports.Set("CXType_LongLong", Napi::Number::New(env, CXType_LongLong));
+    exports.Set("CXType_Int128", Napi::Number::New(env, CXType_Int128));
+    exports.Set("CXType_Float", Napi::Number::New(env, CXType_Float));
+    exports.Set("CXType_Double", Napi::Number::New(env, CXType_Double));
+    exports.Set("CXType_LongDouble", Napi::Number::New(env, CXType_LongDouble));
+    exports.Set("CXType_NullPtr", Napi::Number::New(env, CXType_NullPtr));
+    exports.Set("CXType_Overload", Napi::Number::New(env, CXType_Overload));
+    exports.Set("CXType_Dependent", Napi::Number::New(env, CXType_Dependent));
+    exports.Set("CXType_ObjCId", Napi::Number::New(env, CXType_ObjCId));
+    exports.Set("CXType_ObjCClass", Napi::Number::New(env, CXType_ObjCClass));
+    exports.Set("CXType_ObjCSel", Napi::Number::New(env, CXType_ObjCSel));
+    exports.Set("CXType_Float128", Napi::Number::New(env, CXType_Float128));
+    exports.Set("CXType_Half", Napi::Number::New(env, CXType_Half));
+    exports.Set("CXType_Float16", Napi::Number::New(env, CXType_Float16));
+    exports.Set("CXType_ShortAccum", Napi::Number::New(env, CXType_ShortAccum));
+    exports.Set("CXType_Accum", Napi::Number::New(env, CXType_Accum));
+    exports.Set("CXType_LongAccum", Napi::Number::New(env, CXType_LongAccum));
+    exports.Set("CXType_UShortAccum", Napi::Number::New(env, CXType_UShortAccum));
+    exports.Set("CXType_UAccum", Napi::Number::New(env, CXType_UAccum));
+    exports.Set("CXType_ULongAccum", Napi::Number::New(env, CXType_ULongAccum));
+    exports.Set("CXType_BFloat16", Napi::Number::New(env, CXType_BFloat16));
+    exports.Set("CXType_Ibm128", Napi::Number::New(env, CXType_Ibm128));
+    exports.Set("CXType_FirstBuiltin", Napi::Number::New(env, CXType_FirstBuiltin));
+    exports.Set("CXType_LastBuiltin", Napi::Number::New(env, CXType_LastBuiltin));
+    exports.Set("CXType_Complex", Napi::Number::New(env, CXType_Complex));
+    exports.Set("CXType_Pointer", Napi::Number::New(env, CXType_Pointer));
+    exports.Set("CXType_BlockPointer", Napi::Number::New(env, CXType_BlockPointer));
+    exports.Set("CXType_LValueReference", Napi::Number::New(env, CXType_LValueReference));
+    exports.Set("CXType_RValueReference", Napi::Number::New(env, CXType_RValueReference));
+    exports.Set("CXType_Record", Napi::Number::New(env, CXType_Record));
+    exports.Set("CXType_Enum", Napi::Number::New(env, CXType_Enum));
+    exports.Set("CXType_Typedef", Napi::Number::New(env, CXType_Typedef));
+    exports.Set("CXType_ObjCInterface", Napi::Number::New(env, CXType_ObjCInterface));
+    exports.Set("CXType_ObjCObjectPointer", Napi::Number::New(env, CXType_ObjCObjectPointer));
+    exports.Set("CXType_FunctionNoProto", Napi::Number::New(env, CXType_FunctionNoProto));
+    exports.Set("CXType_FunctionProto", Napi::Number::New(env, CXType_FunctionProto));
+    exports.Set("CXType_ConstantArray", Napi::Number::New(env, CXType_ConstantArray));
+    exports.Set("CXType_Vector", Napi::Number::New(env, CXType_Vector));
+    exports.Set("CXType_IncompleteArray", Napi::Number::New(env, CXType_IncompleteArray));
+    exports.Set("CXType_VariableArray", Napi::Number::New(env, CXType_VariableArray));
+    exports.Set("CXType_DependentSizedArray", Napi::Number::New(env, CXType_DependentSizedArray));
+    exports.Set("CXType_MemberPointer", Napi::Number::New(env, CXType_MemberPointer));
+    exports.Set("CXType_Auto", Napi::Number::New(env, CXType_Auto));
+    exports.Set("CXType_Elaborated", Napi::Number::New(env, CXType_Elaborated));
+    exports.Set("CXType_Pipe", Napi::Number::New(env, CXType_Pipe));
+    exports.Set("CXType_OCLImage1dRO", Napi::Number::New(env, CXType_OCLImage1dRO));
+    exports.Set("CXType_OCLImage1dArrayRO", Napi::Number::New(env, CXType_OCLImage1dArrayRO));
+    exports.Set("CXType_OCLImage1dBufferRO", Napi::Number::New(env, CXType_OCLImage1dBufferRO));
+    exports.Set("CXType_OCLImage2dRO", Napi::Number::New(env, CXType_OCLImage2dRO));
+    exports.Set("CXType_OCLImage2dArrayRO", Napi::Number::New(env, CXType_OCLImage2dArrayRO));
+    exports.Set("CXType_OCLImage2dDepthRO", Napi::Number::New(env, CXType_OCLImage2dDepthRO));
+    exports.Set("CXType_OCLImage2dArrayDepthRO", Napi::Number::New(env, CXType_OCLImage2dArrayDepthRO));
+    exports.Set("CXType_OCLImage2dMSAARO", Napi::Number::New(env, CXType_OCLImage2dMSAARO));
+    exports.Set("CXType_OCLImage2dArrayMSAARO", Napi::Number::New(env, CXType_OCLImage2dArrayMSAARO));
+    exports.Set("CXType_OCLImage2dMSAADepthRO", Napi::Number::New(env, CXType_OCLImage2dMSAADepthRO));
+    exports.Set("CXType_OCLImage2dArrayMSAADepthRO", Napi::Number::New(env, CXType_OCLImage2dArrayMSAADepthRO));
+    exports.Set("CXType_OCLImage3dRO", Napi::Number::New(env, CXType_OCLImage3dRO));
+    exports.Set("CXType_OCLImage1dWO", Napi::Number::New(env, CXType_OCLImage1dWO));
+    exports.Set("CXType_OCLImage1dArrayWO", Napi::Number::New(env, CXType_OCLImage1dArrayWO));
+    exports.Set("CXType_OCLImage1dBufferWO", Napi::Number::New(env, CXType_OCLImage1dBufferWO));
+    exports.Set("CXType_OCLImage2dWO", Napi::Number::New(env, CXType_OCLImage2dWO));
+    exports.Set("CXType_OCLImage2dArrayWO", Napi::Number::New(env, CXType_OCLImage2dArrayWO));
+    exports.Set("CXType_OCLImage2dDepthWO", Napi::Number::New(env, CXType_OCLImage2dDepthWO));
+    exports.Set("CXType_OCLImage2dArrayDepthWO", Napi::Number::New(env, CXType_OCLImage2dArrayDepthWO));
+    exports.Set("CXType_OCLImage2dMSAAWO", Napi::Number::New(env, CXType_OCLImage2dMSAAWO));
+    exports.Set("CXType_OCLImage2dArrayMSAAWO", Napi::Number::New(env, CXType_OCLImage2dArrayMSAAWO));
+    exports.Set("CXType_OCLImage2dMSAADepthWO", Napi::Number::New(env, CXType_OCLImage2dMSAADepthWO));
+    exports.Set("CXType_OCLImage2dArrayMSAADepthWO", Napi::Number::New(env, CXType_OCLImage2dArrayMSAADepthWO));
+    exports.Set("CXType_OCLImage3dWO", Napi::Number::New(env, CXType_OCLImage3dWO));
+    exports.Set("CXType_OCLImage1dRW", Napi::Number::New(env, CXType_OCLImage1dRW));
+    exports.Set("CXType_OCLImage1dArrayRW", Napi::Number::New(env, CXType_OCLImage1dArrayRW));
+    exports.Set("CXType_OCLImage1dBufferRW", Napi::Number::New(env, CXType_OCLImage1dBufferRW));
+    exports.Set("CXType_OCLImage2dRW", Napi::Number::New(env, CXType_OCLImage2dRW));
+    exports.Set("CXType_OCLImage2dArrayRW", Napi::Number::New(env, CXType_OCLImage2dArrayRW));
+    exports.Set("CXType_OCLImage2dDepthRW", Napi::Number::New(env, CXType_OCLImage2dDepthRW));
+    exports.Set("CXType_OCLImage2dArrayDepthRW", Napi::Number::New(env, CXType_OCLImage2dArrayDepthRW));
+    exports.Set("CXType_OCLImage2dMSAARW", Napi::Number::New(env, CXType_OCLImage2dMSAARW));
+    exports.Set("CXType_OCLImage2dArrayMSAARW", Napi::Number::New(env, CXType_OCLImage2dArrayMSAARW));
+    exports.Set("CXType_OCLImage2dMSAADepthRW", Napi::Number::New(env, CXType_OCLImage2dMSAADepthRW));
+    exports.Set("CXType_OCLImage2dArrayMSAADepthRW", Napi::Number::New(env, CXType_OCLImage2dArrayMSAADepthRW));
+    exports.Set("CXType_OCLImage3dRW", Napi::Number::New(env, CXType_OCLImage3dRW));
+    exports.Set("CXType_OCLSampler", Napi::Number::New(env, CXType_OCLSampler));
+    exports.Set("CXType_OCLEvent", Napi::Number::New(env, CXType_OCLEvent));
+    exports.Set("CXType_OCLQueue", Napi::Number::New(env, CXType_OCLQueue));
+    exports.Set("CXType_OCLReserveID", Napi::Number::New(env, CXType_OCLReserveID));
+    exports.Set("CXType_ObjCObject", Napi::Number::New(env, CXType_ObjCObject));
+    exports.Set("CXType_ObjCTypeParam", Napi::Number::New(env, CXType_ObjCTypeParam));
+    exports.Set("CXType_Attributed", Napi::Number::New(env, CXType_Attributed));
+    exports.Set("CXType_OCLIntelSubgroupAVCMcePayload", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCMcePayload));
+    exports.Set("CXType_OCLIntelSubgroupAVCImePayload", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImePayload));
+    exports.Set("CXType_OCLIntelSubgroupAVCRefPayload", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCRefPayload));
+    exports.Set("CXType_OCLIntelSubgroupAVCSicPayload", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCSicPayload));
+    exports.Set("CXType_OCLIntelSubgroupAVCMceResult", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCMceResult));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeResult", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeResult));
+    exports.Set("CXType_OCLIntelSubgroupAVCRefResult", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCRefResult));
+    exports.Set("CXType_OCLIntelSubgroupAVCSicResult", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCSicResult));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeResultSingleReferenceStreamout", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeResultSingleReferenceStreamout));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeResultDualReferenceStreamout", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeResultDualReferenceStreamout));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeSingleReferenceStreamin", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeSingleReferenceStreamin));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeDualReferenceStreamin", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeDualReferenceStreamin));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeResultSingleRefStreamout", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeResultSingleRefStreamout));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeResultDualRefStreamout", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeResultDualRefStreamout));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeSingleRefStreamin", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeSingleRefStreamin));
+    exports.Set("CXType_OCLIntelSubgroupAVCImeDualRefStreamin", Napi::Number::New(env, CXType_OCLIntelSubgroupAVCImeDualRefStreamin));
+    exports.Set("CXType_ExtVector", Napi::Number::New(env, CXType_ExtVector));
+    exports.Set("CXType_Atomic", Napi::Number::New(env, CXType_Atomic));
+    exports.Set("CXType_BTFTagAttributed", Napi::Number::New(env, CXType_BTFTagAttributed));
+    exports.Set("CXType_HLSLResource", Napi::Number::New(env, CXType_HLSLResource));
+    exports.Set("CXType_HLSLAttributedResource", Napi::Number::New(env, CXType_HLSLAttributedResource));
+    exports.Set("CXCallingConv_Default", Napi::Number::New(env, CXCallingConv_Default));
+    exports.Set("CXCallingConv_C", Napi::Number::New(env, CXCallingConv_C));
+    exports.Set("CXCallingConv_X86StdCall", Napi::Number::New(env, CXCallingConv_X86StdCall));
+    exports.Set("CXCallingConv_X86FastCall", Napi::Number::New(env, CXCallingConv_X86FastCall));
+    exports.Set("CXCallingConv_X86ThisCall", Napi::Number::New(env, CXCallingConv_X86ThisCall));
+    exports.Set("CXCallingConv_X86Pascal", Napi::Number::New(env, CXCallingConv_X86Pascal));
+    exports.Set("CXCallingConv_AAPCS", Napi::Number::New(env, CXCallingConv_AAPCS));
+    exports.Set("CXCallingConv_AAPCS_VFP", Napi::Number::New(env, CXCallingConv_AAPCS_VFP));
+    exports.Set("CXCallingConv_X86RegCall", Napi::Number::New(env, CXCallingConv_X86RegCall));
+    exports.Set("CXCallingConv_IntelOclBicc", Napi::Number::New(env, CXCallingConv_IntelOclBicc));
+    exports.Set("CXCallingConv_Win64", Napi::Number::New(env, CXCallingConv_Win64));
+    exports.Set("CXCallingConv_X86_64Win64", Napi::Number::New(env, CXCallingConv_X86_64Win64));
+    exports.Set("CXCallingConv_X86_64SysV", Napi::Number::New(env, CXCallingConv_X86_64SysV));
+    exports.Set("CXCallingConv_X86VectorCall", Napi::Number::New(env, CXCallingConv_X86VectorCall));
+    exports.Set("CXCallingConv_Swift", Napi::Number::New(env, CXCallingConv_Swift));
+    exports.Set("CXCallingConv_PreserveMost", Napi::Number::New(env, CXCallingConv_PreserveMost));
+    exports.Set("CXCallingConv_PreserveAll", Napi::Number::New(env, CXCallingConv_PreserveAll));
+    exports.Set("CXCallingConv_AArch64VectorCall", Napi::Number::New(env, CXCallingConv_AArch64VectorCall));
+    exports.Set("CXCallingConv_SwiftAsync", Napi::Number::New(env, CXCallingConv_SwiftAsync));
+    exports.Set("CXCallingConv_AArch64SVEPCS", Napi::Number::New(env, CXCallingConv_AArch64SVEPCS));
+    exports.Set("CXCallingConv_M68kRTD", Napi::Number::New(env, CXCallingConv_M68kRTD));
+    exports.Set("CXCallingConv_PreserveNone", Napi::Number::New(env, CXCallingConv_PreserveNone));
+    exports.Set("CXCallingConv_RISCVVectorCall", Napi::Number::New(env, CXCallingConv_RISCVVectorCall));
+    exports.Set("CXCallingConv_Invalid", Napi::Number::New(env, CXCallingConv_Invalid));
+    exports.Set("CXCallingConv_Unexposed", Napi::Number::New(env, CXCallingConv_Unexposed));
+    exports.Set("CXTemplateArgumentKind_Null", Napi::Number::New(env, CXTemplateArgumentKind_Null));
+    exports.Set("CXTemplateArgumentKind_Type", Napi::Number::New(env, CXTemplateArgumentKind_Type));
+    exports.Set("CXTemplateArgumentKind_Declaration", Napi::Number::New(env, CXTemplateArgumentKind_Declaration));
+    exports.Set("CXTemplateArgumentKind_NullPtr", Napi::Number::New(env, CXTemplateArgumentKind_NullPtr));
+    exports.Set("CXTemplateArgumentKind_Integral", Napi::Number::New(env, CXTemplateArgumentKind_Integral));
+    exports.Set("CXTemplateArgumentKind_Template", Napi::Number::New(env, CXTemplateArgumentKind_Template));
+    exports.Set("CXTemplateArgumentKind_TemplateExpansion", Napi::Number::New(env, CXTemplateArgumentKind_TemplateExpansion));
+    exports.Set("CXTemplateArgumentKind_Expression", Napi::Number::New(env, CXTemplateArgumentKind_Expression));
+    exports.Set("CXTemplateArgumentKind_Pack", Napi::Number::New(env, CXTemplateArgumentKind_Pack));
+    exports.Set("CXTemplateArgumentKind_Invalid", Napi::Number::New(env, CXTemplateArgumentKind_Invalid));
+    exports.Set("CXTypeNullability_NonNull", Napi::Number::New(env, CXTypeNullability_NonNull));
+    exports.Set("CXTypeNullability_Nullable", Napi::Number::New(env, CXTypeNullability_Nullable));
+    exports.Set("CXTypeNullability_Unspecified", Napi::Number::New(env, CXTypeNullability_Unspecified));
+    exports.Set("CXTypeNullability_Invalid", Napi::Number::New(env, CXTypeNullability_Invalid));
+    exports.Set("CXTypeNullability_NullableResult", Napi::Number::New(env, CXTypeNullability_NullableResult));
+    exports.Set("CXTypeLayoutError_Invalid", Napi::Number::New(env, CXTypeLayoutError_Invalid));
+    exports.Set("CXTypeLayoutError_Incomplete", Napi::Number::New(env, CXTypeLayoutError_Incomplete));
+    exports.Set("CXTypeLayoutError_Dependent", Napi::Number::New(env, CXTypeLayoutError_Dependent));
+    exports.Set("CXTypeLayoutError_NotConstantSize", Napi::Number::New(env, CXTypeLayoutError_NotConstantSize));
+    exports.Set("CXTypeLayoutError_InvalidFieldName", Napi::Number::New(env, CXTypeLayoutError_InvalidFieldName));
+    exports.Set("CXTypeLayoutError_Undeduced", Napi::Number::New(env, CXTypeLayoutError_Undeduced));
+    exports.Set("CXRefQualifier_None", Napi::Number::New(env, CXRefQualifier_None));
+    exports.Set("CXRefQualifier_LValue", Napi::Number::New(env, CXRefQualifier_LValue));
+    exports.Set("CXRefQualifier_RValue", Napi::Number::New(env, CXRefQualifier_RValue));
+    exports.Set("CX_CXXInvalidAccessSpecifier", Napi::Number::New(env, CX_CXXInvalidAccessSpecifier));
+    exports.Set("CX_CXXPublic", Napi::Number::New(env, CX_CXXPublic));
+    exports.Set("CX_CXXProtected", Napi::Number::New(env, CX_CXXProtected));
+    exports.Set("CX_CXXPrivate", Napi::Number::New(env, CX_CXXPrivate));
+    exports.Set("CX_SC_Invalid", Napi::Number::New(env, CX_SC_Invalid));
+    exports.Set("CX_SC_None", Napi::Number::New(env, CX_SC_None));
+    exports.Set("CX_SC_Extern", Napi::Number::New(env, CX_SC_Extern));
+    exports.Set("CX_SC_Static", Napi::Number::New(env, CX_SC_Static));
+    exports.Set("CX_SC_PrivateExtern", Napi::Number::New(env, CX_SC_PrivateExtern));
+    exports.Set("CX_SC_OpenCLWorkGroupLocal", Napi::Number::New(env, CX_SC_OpenCLWorkGroupLocal));
+    exports.Set("CX_SC_Auto", Napi::Number::New(env, CX_SC_Auto));
+    exports.Set("CX_SC_Register", Napi::Number::New(env, CX_SC_Register));
+    exports.Set("CX_BO_Invalid", Napi::Number::New(env, CX_BO_Invalid));
+    exports.Set("CX_BO_PtrMemD", Napi::Number::New(env, CX_BO_PtrMemD));
+    exports.Set("CX_BO_PtrMemI", Napi::Number::New(env, CX_BO_PtrMemI));
+    exports.Set("CX_BO_Mul", Napi::Number::New(env, CX_BO_Mul));
+    exports.Set("CX_BO_Div", Napi::Number::New(env, CX_BO_Div));
+    exports.Set("CX_BO_Rem", Napi::Number::New(env, CX_BO_Rem));
+    exports.Set("CX_BO_Add", Napi::Number::New(env, CX_BO_Add));
+    exports.Set("CX_BO_Sub", Napi::Number::New(env, CX_BO_Sub));
+    exports.Set("CX_BO_Shl", Napi::Number::New(env, CX_BO_Shl));
+    exports.Set("CX_BO_Shr", Napi::Number::New(env, CX_BO_Shr));
+    exports.Set("CX_BO_Cmp", Napi::Number::New(env, CX_BO_Cmp));
+    exports.Set("CX_BO_LT", Napi::Number::New(env, CX_BO_LT));
+    exports.Set("CX_BO_GT", Napi::Number::New(env, CX_BO_GT));
+    exports.Set("CX_BO_LE", Napi::Number::New(env, CX_BO_LE));
+    exports.Set("CX_BO_GE", Napi::Number::New(env, CX_BO_GE));
+    exports.Set("CX_BO_EQ", Napi::Number::New(env, CX_BO_EQ));
+    exports.Set("CX_BO_NE", Napi::Number::New(env, CX_BO_NE));
+    exports.Set("CX_BO_And", Napi::Number::New(env, CX_BO_And));
+    exports.Set("CX_BO_Xor", Napi::Number::New(env, CX_BO_Xor));
+    exports.Set("CX_BO_Or", Napi::Number::New(env, CX_BO_Or));
+    exports.Set("CX_BO_LAnd", Napi::Number::New(env, CX_BO_LAnd));
+    exports.Set("CX_BO_LOr", Napi::Number::New(env, CX_BO_LOr));
+    exports.Set("CX_BO_Assign", Napi::Number::New(env, CX_BO_Assign));
+    exports.Set("CX_BO_MulAssign", Napi::Number::New(env, CX_BO_MulAssign));
+    exports.Set("CX_BO_DivAssign", Napi::Number::New(env, CX_BO_DivAssign));
+    exports.Set("CX_BO_RemAssign", Napi::Number::New(env, CX_BO_RemAssign));
+    exports.Set("CX_BO_AddAssign", Napi::Number::New(env, CX_BO_AddAssign));
+    exports.Set("CX_BO_SubAssign", Napi::Number::New(env, CX_BO_SubAssign));
+    exports.Set("CX_BO_ShlAssign", Napi::Number::New(env, CX_BO_ShlAssign));
+    exports.Set("CX_BO_ShrAssign", Napi::Number::New(env, CX_BO_ShrAssign));
+    exports.Set("CX_BO_AndAssign", Napi::Number::New(env, CX_BO_AndAssign));
+    exports.Set("CX_BO_XorAssign", Napi::Number::New(env, CX_BO_XorAssign));
+    exports.Set("CX_BO_OrAssign", Napi::Number::New(env, CX_BO_OrAssign));
+    exports.Set("CX_BO_Comma", Napi::Number::New(env, CX_BO_Comma));
+    exports.Set("CX_BO_LAST", Napi::Number::New(env, CX_BO_LAST));
+    exports.Set("CXChildVisit_Break", Napi::Number::New(env, CXChildVisit_Break));
+    exports.Set("CXChildVisit_Continue", Napi::Number::New(env, CXChildVisit_Continue));
+    exports.Set("CXChildVisit_Recurse", Napi::Number::New(env, CXChildVisit_Recurse));
+    exports.Set("CXPrintingPolicy_Indentation", Napi::Number::New(env, CXPrintingPolicy_Indentation));
+    exports.Set("CXPrintingPolicy_SuppressSpecifiers", Napi::Number::New(env, CXPrintingPolicy_SuppressSpecifiers));
+    exports.Set("CXPrintingPolicy_SuppressTagKeyword", Napi::Number::New(env, CXPrintingPolicy_SuppressTagKeyword));
+    exports.Set("CXPrintingPolicy_IncludeTagDefinition", Napi::Number::New(env, CXPrintingPolicy_IncludeTagDefinition));
+    exports.Set("CXPrintingPolicy_SuppressScope", Napi::Number::New(env, CXPrintingPolicy_SuppressScope));
+    exports.Set("CXPrintingPolicy_SuppressUnwrittenScope", Napi::Number::New(env, CXPrintingPolicy_SuppressUnwrittenScope));
+    exports.Set("CXPrintingPolicy_SuppressInitializers", Napi::Number::New(env, CXPrintingPolicy_SuppressInitializers));
+    exports.Set("CXPrintingPolicy_ConstantArraySizeAsWritten", Napi::Number::New(env, CXPrintingPolicy_ConstantArraySizeAsWritten));
+    exports.Set("CXPrintingPolicy_AnonymousTagLocations", Napi::Number::New(env, CXPrintingPolicy_AnonymousTagLocations));
+    exports.Set("CXPrintingPolicy_SuppressStrongLifetime", Napi::Number::New(env, CXPrintingPolicy_SuppressStrongLifetime));
+    exports.Set("CXPrintingPolicy_SuppressLifetimeQualifiers", Napi::Number::New(env, CXPrintingPolicy_SuppressLifetimeQualifiers));
+    exports.Set("CXPrintingPolicy_SuppressTemplateArgsInCXXConstructors", Napi::Number::New(env, CXPrintingPolicy_SuppressTemplateArgsInCXXConstructors));
+    exports.Set("CXPrintingPolicy_Bool", Napi::Number::New(env, CXPrintingPolicy_Bool));
+    exports.Set("CXPrintingPolicy_Restrict", Napi::Number::New(env, CXPrintingPolicy_Restrict));
+    exports.Set("CXPrintingPolicy_Alignof", Napi::Number::New(env, CXPrintingPolicy_Alignof));
+    exports.Set("CXPrintingPolicy_UnderscoreAlignof", Napi::Number::New(env, CXPrintingPolicy_UnderscoreAlignof));
+    exports.Set("CXPrintingPolicy_UseVoidForZeroParams", Napi::Number::New(env, CXPrintingPolicy_UseVoidForZeroParams));
+    exports.Set("CXPrintingPolicy_TerseOutput", Napi::Number::New(env, CXPrintingPolicy_TerseOutput));
+    exports.Set("CXPrintingPolicy_PolishForDeclaration", Napi::Number::New(env, CXPrintingPolicy_PolishForDeclaration));
+    exports.Set("CXPrintingPolicy_Half", Napi::Number::New(env, CXPrintingPolicy_Half));
+    exports.Set("CXPrintingPolicy_MSWChar", Napi::Number::New(env, CXPrintingPolicy_MSWChar));
+    exports.Set("CXPrintingPolicy_IncludeNewlines", Napi::Number::New(env, CXPrintingPolicy_IncludeNewlines));
+    exports.Set("CXPrintingPolicy_MSVCFormatting", Napi::Number::New(env, CXPrintingPolicy_MSVCFormatting));
+    exports.Set("CXPrintingPolicy_ConstantsAsWritten", Napi::Number::New(env, CXPrintingPolicy_ConstantsAsWritten));
+    exports.Set("CXPrintingPolicy_SuppressImplicitBase", Napi::Number::New(env, CXPrintingPolicy_SuppressImplicitBase));
+    exports.Set("CXPrintingPolicy_FullyQualifiedName", Napi::Number::New(env, CXPrintingPolicy_FullyQualifiedName));
+    exports.Set("CXPrintingPolicy_LastProperty", Napi::Number::New(env, CXPrintingPolicy_LastProperty));
+    exports.Set("CXObjCPropertyAttr_noattr", Napi::Number::New(env, CXObjCPropertyAttr_noattr));
+    exports.Set("CXObjCPropertyAttr_readonly", Napi::Number::New(env, CXObjCPropertyAttr_readonly));
+    exports.Set("CXObjCPropertyAttr_getter", Napi::Number::New(env, CXObjCPropertyAttr_getter));
+    exports.Set("CXObjCPropertyAttr_assign", Napi::Number::New(env, CXObjCPropertyAttr_assign));
+    exports.Set("CXObjCPropertyAttr_readwrite", Napi::Number::New(env, CXObjCPropertyAttr_readwrite));
+    exports.Set("CXObjCPropertyAttr_retain", Napi::Number::New(env, CXObjCPropertyAttr_retain));
+    exports.Set("CXObjCPropertyAttr_copy", Napi::Number::New(env, CXObjCPropertyAttr_copy));
+    exports.Set("CXObjCPropertyAttr_nonatomic", Napi::Number::New(env, CXObjCPropertyAttr_nonatomic));
+    exports.Set("CXObjCPropertyAttr_setter", Napi::Number::New(env, CXObjCPropertyAttr_setter));
+    exports.Set("CXObjCPropertyAttr_atomic", Napi::Number::New(env, CXObjCPropertyAttr_atomic));
+    exports.Set("CXObjCPropertyAttr_weak", Napi::Number::New(env, CXObjCPropertyAttr_weak));
+    exports.Set("CXObjCPropertyAttr_strong", Napi::Number::New(env, CXObjCPropertyAttr_strong));
+    exports.Set("CXObjCPropertyAttr_unsafe_unretained", Napi::Number::New(env, CXObjCPropertyAttr_unsafe_unretained));
+    exports.Set("CXObjCPropertyAttr_class", Napi::Number::New(env, CXObjCPropertyAttr_class));
+    exports.Set("CXObjCDeclQualifier_None", Napi::Number::New(env, CXObjCDeclQualifier_None));
+    exports.Set("CXObjCDeclQualifier_In", Napi::Number::New(env, CXObjCDeclQualifier_In));
+    exports.Set("CXObjCDeclQualifier_Inout", Napi::Number::New(env, CXObjCDeclQualifier_Inout));
+    exports.Set("CXObjCDeclQualifier_Out", Napi::Number::New(env, CXObjCDeclQualifier_Out));
+    exports.Set("CXObjCDeclQualifier_Bycopy", Napi::Number::New(env, CXObjCDeclQualifier_Bycopy));
+    exports.Set("CXObjCDeclQualifier_Byref", Napi::Number::New(env, CXObjCDeclQualifier_Byref));
+    exports.Set("CXObjCDeclQualifier_Oneway", Napi::Number::New(env, CXObjCDeclQualifier_Oneway));
+    exports.Set("CXNameRange_WantQualifier", Napi::Number::New(env, CXNameRange_WantQualifier));
+    exports.Set("CXNameRange_WantTemplateArgs", Napi::Number::New(env, CXNameRange_WantTemplateArgs));
+    exports.Set("CXNameRange_WantSinglePiece", Napi::Number::New(env, CXNameRange_WantSinglePiece));
+    exports.Set("CXToken_Punctuation", Napi::Number::New(env, CXToken_Punctuation));
+    exports.Set("CXToken_Keyword", Napi::Number::New(env, CXToken_Keyword));
+    exports.Set("CXToken_Identifier", Napi::Number::New(env, CXToken_Identifier));
+    exports.Set("CXToken_Literal", Napi::Number::New(env, CXToken_Literal));
+    exports.Set("CXToken_Comment", Napi::Number::New(env, CXToken_Comment));
+    exports.Set("CXCompletionChunk_Optional", Napi::Number::New(env, CXCompletionChunk_Optional));
+    exports.Set("CXCompletionChunk_TypedText", Napi::Number::New(env, CXCompletionChunk_TypedText));
+    exports.Set("CXCompletionChunk_Text", Napi::Number::New(env, CXCompletionChunk_Text));
+    exports.Set("CXCompletionChunk_Placeholder", Napi::Number::New(env, CXCompletionChunk_Placeholder));
+    exports.Set("CXCompletionChunk_Informative", Napi::Number::New(env, CXCompletionChunk_Informative));
+    exports.Set("CXCompletionChunk_CurrentParameter", Napi::Number::New(env, CXCompletionChunk_CurrentParameter));
+    exports.Set("CXCompletionChunk_LeftParen", Napi::Number::New(env, CXCompletionChunk_LeftParen));
+    exports.Set("CXCompletionChunk_RightParen", Napi::Number::New(env, CXCompletionChunk_RightParen));
+    exports.Set("CXCompletionChunk_LeftBracket", Napi::Number::New(env, CXCompletionChunk_LeftBracket));
+    exports.Set("CXCompletionChunk_RightBracket", Napi::Number::New(env, CXCompletionChunk_RightBracket));
+    exports.Set("CXCompletionChunk_LeftBrace", Napi::Number::New(env, CXCompletionChunk_LeftBrace));
+    exports.Set("CXCompletionChunk_RightBrace", Napi::Number::New(env, CXCompletionChunk_RightBrace));
+    exports.Set("CXCompletionChunk_LeftAngle", Napi::Number::New(env, CXCompletionChunk_LeftAngle));
+    exports.Set("CXCompletionChunk_RightAngle", Napi::Number::New(env, CXCompletionChunk_RightAngle));
+    exports.Set("CXCompletionChunk_Comma", Napi::Number::New(env, CXCompletionChunk_Comma));
+    exports.Set("CXCompletionChunk_ResultType", Napi::Number::New(env, CXCompletionChunk_ResultType));
+    exports.Set("CXCompletionChunk_Colon", Napi::Number::New(env, CXCompletionChunk_Colon));
+    exports.Set("CXCompletionChunk_SemiColon", Napi::Number::New(env, CXCompletionChunk_SemiColon));
+    exports.Set("CXCompletionChunk_Equal", Napi::Number::New(env, CXCompletionChunk_Equal));
+    exports.Set("CXCompletionChunk_HorizontalSpace", Napi::Number::New(env, CXCompletionChunk_HorizontalSpace));
+    exports.Set("CXCompletionChunk_VerticalSpace", Napi::Number::New(env, CXCompletionChunk_VerticalSpace));
+    exports.Set("CXCodeComplete_IncludeMacros", Napi::Number::New(env, CXCodeComplete_IncludeMacros));
+    exports.Set("CXCodeComplete_IncludeCodePatterns", Napi::Number::New(env, CXCodeComplete_IncludeCodePatterns));
+    exports.Set("CXCodeComplete_IncludeBriefComments", Napi::Number::New(env, CXCodeComplete_IncludeBriefComments));
+    exports.Set("CXCodeComplete_SkipPreamble", Napi::Number::New(env, CXCodeComplete_SkipPreamble));
+    exports.Set("CXCodeComplete_IncludeCompletionsWithFixIts", Napi::Number::New(env, CXCodeComplete_IncludeCompletionsWithFixIts));
+    exports.Set("CXCompletionContext_Unexposed", Napi::Number::New(env, CXCompletionContext_Unexposed));
+    exports.Set("CXCompletionContext_AnyType", Napi::Number::New(env, CXCompletionContext_AnyType));
+    exports.Set("CXCompletionContext_AnyValue", Napi::Number::New(env, CXCompletionContext_AnyValue));
+    exports.Set("CXCompletionContext_ObjCObjectValue", Napi::Number::New(env, CXCompletionContext_ObjCObjectValue));
+    exports.Set("CXCompletionContext_ObjCSelectorValue", Napi::Number::New(env, CXCompletionContext_ObjCSelectorValue));
+    exports.Set("CXCompletionContext_CXXClassTypeValue", Napi::Number::New(env, CXCompletionContext_CXXClassTypeValue));
+    exports.Set("CXCompletionContext_DotMemberAccess", Napi::Number::New(env, CXCompletionContext_DotMemberAccess));
+    exports.Set("CXCompletionContext_ArrowMemberAccess", Napi::Number::New(env, CXCompletionContext_ArrowMemberAccess));
+    exports.Set("CXCompletionContext_ObjCPropertyAccess", Napi::Number::New(env, CXCompletionContext_ObjCPropertyAccess));
+    exports.Set("CXCompletionContext_EnumTag", Napi::Number::New(env, CXCompletionContext_EnumTag));
+    exports.Set("CXCompletionContext_UnionTag", Napi::Number::New(env, CXCompletionContext_UnionTag));
+    exports.Set("CXCompletionContext_StructTag", Napi::Number::New(env, CXCompletionContext_StructTag));
+    exports.Set("CXCompletionContext_ClassTag", Napi::Number::New(env, CXCompletionContext_ClassTag));
+    exports.Set("CXCompletionContext_Namespace", Napi::Number::New(env, CXCompletionContext_Namespace));
+    exports.Set("CXCompletionContext_NestedNameSpecifier", Napi::Number::New(env, CXCompletionContext_NestedNameSpecifier));
+    exports.Set("CXCompletionContext_ObjCInterface", Napi::Number::New(env, CXCompletionContext_ObjCInterface));
+    exports.Set("CXCompletionContext_ObjCProtocol", Napi::Number::New(env, CXCompletionContext_ObjCProtocol));
+    exports.Set("CXCompletionContext_ObjCCategory", Napi::Number::New(env, CXCompletionContext_ObjCCategory));
+    exports.Set("CXCompletionContext_ObjCInstanceMessage", Napi::Number::New(env, CXCompletionContext_ObjCInstanceMessage));
+    exports.Set("CXCompletionContext_ObjCClassMessage", Napi::Number::New(env, CXCompletionContext_ObjCClassMessage));
+    exports.Set("CXCompletionContext_ObjCSelectorName", Napi::Number::New(env, CXCompletionContext_ObjCSelectorName));
+    exports.Set("CXCompletionContext_MacroName", Napi::Number::New(env, CXCompletionContext_MacroName));
+    exports.Set("CXCompletionContext_NaturalLanguage", Napi::Number::New(env, CXCompletionContext_NaturalLanguage));
+    exports.Set("CXCompletionContext_IncludedFile", Napi::Number::New(env, CXCompletionContext_IncludedFile));
+    exports.Set("CXCompletionContext_Unknown", Napi::Number::New(env, CXCompletionContext_Unknown));
+    exports.Set("CXEval_Int", Napi::Number::New(env, CXEval_Int));
+    exports.Set("CXEval_Float", Napi::Number::New(env, CXEval_Float));
+    exports.Set("CXEval_ObjCStrLiteral", Napi::Number::New(env, CXEval_ObjCStrLiteral));
+    exports.Set("CXEval_StrLiteral", Napi::Number::New(env, CXEval_StrLiteral));
+    exports.Set("CXEval_CFStr", Napi::Number::New(env, CXEval_CFStr));
+    exports.Set("CXEval_Other", Napi::Number::New(env, CXEval_Other));
+    exports.Set("CXEval_UnExposed", Napi::Number::New(env, CXEval_UnExposed));
+    exports.Set("CXVisit_Break", Napi::Number::New(env, CXVisit_Break));
+    exports.Set("CXVisit_Continue", Napi::Number::New(env, CXVisit_Continue));
+    exports.Set("CXResult_Success", Napi::Number::New(env, CXResult_Success));
+    exports.Set("CXResult_Invalid", Napi::Number::New(env, CXResult_Invalid));
+    exports.Set("CXResult_VisitBreak", Napi::Number::New(env, CXResult_VisitBreak));
+    exports.Set("CXIdxEntity_Unexposed", Napi::Number::New(env, CXIdxEntity_Unexposed));
+    exports.Set("CXIdxEntity_Typedef", Napi::Number::New(env, CXIdxEntity_Typedef));
+    exports.Set("CXIdxEntity_Function", Napi::Number::New(env, CXIdxEntity_Function));
+    exports.Set("CXIdxEntity_Variable", Napi::Number::New(env, CXIdxEntity_Variable));
+    exports.Set("CXIdxEntity_Field", Napi::Number::New(env, CXIdxEntity_Field));
+    exports.Set("CXIdxEntity_EnumConstant", Napi::Number::New(env, CXIdxEntity_EnumConstant));
+    exports.Set("CXIdxEntity_ObjCClass", Napi::Number::New(env, CXIdxEntity_ObjCClass));
+    exports.Set("CXIdxEntity_ObjCProtocol", Napi::Number::New(env, CXIdxEntity_ObjCProtocol));
+    exports.Set("CXIdxEntity_ObjCCategory", Napi::Number::New(env, CXIdxEntity_ObjCCategory));
+    exports.Set("CXIdxEntity_ObjCInstanceMethod", Napi::Number::New(env, CXIdxEntity_ObjCInstanceMethod));
+    exports.Set("CXIdxEntity_ObjCClassMethod", Napi::Number::New(env, CXIdxEntity_ObjCClassMethod));
+    exports.Set("CXIdxEntity_ObjCProperty", Napi::Number::New(env, CXIdxEntity_ObjCProperty));
+    exports.Set("CXIdxEntity_ObjCIvar", Napi::Number::New(env, CXIdxEntity_ObjCIvar));
+    exports.Set("CXIdxEntity_Enum", Napi::Number::New(env, CXIdxEntity_Enum));
+    exports.Set("CXIdxEntity_Struct", Napi::Number::New(env, CXIdxEntity_Struct));
+    exports.Set("CXIdxEntity_Union", Napi::Number::New(env, CXIdxEntity_Union));
+    exports.Set("CXIdxEntity_CXXClass", Napi::Number::New(env, CXIdxEntity_CXXClass));
+    exports.Set("CXIdxEntity_CXXNamespace", Napi::Number::New(env, CXIdxEntity_CXXNamespace));
+    exports.Set("CXIdxEntity_CXXNamespaceAlias", Napi::Number::New(env, CXIdxEntity_CXXNamespaceAlias));
+    exports.Set("CXIdxEntity_CXXStaticVariable", Napi::Number::New(env, CXIdxEntity_CXXStaticVariable));
+    exports.Set("CXIdxEntity_CXXStaticMethod", Napi::Number::New(env, CXIdxEntity_CXXStaticMethod));
+    exports.Set("CXIdxEntity_CXXInstanceMethod", Napi::Number::New(env, CXIdxEntity_CXXInstanceMethod));
+    exports.Set("CXIdxEntity_CXXConstructor", Napi::Number::New(env, CXIdxEntity_CXXConstructor));
+    exports.Set("CXIdxEntity_CXXDestructor", Napi::Number::New(env, CXIdxEntity_CXXDestructor));
+    exports.Set("CXIdxEntity_CXXConversionFunction", Napi::Number::New(env, CXIdxEntity_CXXConversionFunction));
+    exports.Set("CXIdxEntity_CXXTypeAlias", Napi::Number::New(env, CXIdxEntity_CXXTypeAlias));
+    exports.Set("CXIdxEntity_CXXInterface", Napi::Number::New(env, CXIdxEntity_CXXInterface));
+    exports.Set("CXIdxEntity_CXXConcept", Napi::Number::New(env, CXIdxEntity_CXXConcept));
+    exports.Set("CXIdxEntityLang_None", Napi::Number::New(env, CXIdxEntityLang_None));
+    exports.Set("CXIdxEntityLang_C", Napi::Number::New(env, CXIdxEntityLang_C));
+    exports.Set("CXIdxEntityLang_ObjC", Napi::Number::New(env, CXIdxEntityLang_ObjC));
+    exports.Set("CXIdxEntityLang_CXX", Napi::Number::New(env, CXIdxEntityLang_CXX));
+    exports.Set("CXIdxEntityLang_Swift", Napi::Number::New(env, CXIdxEntityLang_Swift));
+    exports.Set("CXIdxEntity_NonTemplate", Napi::Number::New(env, CXIdxEntity_NonTemplate));
+    exports.Set("CXIdxEntity_Template", Napi::Number::New(env, CXIdxEntity_Template));
+    exports.Set("CXIdxEntity_TemplatePartialSpecialization", Napi::Number::New(env, CXIdxEntity_TemplatePartialSpecialization));
+    exports.Set("CXIdxEntity_TemplateSpecialization", Napi::Number::New(env, CXIdxEntity_TemplateSpecialization));
+    exports.Set("CXIdxAttr_Unexposed", Napi::Number::New(env, CXIdxAttr_Unexposed));
+    exports.Set("CXIdxAttr_IBAction", Napi::Number::New(env, CXIdxAttr_IBAction));
+    exports.Set("CXIdxAttr_IBOutlet", Napi::Number::New(env, CXIdxAttr_IBOutlet));
+    exports.Set("CXIdxAttr_IBOutletCollection", Napi::Number::New(env, CXIdxAttr_IBOutletCollection));
+    exports.Set("CXIdxDeclFlag_Skipped", Napi::Number::New(env, CXIdxDeclFlag_Skipped));
+    exports.Set("CXIdxObjCContainer_ForwardRef", Napi::Number::New(env, CXIdxObjCContainer_ForwardRef));
+    exports.Set("CXIdxObjCContainer_Interface", Napi::Number::New(env, CXIdxObjCContainer_Interface));
+    exports.Set("CXIdxObjCContainer_Implementation", Napi::Number::New(env, CXIdxObjCContainer_Implementation));
+    exports.Set("CXIdxEntityRef_Direct", Napi::Number::New(env, CXIdxEntityRef_Direct));
+    exports.Set("CXIdxEntityRef_Implicit", Napi::Number::New(env, CXIdxEntityRef_Implicit));
+    exports.Set("CXSymbolRole_None", Napi::Number::New(env, CXSymbolRole_None));
+    exports.Set("CXSymbolRole_Declaration", Napi::Number::New(env, CXSymbolRole_Declaration));
+    exports.Set("CXSymbolRole_Definition", Napi::Number::New(env, CXSymbolRole_Definition));
+    exports.Set("CXSymbolRole_Reference", Napi::Number::New(env, CXSymbolRole_Reference));
+    exports.Set("CXSymbolRole_Read", Napi::Number::New(env, CXSymbolRole_Read));
+    exports.Set("CXSymbolRole_Write", Napi::Number::New(env, CXSymbolRole_Write));
+    exports.Set("CXSymbolRole_Call", Napi::Number::New(env, CXSymbolRole_Call));
+    exports.Set("CXSymbolRole_Dynamic", Napi::Number::New(env, CXSymbolRole_Dynamic));
+    exports.Set("CXSymbolRole_AddressOf", Napi::Number::New(env, CXSymbolRole_AddressOf));
+    exports.Set("CXSymbolRole_Implicit", Napi::Number::New(env, CXSymbolRole_Implicit));
+    exports.Set("CXIndexOpt_None", Napi::Number::New(env, CXIndexOpt_None));
+    exports.Set("CXIndexOpt_SuppressRedundantRefs", Napi::Number::New(env, CXIndexOpt_SuppressRedundantRefs));
+    exports.Set("CXIndexOpt_IndexFunctionLocalSymbols", Napi::Number::New(env, CXIndexOpt_IndexFunctionLocalSymbols));
+    exports.Set("CXIndexOpt_IndexImplicitTemplateInstantiations", Napi::Number::New(env, CXIndexOpt_IndexImplicitTemplateInstantiations));
+    exports.Set("CXIndexOpt_SuppressWarnings", Napi::Number::New(env, CXIndexOpt_SuppressWarnings));
+    exports.Set("CXIndexOpt_SkipParsedBodiesInSession", Napi::Number::New(env, CXIndexOpt_SkipParsedBodiesInSession));
+    exports.Set("CXBinaryOperator_Invalid", Napi::Number::New(env, CXBinaryOperator_Invalid));
+    exports.Set("CXBinaryOperator_PtrMemD", Napi::Number::New(env, CXBinaryOperator_PtrMemD));
+    exports.Set("CXBinaryOperator_PtrMemI", Napi::Number::New(env, CXBinaryOperator_PtrMemI));
+    exports.Set("CXBinaryOperator_Mul", Napi::Number::New(env, CXBinaryOperator_Mul));
+    exports.Set("CXBinaryOperator_Div", Napi::Number::New(env, CXBinaryOperator_Div));
+    exports.Set("CXBinaryOperator_Rem", Napi::Number::New(env, CXBinaryOperator_Rem));
+    exports.Set("CXBinaryOperator_Add", Napi::Number::New(env, CXBinaryOperator_Add));
+    exports.Set("CXBinaryOperator_Sub", Napi::Number::New(env, CXBinaryOperator_Sub));
+    exports.Set("CXBinaryOperator_Shl", Napi::Number::New(env, CXBinaryOperator_Shl));
+    exports.Set("CXBinaryOperator_Shr", Napi::Number::New(env, CXBinaryOperator_Shr));
+    exports.Set("CXBinaryOperator_Cmp", Napi::Number::New(env, CXBinaryOperator_Cmp));
+    exports.Set("CXBinaryOperator_LT", Napi::Number::New(env, CXBinaryOperator_LT));
+    exports.Set("CXBinaryOperator_GT", Napi::Number::New(env, CXBinaryOperator_GT));
+    exports.Set("CXBinaryOperator_LE", Napi::Number::New(env, CXBinaryOperator_LE));
+    exports.Set("CXBinaryOperator_GE", Napi::Number::New(env, CXBinaryOperator_GE));
+    exports.Set("CXBinaryOperator_EQ", Napi::Number::New(env, CXBinaryOperator_EQ));
+    exports.Set("CXBinaryOperator_NE", Napi::Number::New(env, CXBinaryOperator_NE));
+    exports.Set("CXBinaryOperator_And", Napi::Number::New(env, CXBinaryOperator_And));
+    exports.Set("CXBinaryOperator_Xor", Napi::Number::New(env, CXBinaryOperator_Xor));
+    exports.Set("CXBinaryOperator_Or", Napi::Number::New(env, CXBinaryOperator_Or));
+    exports.Set("CXBinaryOperator_LAnd", Napi::Number::New(env, CXBinaryOperator_LAnd));
+    exports.Set("CXBinaryOperator_LOr", Napi::Number::New(env, CXBinaryOperator_LOr));
+    exports.Set("CXBinaryOperator_Assign", Napi::Number::New(env, CXBinaryOperator_Assign));
+    exports.Set("CXBinaryOperator_MulAssign", Napi::Number::New(env, CXBinaryOperator_MulAssign));
+    exports.Set("CXBinaryOperator_DivAssign", Napi::Number::New(env, CXBinaryOperator_DivAssign));
+    exports.Set("CXBinaryOperator_RemAssign", Napi::Number::New(env, CXBinaryOperator_RemAssign));
+    exports.Set("CXBinaryOperator_AddAssign", Napi::Number::New(env, CXBinaryOperator_AddAssign));
+    exports.Set("CXBinaryOperator_SubAssign", Napi::Number::New(env, CXBinaryOperator_SubAssign));
+    exports.Set("CXBinaryOperator_ShlAssign", Napi::Number::New(env, CXBinaryOperator_ShlAssign));
+    exports.Set("CXBinaryOperator_ShrAssign", Napi::Number::New(env, CXBinaryOperator_ShrAssign));
+    exports.Set("CXBinaryOperator_AndAssign", Napi::Number::New(env, CXBinaryOperator_AndAssign));
+    exports.Set("CXBinaryOperator_XorAssign", Napi::Number::New(env, CXBinaryOperator_XorAssign));
+    exports.Set("CXBinaryOperator_OrAssign", Napi::Number::New(env, CXBinaryOperator_OrAssign));
+    exports.Set("CXBinaryOperator_Comma", Napi::Number::New(env, CXBinaryOperator_Comma));
+    exports.Set("CXUnaryOperator_Invalid", Napi::Number::New(env, CXUnaryOperator_Invalid));
+    exports.Set("CXUnaryOperator_PostInc", Napi::Number::New(env, CXUnaryOperator_PostInc));
+    exports.Set("CXUnaryOperator_PostDec", Napi::Number::New(env, CXUnaryOperator_PostDec));
+    exports.Set("CXUnaryOperator_PreInc", Napi::Number::New(env, CXUnaryOperator_PreInc));
+    exports.Set("CXUnaryOperator_PreDec", Napi::Number::New(env, CXUnaryOperator_PreDec));
+    exports.Set("CXUnaryOperator_AddrOf", Napi::Number::New(env, CXUnaryOperator_AddrOf));
+    exports.Set("CXUnaryOperator_Deref", Napi::Number::New(env, CXUnaryOperator_Deref));
+    exports.Set("CXUnaryOperator_Plus", Napi::Number::New(env, CXUnaryOperator_Plus));
+    exports.Set("CXUnaryOperator_Minus", Napi::Number::New(env, CXUnaryOperator_Minus));
+    exports.Set("CXUnaryOperator_Not", Napi::Number::New(env, CXUnaryOperator_Not));
+    exports.Set("CXUnaryOperator_LNot", Napi::Number::New(env, CXUnaryOperator_LNot));
+    exports.Set("CXUnaryOperator_Real", Napi::Number::New(env, CXUnaryOperator_Real));
+    exports.Set("CXUnaryOperator_Imag", Napi::Number::New(env, CXUnaryOperator_Imag));
+    exports.Set("CXUnaryOperator_Extension", Napi::Number::New(env, CXUnaryOperator_Extension));
+    exports.Set("CXUnaryOperator_Coawait", Napi::Number::New(env, CXUnaryOperator_Coawait));
+    exports.Set("create_CXString", Napi::Function::New(env, Create_CXString));
+    exports.Set("get_CXString_field", Napi::Function::New(env, Get_CXString_Field));
+    exports.Set("create_CXStringSet", Napi::Function::New(env, Create_CXStringSet));
+    exports.Set("get_CXStringSet_field", Napi::Function::New(env, Get_CXStringSet_Field));
+    exports.Set("create_CXFileUniqueID", Napi::Function::New(env, Create_CXFileUniqueID));
+    exports.Set("get_CXFileUniqueID_field", Napi::Function::New(env, Get_CXFileUniqueID_Field));
+    exports.Set("create_CXSourceLocation", Napi::Function::New(env, Create_CXSourceLocation));
+    exports.Set("get_CXSourceLocation_field", Napi::Function::New(env, Get_CXSourceLocation_Field));
+    exports.Set("create_CXSourceRange", Napi::Function::New(env, Create_CXSourceRange));
+    exports.Set("get_CXSourceRange_field", Napi::Function::New(env, Get_CXSourceRange_Field));
+    exports.Set("create_CXSourceRangeList", Napi::Function::New(env, Create_CXSourceRangeList));
+    exports.Set("get_CXSourceRangeList_field", Napi::Function::New(env, Get_CXSourceRangeList_Field));
     exports.Set("create_CXUnsavedFile", Napi::Function::New(env, Create_CXUnsavedFile));
     exports.Set("get_CXUnsavedFile_field", Napi::Function::New(env, Get_CXUnsavedFile_Field));
     exports.Set("create_CXVersion", Napi::Function::New(env, Create_CXVersion));
@@ -15599,16 +16679,62 @@ static Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("get_CXIdxEntityRefInfo_field", Napi::Function::New(env, Get_CXIdxEntityRefInfo_Field));
     exports.Set("create_IndexerCallbacks", Napi::Function::New(env, Create_IndexerCallbacks));
     exports.Set("get_IndexerCallbacks_field", Napi::Function::New(env, Get_IndexerCallbacks_Field));
-    exports.Set("create_CXString", Napi::Function::New(env, Create_CXString));
-    exports.Set("get_CXString_field", Napi::Function::New(env, Get_CXString_Field));
-    exports.Set("create_CXStringSet", Napi::Function::New(env, Create_CXStringSet));
-    exports.Set("get_CXStringSet_field", Napi::Function::New(env, Get_CXStringSet_Field));
-    exports.Set("create_CXSourceLocation", Napi::Function::New(env, Create_CXSourceLocation));
-    exports.Set("get_CXSourceLocation_field", Napi::Function::New(env, Get_CXSourceLocation_Field));
-    exports.Set("create_CXSourceRange", Napi::Function::New(env, Create_CXSourceRange));
-    exports.Set("get_CXSourceRange_field", Napi::Function::New(env, Get_CXSourceRange_Field));
-    exports.Set("create_CXSourceRangeList", Napi::Function::New(env, Create_CXSourceRangeList));
-    exports.Set("get_CXSourceRangeList_field", Napi::Function::New(env, Get_CXSourceRangeList_Field));
+    exports.Set("clang_getCString", Napi::Function::New(env, clang_getCString_wrapper));
+    exports.Set("clang_disposeString", Napi::Function::New(env, clang_disposeString_wrapper));
+    exports.Set("clang_disposeStringSet", Napi::Function::New(env, clang_disposeStringSet_wrapper));
+    exports.Set("clang_getBuildSessionTimestamp", Napi::Function::New(env, clang_getBuildSessionTimestamp_wrapper));
+    exports.Set("clang_VirtualFileOverlay_create", Napi::Function::New(env, clang_VirtualFileOverlay_create_wrapper));
+    exports.Set("clang_VirtualFileOverlay_addFileMapping", Napi::Function::New(env, clang_VirtualFileOverlay_addFileMapping_wrapper));
+    exports.Set("clang_VirtualFileOverlay_setCaseSensitivity", Napi::Function::New(env, clang_VirtualFileOverlay_setCaseSensitivity_wrapper));
+    exports.Set("clang_VirtualFileOverlay_writeToBuffer", Napi::Function::New(env, clang_VirtualFileOverlay_writeToBuffer_wrapper));
+    exports.Set("clang_free", Napi::Function::New(env, clang_free_wrapper));
+    exports.Set("clang_VirtualFileOverlay_dispose", Napi::Function::New(env, clang_VirtualFileOverlay_dispose_wrapper));
+    exports.Set("clang_ModuleMapDescriptor_create", Napi::Function::New(env, clang_ModuleMapDescriptor_create_wrapper));
+    exports.Set("clang_ModuleMapDescriptor_setFrameworkModuleName", Napi::Function::New(env, clang_ModuleMapDescriptor_setFrameworkModuleName_wrapper));
+    exports.Set("clang_ModuleMapDescriptor_setUmbrellaHeader", Napi::Function::New(env, clang_ModuleMapDescriptor_setUmbrellaHeader_wrapper));
+    exports.Set("clang_ModuleMapDescriptor_writeToBuffer", Napi::Function::New(env, clang_ModuleMapDescriptor_writeToBuffer_wrapper));
+    exports.Set("clang_ModuleMapDescriptor_dispose", Napi::Function::New(env, clang_ModuleMapDescriptor_dispose_wrapper));
+    exports.Set("clang_getFileName", Napi::Function::New(env, clang_getFileName_wrapper));
+    exports.Set("clang_getFileTime", Napi::Function::New(env, clang_getFileTime_wrapper));
+    exports.Set("clang_getFileUniqueID", Napi::Function::New(env, clang_getFileUniqueID_wrapper));
+    exports.Set("clang_File_isEqual", Napi::Function::New(env, clang_File_isEqual_wrapper));
+    exports.Set("clang_File_tryGetRealPathName", Napi::Function::New(env, clang_File_tryGetRealPathName_wrapper));
+    exports.Set("clang_getNullLocation", Napi::Function::New(env, clang_getNullLocation_wrapper));
+    exports.Set("clang_equalLocations", Napi::Function::New(env, clang_equalLocations_wrapper));
+    exports.Set("clang_isBeforeInTranslationUnit", Napi::Function::New(env, clang_isBeforeInTranslationUnit_wrapper));
+    exports.Set("clang_Location_isInSystemHeader", Napi::Function::New(env, clang_Location_isInSystemHeader_wrapper));
+    exports.Set("clang_Location_isFromMainFile", Napi::Function::New(env, clang_Location_isFromMainFile_wrapper));
+    exports.Set("clang_getNullRange", Napi::Function::New(env, clang_getNullRange_wrapper));
+    exports.Set("clang_getRange", Napi::Function::New(env, clang_getRange_wrapper));
+    exports.Set("clang_equalRanges", Napi::Function::New(env, clang_equalRanges_wrapper));
+    exports.Set("clang_Range_isNull", Napi::Function::New(env, clang_Range_isNull_wrapper));
+    exports.Set("clang_getExpansionLocation", Napi::Function::New(env, clang_getExpansionLocation_wrapper));
+    exports.Set("clang_getPresumedLocation", Napi::Function::New(env, clang_getPresumedLocation_wrapper));
+    exports.Set("clang_getInstantiationLocation", Napi::Function::New(env, clang_getInstantiationLocation_wrapper));
+    exports.Set("clang_getSpellingLocation", Napi::Function::New(env, clang_getSpellingLocation_wrapper));
+    exports.Set("clang_getFileLocation", Napi::Function::New(env, clang_getFileLocation_wrapper));
+    exports.Set("clang_getRangeStart", Napi::Function::New(env, clang_getRangeStart_wrapper));
+    exports.Set("clang_getRangeEnd", Napi::Function::New(env, clang_getRangeEnd_wrapper));
+    exports.Set("clang_disposeSourceRangeList", Napi::Function::New(env, clang_disposeSourceRangeList_wrapper));
+    exports.Set("clang_getNumDiagnosticsInSet", Napi::Function::New(env, clang_getNumDiagnosticsInSet_wrapper));
+    exports.Set("clang_getDiagnosticInSet", Napi::Function::New(env, clang_getDiagnosticInSet_wrapper));
+    exports.Set("clang_loadDiagnostics", Napi::Function::New(env, clang_loadDiagnostics_wrapper));
+    exports.Set("clang_disposeDiagnosticSet", Napi::Function::New(env, clang_disposeDiagnosticSet_wrapper));
+    exports.Set("clang_getChildDiagnostics", Napi::Function::New(env, clang_getChildDiagnostics_wrapper));
+    exports.Set("clang_disposeDiagnostic", Napi::Function::New(env, clang_disposeDiagnostic_wrapper));
+    exports.Set("clang_formatDiagnostic", Napi::Function::New(env, clang_formatDiagnostic_wrapper));
+    exports.Set("clang_defaultDiagnosticDisplayOptions", Napi::Function::New(env, clang_defaultDiagnosticDisplayOptions_wrapper));
+    exports.Set("clang_getDiagnosticSeverity", Napi::Function::New(env, clang_getDiagnosticSeverity_wrapper));
+    exports.Set("clang_getDiagnosticLocation", Napi::Function::New(env, clang_getDiagnosticLocation_wrapper));
+    exports.Set("clang_getDiagnosticSpelling", Napi::Function::New(env, clang_getDiagnosticSpelling_wrapper));
+    exports.Set("clang_getDiagnosticOption", Napi::Function::New(env, clang_getDiagnosticOption_wrapper));
+    exports.Set("clang_getDiagnosticCategory", Napi::Function::New(env, clang_getDiagnosticCategory_wrapper));
+    exports.Set("clang_getDiagnosticCategoryName", Napi::Function::New(env, clang_getDiagnosticCategoryName_wrapper));
+    exports.Set("clang_getDiagnosticCategoryText", Napi::Function::New(env, clang_getDiagnosticCategoryText_wrapper));
+    exports.Set("clang_getDiagnosticNumRanges", Napi::Function::New(env, clang_getDiagnosticNumRanges_wrapper));
+    exports.Set("clang_getDiagnosticRange", Napi::Function::New(env, clang_getDiagnosticRange_wrapper));
+    exports.Set("clang_getDiagnosticNumFixIts", Napi::Function::New(env, clang_getDiagnosticNumFixIts_wrapper));
+    exports.Set("clang_getDiagnosticFixIt", Napi::Function::New(env, clang_getDiagnosticFixIt_wrapper));
     exports.Set("clang_createIndex", Napi::Function::New(env, clang_createIndex_wrapper));
     exports.Set("clang_disposeIndex", Napi::Function::New(env, clang_disposeIndex_wrapper));
     exports.Set("clang_createIndexWithOptions", Napi::Function::New(env, clang_createIndexWithOptions_wrapper));
@@ -15908,26 +17034,6 @@ static Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("clang_getCursorBinaryOperatorKind", Napi::Function::New(env, clang_getCursorBinaryOperatorKind_wrapper));
     exports.Set("clang_getUnaryOperatorKindSpelling", Napi::Function::New(env, clang_getUnaryOperatorKindSpelling_wrapper));
     exports.Set("clang_getCursorUnaryOperatorKind", Napi::Function::New(env, clang_getCursorUnaryOperatorKind_wrapper));
-    exports.Set("clang_getCString", Napi::Function::New(env, clang_getCString_wrapper));
-    exports.Set("clang_disposeString", Napi::Function::New(env, clang_disposeString_wrapper));
-    exports.Set("clang_disposeStringSet", Napi::Function::New(env, clang_disposeStringSet_wrapper));
-    exports.Set("clang_getNullLocation", Napi::Function::New(env, clang_getNullLocation_wrapper));
-    exports.Set("clang_equalLocations", Napi::Function::New(env, clang_equalLocations_wrapper));
-    exports.Set("clang_isBeforeInTranslationUnit", Napi::Function::New(env, clang_isBeforeInTranslationUnit_wrapper));
-    exports.Set("clang_Location_isInSystemHeader", Napi::Function::New(env, clang_Location_isInSystemHeader_wrapper));
-    exports.Set("clang_Location_isFromMainFile", Napi::Function::New(env, clang_Location_isFromMainFile_wrapper));
-    exports.Set("clang_getNullRange", Napi::Function::New(env, clang_getNullRange_wrapper));
-    exports.Set("clang_getRange", Napi::Function::New(env, clang_getRange_wrapper));
-    exports.Set("clang_equalRanges", Napi::Function::New(env, clang_equalRanges_wrapper));
-    exports.Set("clang_Range_isNull", Napi::Function::New(env, clang_Range_isNull_wrapper));
-    exports.Set("clang_getExpansionLocation", Napi::Function::New(env, clang_getExpansionLocation_wrapper));
-    exports.Set("clang_getPresumedLocation", Napi::Function::New(env, clang_getPresumedLocation_wrapper));
-    exports.Set("clang_getInstantiationLocation", Napi::Function::New(env, clang_getInstantiationLocation_wrapper));
-    exports.Set("clang_getSpellingLocation", Napi::Function::New(env, clang_getSpellingLocation_wrapper));
-    exports.Set("clang_getFileLocation", Napi::Function::New(env, clang_getFileLocation_wrapper));
-    exports.Set("clang_getRangeStart", Napi::Function::New(env, clang_getRangeStart_wrapper));
-    exports.Set("clang_getRangeEnd", Napi::Function::New(env, clang_getRangeEnd_wrapper));
-    exports.Set("clang_disposeSourceRangeList", Napi::Function::New(env, clang_disposeSourceRangeList_wrapper));
     return exports;
 }
 

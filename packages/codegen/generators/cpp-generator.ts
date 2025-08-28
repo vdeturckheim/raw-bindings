@@ -34,6 +34,10 @@ export class CppGenerator {
     if (this.ast.typedefs) {
       TypeMapper.setTypedefs(this.ast.typedefs);
     }
+    
+    // Initialize TypeMapper with enum names
+    const enumNames = this.ast.enums.map(e => e.name).filter(n => n);
+    TypeMapper.setEnumTypes(enumNames);
 
     // Headers
     sections.push(this.generateHeaders());
@@ -268,8 +272,12 @@ static void* unwrapPointer(Napi::Object obj) {
           // Handle enum types with explicit casting
           lines.push(`            ptr->${field.name} = static_cast<${field.type}>(obj.Get("${field.name}").As<Napi::Number>().Int32Value());`);
         } else if (TypeMapper.isFunctionPointerType(field.type)) {
-          // Skip function pointer fields - they can't be assigned from JavaScript safely
-          lines.push(`            // Note: Function pointer field ${field.name} skipped - not assignable from JavaScript`);
+          // Handle function pointer fields - they can be passed as External
+          lines.push(`            if (obj.Get("${field.name}").IsExternal()) {`);
+          lines.push(`                ptr->${field.name} = reinterpret_cast<${field.type}>(obj.Get("${field.name}").As<Napi::External<void>>().Data());`);
+          lines.push(`            } else {`);
+          lines.push(`                ptr->${field.name} = nullptr;`);
+          lines.push(`            }`);
         } else if (TypeMapper.isStringType(field.type)) {
           // Special handling for string fields - store the string and keep it alive
           lines.push(`            // Note: String lifetime management needed for production use`);
@@ -507,12 +515,21 @@ static void* unwrapPointer(Napi::Object obj) {
             `    ${paramType} ${paramName} = static_cast<${paramType}>(info[${i}].As<Napi::Number>().Int32Value());`,
           );
         } else if (TypeMapper.isFunctionPointerType(paramType)) {
-          // Handle other function pointers the old way
-          const typedefType = paramType.replace(/\(\*\)/, `(*${paramName}_t)`);
-          lines.push(`    typedef ${typedefType};`);
-          lines.push(
-            `    ${paramName}_t ${paramName} = reinterpret_cast<${paramName}_t>(unwrapPointer(info[${i}].As<Napi::Object>()));`,
-          );
+          // Handle function pointers - they're passed as External
+          lines.push(`    // Parameter: ${paramName} (${paramType})`);
+          // For function pointers like "void (*)(void *)", we need to insert the variable name
+          // in the middle: "void (*fn)(void *)"
+          let declarationType = paramType;
+          if (paramType.includes('(*)')) {
+            declarationType = paramType.replace('(*)', `(*${paramName})`);
+            lines.push(`    ${declarationType} = nullptr;`);
+          } else {
+            // For typedef'd function pointers like MathFunc
+            lines.push(`    ${paramType} ${paramName} = nullptr;`);
+          }
+          lines.push(`    if (info[${i}].IsExternal()) {`);
+          lines.push(`        ${paramName} = reinterpret_cast<${paramType}>(info[${i}].As<Napi::External<void>>().Data());`);
+          lines.push(`    }`);
         } else if (TypeMapper.isStructPointer(paramType)) {
           // Handle struct pointers (including const)
           // Allow null/undefined for optional struct pointers
@@ -674,8 +691,9 @@ static void* unwrapPointer(Napi::Object obj) {
           this.generatedConstants.has(functionName) &&
           !exportedNames.has(constant.name)
         ) {
+          // Export as a direct number value, not as a function
           lines.push(
-            `    exports.Set("${constant.name}", Napi::Function::New(env, ${functionName}));`,
+            `    exports.Set("${constant.name}", Napi::Number::New(env, ${constant.name}));`,
           );
           exportedNames.add(constant.name);
         }

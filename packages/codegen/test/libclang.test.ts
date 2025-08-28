@@ -41,7 +41,7 @@ int main() {
       // Generate bindings for libclang
       console.log('  📝 Generating libclang bindings...');
       await generateBindings(
-        '/opt/homebrew/Cellar/llvm/20.1.8/include/clang-c/Index.h',
+        ['/opt/homebrew/Cellar/llvm/20.1.8/include/clang-c/Index.h'],
         {
           outputDir,
           packageName: 'libclang-binding',

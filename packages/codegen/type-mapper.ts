@@ -3,6 +3,7 @@ import type { TypeMapping } from './types.ts';
 export class TypeMapper {
   private static knownStructTypes: Set<string> = new Set();
   private static typedefMap: Map<string, string> = new Map();
+  private static enumTypes: Set<string> = new Set();
   
   static setKnownStructTypes(structNames: string[]) {
     this.knownStructTypes = new Set(structNames);
@@ -10,6 +11,10 @@ export class TypeMapper {
   
   static setTypedefs(typedefs: Array<{ name: string; underlying: string }>) {
     this.typedefMap = new Map(typedefs.map(t => [t.name, t.underlying]));
+  }
+  
+  static setEnumTypes(enumNames: string[]) {
+    this.enumTypes = new Set(enumNames);
   }
   
   private static readonly primitiveTypes: Map<string, TypeMapping> = new Map([
@@ -361,6 +366,14 @@ export class TypeMapper {
       if (this.isPointerType(underlying)) {
         return false;
       }
+      // Check if it's a block type (Objective-C block)
+      if (underlying.includes('(^') || underlying.includes('Block')) {
+        return false;
+      }
+      // Check if it's a typedef to an enum (but not a block returning an enum)
+      if (underlying.startsWith('enum ') && !underlying.includes('(')) {
+        return true;
+      }
     }
     
     // Check for explicit enum prefix
@@ -384,7 +397,26 @@ export class TypeMapper {
   }
 
   static isFunctionPointerType(cType: string): boolean {
-    return cType.includes('(*') && cType.includes(')');
+    // Check if the type itself is a function pointer
+    if (cType.includes('(*') && cType.includes(')')) {
+      return true;
+    }
+    
+    // Check if it's an Objective-C block type
+    if (cType.includes('Block') && (cType.includes('Visitor') || cType.includes('Handler'))) {
+      return true;
+    }
+    
+    // Check if it's a typedef that resolves to a function pointer or block
+    const cleanType = cType.replace(/^const\s+/, '').replace(/\s+const$/, '').trim();
+    if (this.typedefMap.has(cleanType)) {
+      const underlying = this.typedefMap.get(cleanType)!;
+      // Check for function pointer syntax or block syntax
+      return (underlying.includes('(*') && underlying.includes(')')) || 
+             underlying.includes('(^');
+    }
+    
+    return false;
   }
 
   static isStructType(cType: string): boolean {

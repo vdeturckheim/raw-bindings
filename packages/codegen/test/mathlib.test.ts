@@ -25,7 +25,7 @@ describe('MathLib Bindings', () => {
 
       // Generate bindings
       console.log('  📝 Generating bindings...');
-      await generateBindings(join(tempDir, 'mathlib.h'), {
+      await generateBindings([join(tempDir, 'mathlib.h')], {
         outputDir,
         packageName: 'mathlib-binding',
         packageVersion: '0.0.1',
@@ -128,8 +128,8 @@ describe('MathLib Bindings', () => {
       );
 
       // Test Point2D struct
-      const p1 = addon.create_Point2D({ x: 3.0, y: 4.0 });
-      const p2 = addon.create_Point2D({ x: 0.0, y: 0.0 });
+      const p1 = addon.createPoint2D({ x: 3.0, y: 4.0 });
+      const p2 = addon.createPoint2D({ x: 0.0, y: 0.0 });
 
       // Test create_point function
       const _p3 = addon.create_point(1.0, 2.0);
@@ -141,12 +141,12 @@ describe('MathLib Bindings', () => {
       // Test add_points function (returns struct)
       const p4 = addon.add_points(p1, p2);
       assert.strictEqual(
-        addon.get_Point2D_field(p4, 'x'),
+        addon.getPoint2DFields(p4).x,
         3.0,
         'add_points x coordinate',
       );
       assert.strictEqual(
-        addon.get_Point2D_field(p4, 'y'),
+        addon.getPoint2DFields(p4).y,
         4.0,
         'add_points y coordinate',
       );

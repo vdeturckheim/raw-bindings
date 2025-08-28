@@ -131,7 +131,8 @@ const addon = nodeGypBuild(import.meta.dirname) as any;`;
         if (constant.value !== null) {
           lines.push(`  ${safeName}: ${constant.value},`);
         } else {
-          lines.push(`  ${safeName}: addon.${constant.name}(),`);
+          // Access the enum value directly from addon (it's exported as a number now)
+          lines.push(`  ${safeName}: addon.${constant.name},`);
         }
       }
       lines.push(`} as const;`);

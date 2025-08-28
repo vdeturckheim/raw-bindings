@@ -4,6 +4,110 @@ import nodeGypBuild from 'node-gyp-build';
 const addon = nodeGypBuild(import.meta.dirname) as any;
 
 // Struct type definitions
+/**
+ * A character string.
+
+The \c CXString type is used to return strings from the interface when
+the ownership of that string might differ from one call to the next.
+Use \c clang_getCString() to retrieve the string data and, once finished
+with the string data, call \c clang_disposeString() to free the string.
+ */
+export interface CXString {
+  _ptr: unknown;
+  _type: 'CXString';
+}
+
+export interface CXStringInit {
+  data?: unknown;
+  private_flags?: number;
+}
+
+export interface CXStringSet {
+  _ptr: unknown;
+  _type: 'CXStringSet';
+}
+
+export interface CXStringSetInit {
+  Strings?: { _ptr: unknown };
+  Count?: number;
+}
+
+export interface CXVirtualFileOverlayImpl {
+  _ptr: unknown;
+  _type: 'CXVirtualFileOverlayImpl';
+}
+
+export interface CXVirtualFileOverlayImplInit {
+}
+
+export interface CXModuleMapDescriptorImpl {
+  _ptr: unknown;
+  _type: 'CXModuleMapDescriptorImpl';
+}
+
+export interface CXModuleMapDescriptorImplInit {
+}
+
+/**
+ * Uniquely identifies a CXFile, that refers to the same underlying file,
+across an indexing session.
+ */
+export interface CXFileUniqueID {
+  _ptr: unknown;
+  _type: 'CXFileUniqueID';
+}
+
+export interface CXFileUniqueIDInit {
+  data?: unknown[];
+}
+
+/**
+ * Identifies a specific source location within a translation
+unit.
+
+Use clang_getExpansionLocation() or clang_getSpellingLocation()
+to map a source location to a particular file, line, and column.
+ */
+export interface CXSourceLocation {
+  _ptr: unknown;
+  _type: 'CXSourceLocation';
+}
+
+export interface CXSourceLocationInit {
+  ptr_data?: unknown[];
+  int_data?: number;
+}
+
+/**
+ * Identifies a half-open character range in the source code.
+
+Use clang_getRangeStart() and clang_getRangeEnd() to retrieve the
+starting and end locations from a source range, respectively.
+ */
+export interface CXSourceRange {
+  _ptr: unknown;
+  _type: 'CXSourceRange';
+}
+
+export interface CXSourceRangeInit {
+  ptr_data?: unknown[];
+  begin_int_data?: number;
+  end_int_data?: number;
+}
+
+/**
+ * Identifies an array of ranges.
+ */
+export interface CXSourceRangeList {
+  _ptr: unknown;
+  _type: 'CXSourceRangeList';
+}
+
+export interface CXSourceRangeListInit {
+  count?: number;
+  ranges?: { _ptr: unknown };
+}
+
 export interface CXTargetInfoImpl {
   _ptr: unknown;
   _type: 'CXTargetInfoImpl';
@@ -474,83 +578,207 @@ export interface IndexerCallbacksInit {
   indexEntityReference?: { _type: 'void (*)(CXClientData, const CXIdxEntityRefInfo *)' };
 }
 
-/**
- * A character string.
-
-The \c CXString type is used to return strings from the interface when
-the ownership of that string might differ from one call to the next.
-Use \c clang_getCString() to retrieve the string data and, once finished
-with the string data, call \c clang_disposeString() to free the string.
- */
-export interface CXString {
-  _ptr: unknown;
-  _type: 'CXString';
-}
-
-export interface CXStringInit {
-  data?: unknown;
-  private_flags?: number;
-}
-
-export interface CXStringSet {
-  _ptr: unknown;
-  _type: 'CXStringSet';
-}
-
-export interface CXStringSetInit {
-  Strings?: { _ptr: unknown };
-  Count?: number;
-}
-
-/**
- * Identifies a specific source location within a translation
-unit.
-
-Use clang_getExpansionLocation() or clang_getSpellingLocation()
-to map a source location to a particular file, line, and column.
- */
-export interface CXSourceLocation {
-  _ptr: unknown;
-  _type: 'CXSourceLocation';
-}
-
-export interface CXSourceLocationInit {
-  ptr_data?: unknown[];
-  int_data?: number;
-}
-
-/**
- * Identifies a half-open character range in the source code.
-
-Use clang_getRangeStart() and clang_getRangeEnd() to retrieve the
-starting and end locations from a source range, respectively.
- */
-export interface CXSourceRange {
-  _ptr: unknown;
-  _type: 'CXSourceRange';
-}
-
-export interface CXSourceRangeInit {
-  ptr_data?: unknown[];
-  begin_int_data?: number;
-  end_int_data?: number;
-}
-
-/**
- * Identifies an array of ranges.
- */
-export interface CXSourceRangeList {
-  _ptr: unknown;
-  _type: 'CXSourceRangeList';
-}
-
-export interface CXSourceRangeListInit {
-  count?: number;
-  ranges?: { _ptr: unknown };
-}
-
 
 // Enum constants
+/**
+ * Error codes returned by libclang routines.
+
+Zero (\c CXError_Success) is the only error code indicating success.  Other
+error codes, including not yet assigned non-zero values, indicate errors.
+ */
+export const CXErrorCode = {
+  /** No error. */
+  CXError_Success: 0,
+  /** A generic error code, no further details are available.
+
+Errors of this kind can get their own specific error codes in future
+libclang versions. */
+  CXError_Failure: 1,
+  /** libclang crashed while performing the requested operation. */
+  CXError_Crashed: 2,
+  /** The function detected that the arguments violate the function
+contract. */
+  CXError_InvalidArguments: 3,
+  /** An AST deserialization error has occurred. */
+  CXError_ASTReadError: 4,
+} as const;
+
+/** No error. */
+export const CXError_Success: number = CXErrorCode.CXError_Success;
+/** A generic error code, no further details are available.
+
+Errors of this kind can get their own specific error codes in future
+libclang versions. */
+export const CXError_Failure: number = CXErrorCode.CXError_Failure;
+/** libclang crashed while performing the requested operation. */
+export const CXError_Crashed: number = CXErrorCode.CXError_Crashed;
+/** The function detected that the arguments violate the function
+contract. */
+export const CXError_InvalidArguments: number = CXErrorCode.CXError_InvalidArguments;
+/** An AST deserialization error has occurred. */
+export const CXError_ASTReadError: number = CXErrorCode.CXError_ASTReadError;
+
+/**
+ * Describes the severity of a particular diagnostic.
+ */
+export const CXDiagnosticSeverity = {
+  /** A diagnostic that has been suppressed, e.g., by a command-line
+option. */
+  CXDiagnostic_Ignored: 0,
+  /** This diagnostic is a note that should be attached to the
+previous (non-note) diagnostic. */
+  CXDiagnostic_Note: 1,
+  /** This diagnostic indicates suspicious code that may not be
+wrong. */
+  CXDiagnostic_Warning: 2,
+  /** This diagnostic indicates that the code is ill-formed. */
+  CXDiagnostic_Error: 3,
+  /** This diagnostic indicates that the code is ill-formed such
+that future parser recovery is unlikely to produce useful
+results. */
+  CXDiagnostic_Fatal: 4,
+} as const;
+
+/** A diagnostic that has been suppressed, e.g., by a command-line
+option. */
+export const CXDiagnostic_Ignored: number = CXDiagnosticSeverity.CXDiagnostic_Ignored;
+/** This diagnostic is a note that should be attached to the
+previous (non-note) diagnostic. */
+export const CXDiagnostic_Note: number = CXDiagnosticSeverity.CXDiagnostic_Note;
+/** This diagnostic indicates suspicious code that may not be
+wrong. */
+export const CXDiagnostic_Warning: number = CXDiagnosticSeverity.CXDiagnostic_Warning;
+/** This diagnostic indicates that the code is ill-formed. */
+export const CXDiagnostic_Error: number = CXDiagnosticSeverity.CXDiagnostic_Error;
+/** This diagnostic indicates that the code is ill-formed such
+that future parser recovery is unlikely to produce useful
+results. */
+export const CXDiagnostic_Fatal: number = CXDiagnosticSeverity.CXDiagnostic_Fatal;
+
+/**
+ * Describes the kind of error that occurred (if any) in a call to
+\c clang_loadDiagnostics.
+ */
+export const CXLoadDiag_Error = {
+  /** Indicates that no error occurred. */
+  CXLoadDiag_None: 0,
+  /** Indicates that an unknown error occurred while attempting to
+deserialize diagnostics. */
+  CXLoadDiag_Unknown: 1,
+  /** Indicates that the file containing the serialized diagnostics
+could not be opened. */
+  CXLoadDiag_CannotLoad: 2,
+  /** Indicates that the serialized diagnostics file is invalid or
+corrupt. */
+  CXLoadDiag_InvalidFile: 3,
+} as const;
+
+/** Indicates that no error occurred. */
+export const CXLoadDiag_None: number = CXLoadDiag_Error.CXLoadDiag_None;
+/** Indicates that an unknown error occurred while attempting to
+deserialize diagnostics. */
+export const CXLoadDiag_Unknown: number = CXLoadDiag_Error.CXLoadDiag_Unknown;
+/** Indicates that the file containing the serialized diagnostics
+could not be opened. */
+export const CXLoadDiag_CannotLoad: number = CXLoadDiag_Error.CXLoadDiag_CannotLoad;
+/** Indicates that the serialized diagnostics file is invalid or
+corrupt. */
+export const CXLoadDiag_InvalidFile: number = CXLoadDiag_Error.CXLoadDiag_InvalidFile;
+
+/**
+ * Options to control the display of diagnostics.
+
+The values in this enum are meant to be combined to customize the
+behavior of \c clang_formatDiagnostic().
+ */
+export const CXDiagnosticDisplayOptions = {
+  /** Display the source-location information where the
+diagnostic was located.
+
+When set, diagnostics will be prefixed by the file, line, and
+(optionally) column to which the diagnostic refers. For example,
+
+\code
+test.c:28: warning: extra tokens at end of #endif directive
+\endcode
+
+This option corresponds to the clang flag \c -fshow-source-location. */
+  CXDiagnostic_DisplaySourceLocation: 1,
+  /** If displaying the source-location information of the
+diagnostic, also include the column number.
+
+This option corresponds to the clang flag \c -fshow-column. */
+  CXDiagnostic_DisplayColumn: 2,
+  /** If displaying the source-location information of the
+diagnostic, also include information about source ranges in a
+machine-parsable format.
+
+This option corresponds to the clang flag
+\c -fdiagnostics-print-source-range-info. */
+  CXDiagnostic_DisplaySourceRanges: 4,
+  /** Display the option name associated with this diagnostic, if any.
+
+The option name displayed (e.g., -Wconversion) will be placed in brackets
+after the diagnostic text. This option corresponds to the clang flag
+\c -fdiagnostics-show-option. */
+  CXDiagnostic_DisplayOption: 8,
+  /** Display the category number associated with this diagnostic, if any.
+
+The category number is displayed within brackets after the diagnostic text.
+This option corresponds to the clang flag
+\c -fdiagnostics-show-category=id. */
+  CXDiagnostic_DisplayCategoryId: 16,
+  /** Display the category name associated with this diagnostic, if any.
+
+The category name is displayed within brackets after the diagnostic text.
+This option corresponds to the clang flag
+\c -fdiagnostics-show-category=name. */
+  CXDiagnostic_DisplayCategoryName: 32,
+} as const;
+
+/** Display the source-location information where the
+diagnostic was located.
+
+When set, diagnostics will be prefixed by the file, line, and
+(optionally) column to which the diagnostic refers. For example,
+
+\code
+test.c:28: warning: extra tokens at end of #endif directive
+\endcode
+
+This option corresponds to the clang flag \c -fshow-source-location. */
+export const CXDiagnostic_DisplaySourceLocation: number = CXDiagnosticDisplayOptions.CXDiagnostic_DisplaySourceLocation;
+/** If displaying the source-location information of the
+diagnostic, also include the column number.
+
+This option corresponds to the clang flag \c -fshow-column. */
+export const CXDiagnostic_DisplayColumn: number = CXDiagnosticDisplayOptions.CXDiagnostic_DisplayColumn;
+/** If displaying the source-location information of the
+diagnostic, also include information about source ranges in a
+machine-parsable format.
+
+This option corresponds to the clang flag
+\c -fdiagnostics-print-source-range-info. */
+export const CXDiagnostic_DisplaySourceRanges: number = CXDiagnosticDisplayOptions.CXDiagnostic_DisplaySourceRanges;
+/** Display the option name associated with this diagnostic, if any.
+
+The option name displayed (e.g., -Wconversion) will be placed in brackets
+after the diagnostic text. This option corresponds to the clang flag
+\c -fdiagnostics-show-option. */
+export const CXDiagnostic_DisplayOption: number = CXDiagnosticDisplayOptions.CXDiagnostic_DisplayOption;
+/** Display the category number associated with this diagnostic, if any.
+
+The category number is displayed within brackets after the diagnostic text.
+This option corresponds to the clang flag
+\c -fdiagnostics-show-category=id. */
+export const CXDiagnostic_DisplayCategoryId: number = CXDiagnosticDisplayOptions.CXDiagnostic_DisplayCategoryId;
+/** Display the category name associated with this diagnostic, if any.
+
+The category name is displayed within brackets after the diagnostic text.
+This option corresponds to the clang flag
+\c -fdiagnostics-show-category=name. */
+export const CXDiagnostic_DisplayCategoryName: number = CXDiagnosticDisplayOptions.CXDiagnostic_DisplayCategoryName;
+
 /**
  * Describes the availability of a particular entity, which indicates
 whether the use of this entity will result in a warning or error due to
@@ -5069,6 +5297,790 @@ export const CXUnaryOperator_Coawait: number = CXUnaryOperatorKind.CXUnaryOperat
 
 // Function exports
 /**
+ * Retrieve the character data associated with the given string.
+
+The returned data is a reference and not owned by the user. This data
+is only valid while the `CXString` is valid. This function is similar
+to `std::string::c_str()`.
+ * @param string - CXString
+ * @returns const char *
+ */
+export function clang_getCString(string: { _type: 'CXString' }): string {
+  return addon.clang_getCString(string);
+}
+
+/**
+ * Free the given string.
+ * @param string - CXString
+ */
+export function clang_disposeString(string: { _type: 'CXString' }): void {
+  addon.clang_disposeString(string);
+}
+
+/**
+ * Free the given string set.
+ * @param set - CXStringSet *
+ */
+export function clang_disposeStringSet(set: { _ptr: unknown }): void {
+  addon.clang_disposeStringSet(set);
+}
+
+/**
+ * Return the timestamp for use with Clang's
+\c -fbuild-session-timestamp= option.
+ * @returns unsigned long long
+ */
+export function clang_getBuildSessionTimestamp(): bigint {
+  return addon.clang_getBuildSessionTimestamp();
+}
+
+/**
+ * Create a \c CXVirtualFileOverlay object.
+Must be disposed with \c clang_VirtualFileOverlay_dispose().
+
+\param options is reserved, always pass 0.
+ * @param options - unsigned int
+ * @returns CXVirtualFileOverlay
+ */
+export function clang_VirtualFileOverlay_create(options: number): { _type: 'CXVirtualFileOverlay' } {
+  return addon.clang_VirtualFileOverlay_create(options);
+}
+
+/**
+ * Map an absolute virtual file path to an absolute real one.
+The virtual path must be canonicalized (not contain "."/"..").
+\returns 0 for success, non-zero to indicate an error.
+ * @param arg - CXVirtualFileOverlay
+ * @param virtualPath - const char *
+ * @param realPath - const char *
+ * @returns enum CXErrorCode
+ */
+export function clang_VirtualFileOverlay_addFileMapping(arg0: { _type: 'CXVirtualFileOverlay' }, virtualPath: string, realPath: string): number {
+  return addon.clang_VirtualFileOverlay_addFileMapping(arg0, virtualPath, realPath);
+}
+
+/**
+ * Set the case sensitivity for the \c CXVirtualFileOverlay object.
+The \c CXVirtualFileOverlay object is case-sensitive by default, this
+option can be used to override the default.
+\returns 0 for success, non-zero to indicate an error.
+ * @param arg - CXVirtualFileOverlay
+ * @param caseSensitive - int
+ * @returns enum CXErrorCode
+ */
+export function clang_VirtualFileOverlay_setCaseSensitivity(arg0: { _type: 'CXVirtualFileOverlay' }, caseSensitive: number): number {
+  return addon.clang_VirtualFileOverlay_setCaseSensitivity(arg0, caseSensitive);
+}
+
+/**
+ * Write out the \c CXVirtualFileOverlay object to a char buffer.
+
+\param options is reserved, always pass 0.
+\param out_buffer_ptr pointer to receive the buffer pointer, which should be
+disposed using \c clang_free().
+\param out_buffer_size pointer to receive the buffer size.
+\returns 0 for success, non-zero to indicate an error.
+ * @param arg - CXVirtualFileOverlay
+ * @param options - unsigned int
+ * @param out_buffer_ptr - char **
+ * @param out_buffer_size - unsigned int *
+ * @returns enum CXErrorCode
+ */
+export function clang_VirtualFileOverlay_writeToBuffer(arg0: { _type: 'CXVirtualFileOverlay' }, options: number, out_buffer_ptr: { _ptr: unknown }, out_buffer_size: { _ptr: unknown }): number {
+  return addon.clang_VirtualFileOverlay_writeToBuffer(arg0, options, out_buffer_ptr, out_buffer_size);
+}
+
+/**
+ * free memory allocated by libclang, such as the buffer returned by
+\c CXVirtualFileOverlay() or \c clang_ModuleMapDescriptor_writeToBuffer().
+
+\param buffer memory pointer to free.
+ * @param buffer - void *
+ */
+export function clang_free(buffer: unknown): void {
+  addon.clang_free(buffer);
+}
+
+/**
+ * Dispose a \c CXVirtualFileOverlay object.
+ * @param arg - CXVirtualFileOverlay
+ */
+export function clang_VirtualFileOverlay_dispose(arg0: { _type: 'CXVirtualFileOverlay' }): void {
+  addon.clang_VirtualFileOverlay_dispose(arg0);
+}
+
+/**
+ * Create a \c CXModuleMapDescriptor object.
+Must be disposed with \c clang_ModuleMapDescriptor_dispose().
+
+\param options is reserved, always pass 0.
+ * @param options - unsigned int
+ * @returns CXModuleMapDescriptor
+ */
+export function clang_ModuleMapDescriptor_create(options: number): { _type: 'CXModuleMapDescriptor' } {
+  return addon.clang_ModuleMapDescriptor_create(options);
+}
+
+/**
+ * Sets the framework module name that the module.modulemap describes.
+\returns 0 for success, non-zero to indicate an error.
+ * @param arg - CXModuleMapDescriptor
+ * @param name - const char *
+ * @returns enum CXErrorCode
+ */
+export function clang_ModuleMapDescriptor_setFrameworkModuleName(arg0: { _type: 'CXModuleMapDescriptor' }, name: string): number {
+  return addon.clang_ModuleMapDescriptor_setFrameworkModuleName(arg0, name);
+}
+
+/**
+ * Sets the umbrella header name that the module.modulemap describes.
+\returns 0 for success, non-zero to indicate an error.
+ * @param arg - CXModuleMapDescriptor
+ * @param name - const char *
+ * @returns enum CXErrorCode
+ */
+export function clang_ModuleMapDescriptor_setUmbrellaHeader(arg0: { _type: 'CXModuleMapDescriptor' }, name: string): number {
+  return addon.clang_ModuleMapDescriptor_setUmbrellaHeader(arg0, name);
+}
+
+/**
+ * Write out the \c CXModuleMapDescriptor object to a char buffer.
+
+\param options is reserved, always pass 0.
+\param out_buffer_ptr pointer to receive the buffer pointer, which should be
+disposed using \c clang_free().
+\param out_buffer_size pointer to receive the buffer size.
+\returns 0 for success, non-zero to indicate an error.
+ * @param arg - CXModuleMapDescriptor
+ * @param options - unsigned int
+ * @param out_buffer_ptr - char **
+ * @param out_buffer_size - unsigned int *
+ * @returns enum CXErrorCode
+ */
+export function clang_ModuleMapDescriptor_writeToBuffer(arg0: { _type: 'CXModuleMapDescriptor' }, options: number, out_buffer_ptr: { _ptr: unknown }, out_buffer_size: { _ptr: unknown }): number {
+  return addon.clang_ModuleMapDescriptor_writeToBuffer(arg0, options, out_buffer_ptr, out_buffer_size);
+}
+
+/**
+ * Dispose a \c CXModuleMapDescriptor object.
+ * @param arg - CXModuleMapDescriptor
+ */
+export function clang_ModuleMapDescriptor_dispose(arg0: { _type: 'CXModuleMapDescriptor' }): void {
+  addon.clang_ModuleMapDescriptor_dispose(arg0);
+}
+
+/**
+ * Retrieve the complete file and path name of the given file.
+ * @param SFile - CXFile
+ * @returns CXString
+ */
+export function clang_getFileName(SFile: { _type: 'CXFile' }): { _type: 'CXString' } {
+  return addon.clang_getFileName(SFile);
+}
+
+/**
+ * Retrieve the last modification time of the given file.
+ * @param SFile - CXFile
+ * @returns int
+ */
+export function clang_getFileTime(SFile: { _type: 'CXFile' }): number {
+  return addon.clang_getFileTime(SFile);
+}
+
+/**
+ * Retrieve the unique ID for the given \c file.
+
+\param file the file to get the ID for.
+\param outID stores the returned CXFileUniqueID.
+\returns If there was a failure getting the unique ID, returns non-zero,
+otherwise returns 0.
+ * @param file - CXFile
+ * @param outID - CXFileUniqueID *
+ * @returns int
+ */
+export function clang_getFileUniqueID(file: { _type: 'CXFile' }, outID: { _ptr: unknown }): number {
+  return addon.clang_getFileUniqueID(file, outID);
+}
+
+/**
+ * Returns non-zero if the \c file1 and \c file2 point to the same file,
+or they are both NULL.
+ * @param file1 - CXFile
+ * @param file2 - CXFile
+ * @returns int
+ */
+export function clang_File_isEqual(file1: { _type: 'CXFile' }, file2: { _type: 'CXFile' }): number {
+  return addon.clang_File_isEqual(file1, file2);
+}
+
+/**
+ * Returns the real path name of \c file.
+
+An empty string may be returned. Use \c clang_getFileName() in that case.
+ * @param file - CXFile
+ * @returns CXString
+ */
+export function clang_File_tryGetRealPathName(file: { _type: 'CXFile' }): { _type: 'CXString' } {
+  return addon.clang_File_tryGetRealPathName(file);
+}
+
+/**
+ * Retrieve a NULL (invalid) source location.
+ * @returns CXSourceLocation
+ */
+export function clang_getNullLocation(): { _type: 'CXSourceLocation' } {
+  return addon.clang_getNullLocation();
+}
+
+/**
+ * Determine whether two source locations, which must refer into
+the same translation unit, refer to exactly the same point in the source
+code.
+
+\returns non-zero if the source locations refer to the same location, zero
+if they refer to different locations.
+ * @param loc1 - CXSourceLocation
+ * @param loc2 - CXSourceLocation
+ * @returns unsigned int
+ */
+export function clang_equalLocations(loc1: { _type: 'CXSourceLocation' }, loc2: { _type: 'CXSourceLocation' }): number {
+  return addon.clang_equalLocations(loc1, loc2);
+}
+
+/**
+ * Determine for two source locations if the first comes
+strictly before the second one in the source code.
+
+\returns non-zero if the first source location comes
+strictly before the second one, zero otherwise.
+ * @param loc1 - CXSourceLocation
+ * @param loc2 - CXSourceLocation
+ * @returns unsigned int
+ */
+export function clang_isBeforeInTranslationUnit(loc1: { _type: 'CXSourceLocation' }, loc2: { _type: 'CXSourceLocation' }): number {
+  return addon.clang_isBeforeInTranslationUnit(loc1, loc2);
+}
+
+/**
+ * Returns non-zero if the given source location is in a system header.
+ * @param location - CXSourceLocation
+ * @returns int
+ */
+export function clang_Location_isInSystemHeader(location: { _type: 'CXSourceLocation' }): number {
+  return addon.clang_Location_isInSystemHeader(location);
+}
+
+/**
+ * Returns non-zero if the given source location is in the main file of
+the corresponding translation unit.
+ * @param location - CXSourceLocation
+ * @returns int
+ */
+export function clang_Location_isFromMainFile(location: { _type: 'CXSourceLocation' }): number {
+  return addon.clang_Location_isFromMainFile(location);
+}
+
+/**
+ * Retrieve a NULL (invalid) source range.
+ * @returns CXSourceRange
+ */
+export function clang_getNullRange(): { _type: 'CXSourceRange' } {
+  return addon.clang_getNullRange();
+}
+
+/**
+ * Retrieve a source range given the beginning and ending source
+locations.
+ * @param begin - CXSourceLocation
+ * @param end - CXSourceLocation
+ * @returns CXSourceRange
+ */
+export function clang_getRange(begin: { _type: 'CXSourceLocation' }, end: { _type: 'CXSourceLocation' }): { _type: 'CXSourceRange' } {
+  return addon.clang_getRange(begin, end);
+}
+
+/**
+ * Determine whether two ranges are equivalent.
+
+\returns non-zero if the ranges are the same, zero if they differ.
+ * @param range1 - CXSourceRange
+ * @param range2 - CXSourceRange
+ * @returns unsigned int
+ */
+export function clang_equalRanges(range1: { _type: 'CXSourceRange' }, range2: { _type: 'CXSourceRange' }): number {
+  return addon.clang_equalRanges(range1, range2);
+}
+
+/**
+ * Returns non-zero if \p range is null.
+ * @param range - CXSourceRange
+ * @returns int
+ */
+export function clang_Range_isNull(range: { _type: 'CXSourceRange' }): number {
+  return addon.clang_Range_isNull(range);
+}
+
+/**
+ * Retrieve the file, line, column, and offset represented by
+the given source location.
+
+If the location refers into a macro expansion, retrieves the
+location of the macro expansion.
+
+\param location the location within a source file that will be decomposed
+into its parts.
+
+\param file [out] if non-NULL, will be set to the file to which the given
+source location points.
+
+\param line [out] if non-NULL, will be set to the line to which the given
+source location points.
+
+\param column [out] if non-NULL, will be set to the column to which the given
+source location points.
+
+\param offset [out] if non-NULL, will be set to the offset into the
+buffer to which the given source location points.
+ * @param location - CXSourceLocation
+ * @param file - CXFile *
+ * @param line - unsigned int *
+ * @param column - unsigned int *
+ * @param offset - unsigned int *
+ */
+export function clang_getExpansionLocation(location: { _type: 'CXSourceLocation' }, file: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }, offset: { _ptr: unknown }): void {
+  addon.clang_getExpansionLocation(location, file, line, column, offset);
+}
+
+/**
+ * Retrieve the file, line and column represented by the given source
+location, as specified in a # line directive.
+
+Example: given the following source code in a file somefile.c
+
+\code
+#123 "dummy.c" 1
+
+static int func(void)
+{
+return 0;
+}
+\endcode
+
+the location information returned by this function would be
+
+File: dummy.c Line: 124 Column: 12
+
+whereas clang_getExpansionLocation would have returned
+
+File: somefile.c Line: 3 Column: 12
+
+\param location the location within a source file that will be decomposed
+into its parts.
+
+\param filename [out] if non-NULL, will be set to the filename of the
+source location. Note that filenames returned will be for "virtual" files,
+which don't necessarily exist on the machine running clang - e.g. when
+parsing preprocessed output obtained from a different environment. If
+a non-NULL value is passed in, remember to dispose of the returned value
+using \c clang_disposeString() once you've finished with it. For an invalid
+source location, an empty string is returned.
+
+\param line [out] if non-NULL, will be set to the line number of the
+source location. For an invalid source location, zero is returned.
+
+\param column [out] if non-NULL, will be set to the column number of the
+source location. For an invalid source location, zero is returned.
+ * @param location - CXSourceLocation
+ * @param filename - CXString *
+ * @param line - unsigned int *
+ * @param column - unsigned int *
+ */
+export function clang_getPresumedLocation(location: { _type: 'CXSourceLocation' }, filename: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }): void {
+  addon.clang_getPresumedLocation(location, filename, line, column);
+}
+
+/**
+ * Legacy API to retrieve the file, line, column, and offset represented
+by the given source location.
+
+This interface has been replaced by the newer interface
+#clang_getExpansionLocation(). See that interface's documentation for
+details.
+ * @param location - CXSourceLocation
+ * @param file - CXFile *
+ * @param line - unsigned int *
+ * @param column - unsigned int *
+ * @param offset - unsigned int *
+ */
+export function clang_getInstantiationLocation(location: { _type: 'CXSourceLocation' }, file: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }, offset: { _ptr: unknown }): void {
+  addon.clang_getInstantiationLocation(location, file, line, column, offset);
+}
+
+/**
+ * Retrieve the file, line, column, and offset represented by
+the given source location.
+
+If the location refers into a macro instantiation, return where the
+location was originally spelled in the source file.
+
+\param location the location within a source file that will be decomposed
+into its parts.
+
+\param file [out] if non-NULL, will be set to the file to which the given
+source location points.
+
+\param line [out] if non-NULL, will be set to the line to which the given
+source location points.
+
+\param column [out] if non-NULL, will be set to the column to which the given
+source location points.
+
+\param offset [out] if non-NULL, will be set to the offset into the
+buffer to which the given source location points.
+ * @param location - CXSourceLocation
+ * @param file - CXFile *
+ * @param line - unsigned int *
+ * @param column - unsigned int *
+ * @param offset - unsigned int *
+ */
+export function clang_getSpellingLocation(location: { _type: 'CXSourceLocation' }, file: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }, offset: { _ptr: unknown }): void {
+  addon.clang_getSpellingLocation(location, file, line, column, offset);
+}
+
+/**
+ * Retrieve the file, line, column, and offset represented by
+the given source location.
+
+If the location refers into a macro expansion, return where the macro was
+expanded or where the macro argument was written, if the location points at
+a macro argument.
+
+\param location the location within a source file that will be decomposed
+into its parts.
+
+\param file [out] if non-NULL, will be set to the file to which the given
+source location points.
+
+\param line [out] if non-NULL, will be set to the line to which the given
+source location points.
+
+\param column [out] if non-NULL, will be set to the column to which the given
+source location points.
+
+\param offset [out] if non-NULL, will be set to the offset into the
+buffer to which the given source location points.
+ * @param location - CXSourceLocation
+ * @param file - CXFile *
+ * @param line - unsigned int *
+ * @param column - unsigned int *
+ * @param offset - unsigned int *
+ */
+export function clang_getFileLocation(location: { _type: 'CXSourceLocation' }, file: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }, offset: { _ptr: unknown }): void {
+  addon.clang_getFileLocation(location, file, line, column, offset);
+}
+
+/**
+ * Retrieve a source location representing the first character within a
+source range.
+ * @param range - CXSourceRange
+ * @returns CXSourceLocation
+ */
+export function clang_getRangeStart(range: { _type: 'CXSourceRange' }): { _type: 'CXSourceLocation' } {
+  return addon.clang_getRangeStart(range);
+}
+
+/**
+ * Retrieve a source location representing the last character within a
+source range.
+ * @param range - CXSourceRange
+ * @returns CXSourceLocation
+ */
+export function clang_getRangeEnd(range: { _type: 'CXSourceRange' }): { _type: 'CXSourceLocation' } {
+  return addon.clang_getRangeEnd(range);
+}
+
+/**
+ * Destroy the given \c CXSourceRangeList.
+ * @param ranges - CXSourceRangeList *
+ */
+export function clang_disposeSourceRangeList(ranges: { _ptr: unknown }): void {
+  addon.clang_disposeSourceRangeList(ranges);
+}
+
+/**
+ * Determine the number of diagnostics in a CXDiagnosticSet.
+ * @param Diags - CXDiagnosticSet
+ * @returns unsigned int
+ */
+export function clang_getNumDiagnosticsInSet(Diags: { _type: 'CXDiagnosticSet' }): number {
+  return addon.clang_getNumDiagnosticsInSet(Diags);
+}
+
+/**
+ * Retrieve a diagnostic associated with the given CXDiagnosticSet.
+
+\param Diags the CXDiagnosticSet to query.
+\param Index the zero-based diagnostic number to retrieve.
+
+\returns the requested diagnostic. This diagnostic must be freed
+via a call to \c clang_disposeDiagnostic().
+ * @param Diags - CXDiagnosticSet
+ * @param Index - unsigned int
+ * @returns CXDiagnostic
+ */
+export function clang_getDiagnosticInSet(Diags: { _type: 'CXDiagnosticSet' }, Index: number): { _type: 'CXDiagnostic' } {
+  return addon.clang_getDiagnosticInSet(Diags, Index);
+}
+
+/**
+ * Deserialize a set of diagnostics from a Clang diagnostics bitcode
+file.
+
+\param file The name of the file to deserialize.
+\param error A pointer to a enum value recording if there was a problem
+deserializing the diagnostics.
+\param errorString A pointer to a CXString for recording the error string
+if the file was not successfully loaded.
+
+\returns A loaded CXDiagnosticSet if successful, and NULL otherwise.  These
+diagnostics should be released using clang_disposeDiagnosticSet().
+ * @param file - const char *
+ * @param error - enum CXLoadDiag_Error *
+ * @param errorString - CXString *
+ * @returns CXDiagnosticSet
+ */
+export function clang_loadDiagnostics(file: string, error: { _ptr: unknown }, errorString: { _ptr: unknown }): { _type: 'CXDiagnosticSet' } {
+  return addon.clang_loadDiagnostics(file, error, errorString);
+}
+
+/**
+ * Release a CXDiagnosticSet and all of its contained diagnostics.
+ * @param Diags - CXDiagnosticSet
+ */
+export function clang_disposeDiagnosticSet(Diags: { _type: 'CXDiagnosticSet' }): void {
+  addon.clang_disposeDiagnosticSet(Diags);
+}
+
+/**
+ * Retrieve the child diagnostics of a CXDiagnostic.
+
+This CXDiagnosticSet does not need to be released by
+clang_disposeDiagnosticSet.
+ * @param D - CXDiagnostic
+ * @returns CXDiagnosticSet
+ */
+export function clang_getChildDiagnostics(D: { _type: 'CXDiagnostic' }): { _type: 'CXDiagnosticSet' } {
+  return addon.clang_getChildDiagnostics(D);
+}
+
+/**
+ * Destroy a diagnostic.
+ * @param Diagnostic - CXDiagnostic
+ */
+export function clang_disposeDiagnostic(Diagnostic: { _type: 'CXDiagnostic' }): void {
+  addon.clang_disposeDiagnostic(Diagnostic);
+}
+
+/**
+ * Format the given diagnostic in a manner that is suitable for display.
+
+This routine will format the given diagnostic to a string, rendering
+the diagnostic according to the various options given. The
+\c clang_defaultDiagnosticDisplayOptions() function returns the set of
+options that most closely mimics the behavior of the clang compiler.
+
+\param Diagnostic The diagnostic to print.
+
+\param Options A set of options that control the diagnostic display,
+created by combining \c CXDiagnosticDisplayOptions values.
+
+\returns A new string containing for formatted diagnostic.
+ * @param Diagnostic - CXDiagnostic
+ * @param Options - unsigned int
+ * @returns CXString
+ */
+export function clang_formatDiagnostic(Diagnostic: { _type: 'CXDiagnostic' }, Options: number): { _type: 'CXString' } {
+  return addon.clang_formatDiagnostic(Diagnostic, Options);
+}
+
+/**
+ * Retrieve the set of display options most similar to the
+default behavior of the clang compiler.
+
+\returns A set of display options suitable for use with \c
+clang_formatDiagnostic().
+ * @returns unsigned int
+ */
+export function clang_defaultDiagnosticDisplayOptions(): number {
+  return addon.clang_defaultDiagnosticDisplayOptions();
+}
+
+/**
+ * Determine the severity of the given diagnostic.
+ * @param arg - CXDiagnostic
+ * @returns enum CXDiagnosticSeverity
+ */
+export function clang_getDiagnosticSeverity(arg0: { _type: 'CXDiagnostic' }): number {
+  return addon.clang_getDiagnosticSeverity(arg0);
+}
+
+/**
+ * Retrieve the source location of the given diagnostic.
+
+This location is where Clang would print the caret ('^') when
+displaying the diagnostic on the command line.
+ * @param arg - CXDiagnostic
+ * @returns CXSourceLocation
+ */
+export function clang_getDiagnosticLocation(arg0: { _type: 'CXDiagnostic' }): { _type: 'CXSourceLocation' } {
+  return addon.clang_getDiagnosticLocation(arg0);
+}
+
+/**
+ * Retrieve the text of the given diagnostic.
+ * @param arg - CXDiagnostic
+ * @returns CXString
+ */
+export function clang_getDiagnosticSpelling(arg0: { _type: 'CXDiagnostic' }): { _type: 'CXString' } {
+  return addon.clang_getDiagnosticSpelling(arg0);
+}
+
+/**
+ * Retrieve the name of the command-line option that enabled this
+diagnostic.
+
+\param Diag The diagnostic to be queried.
+
+\param Disable If non-NULL, will be set to the option that disables this
+diagnostic (if any).
+
+\returns A string that contains the command-line option used to enable this
+warning, such as "-Wconversion" or "-pedantic".
+ * @param Diag - CXDiagnostic
+ * @param Disable - CXString *
+ * @returns CXString
+ */
+export function clang_getDiagnosticOption(Diag: { _type: 'CXDiagnostic' }, Disable: { _ptr: unknown }): { _type: 'CXString' } {
+  return addon.clang_getDiagnosticOption(Diag, Disable);
+}
+
+/**
+ * Retrieve the category number for this diagnostic.
+
+Diagnostics can be categorized into groups along with other, related
+diagnostics (e.g., diagnostics under the same warning flag). This routine
+retrieves the category number for the given diagnostic.
+
+\returns The number of the category that contains this diagnostic, or zero
+if this diagnostic is uncategorized.
+ * @param arg - CXDiagnostic
+ * @returns unsigned int
+ */
+export function clang_getDiagnosticCategory(arg0: { _type: 'CXDiagnostic' }): number {
+  return addon.clang_getDiagnosticCategory(arg0);
+}
+
+/**
+ * Retrieve the name of a particular diagnostic category.  This
+is now deprecated.  Use clang_getDiagnosticCategoryText()
+instead.
+
+\param Category A diagnostic category number, as returned by
+\c clang_getDiagnosticCategory().
+
+\returns The name of the given diagnostic category.
+ * @param Category - unsigned int
+ * @returns CXString
+ */
+export function clang_getDiagnosticCategoryName(Category: number): { _type: 'CXString' } {
+  return addon.clang_getDiagnosticCategoryName(Category);
+}
+
+/**
+ * Retrieve the diagnostic category text for a given diagnostic.
+
+\returns The text of the given diagnostic category.
+ * @param arg - CXDiagnostic
+ * @returns CXString
+ */
+export function clang_getDiagnosticCategoryText(arg0: { _type: 'CXDiagnostic' }): { _type: 'CXString' } {
+  return addon.clang_getDiagnosticCategoryText(arg0);
+}
+
+/**
+ * Determine the number of source ranges associated with the given
+diagnostic.
+ * @param arg - CXDiagnostic
+ * @returns unsigned int
+ */
+export function clang_getDiagnosticNumRanges(arg0: { _type: 'CXDiagnostic' }): number {
+  return addon.clang_getDiagnosticNumRanges(arg0);
+}
+
+/**
+ * Retrieve a source range associated with the diagnostic.
+
+A diagnostic's source ranges highlight important elements in the source
+code. On the command line, Clang displays source ranges by
+underlining them with '~' characters.
+
+\param Diagnostic the diagnostic whose range is being extracted.
+
+\param Range the zero-based index specifying which range to
+
+\returns the requested source range.
+ * @param Diagnostic - CXDiagnostic
+ * @param Range - unsigned int
+ * @returns CXSourceRange
+ */
+export function clang_getDiagnosticRange(Diagnostic: { _type: 'CXDiagnostic' }, Range: number): { _type: 'CXSourceRange' } {
+  return addon.clang_getDiagnosticRange(Diagnostic, Range);
+}
+
+/**
+ * Determine the number of fix-it hints associated with the
+given diagnostic.
+ * @param Diagnostic - CXDiagnostic
+ * @returns unsigned int
+ */
+export function clang_getDiagnosticNumFixIts(Diagnostic: { _type: 'CXDiagnostic' }): number {
+  return addon.clang_getDiagnosticNumFixIts(Diagnostic);
+}
+
+/**
+ * Retrieve the replacement information for a given fix-it.
+
+Fix-its are described in terms of a source range whose contents
+should be replaced by a string. This approach generalizes over
+three kinds of operations: removal of source code (the range covers
+the code to be removed and the replacement string is empty),
+replacement of source code (the range covers the code to be
+replaced and the replacement string provides the new code), and
+insertion (both the start and end of the range point at the
+insertion location, and the replacement string provides the text to
+insert).
+
+\param Diagnostic The diagnostic whose fix-its are being queried.
+
+\param FixIt The zero-based index of the fix-it.
+
+\param ReplacementRange The source range whose contents will be
+replaced with the returned replacement string. Note that source
+ranges are half-open ranges [a, b), so the source code should be
+replaced from a and up to (but not including) b.
+
+\returns A string containing text that should be replace the source
+code indicated by the \c ReplacementRange.
+ * @param Diagnostic - CXDiagnostic
+ * @param FixIt - unsigned int
+ * @param ReplacementRange - CXSourceRange *
+ * @returns CXString
+ */
+export function clang_getDiagnosticFixIt(Diagnostic: { _type: 'CXDiagnostic' }, FixIt: number, ReplacementRange: { _ptr: unknown }): { _type: 'CXString' } {
+  return addon.clang_getDiagnosticFixIt(Diagnostic, FixIt, ReplacementRange);
+}
+
+/**
  * Provides a shared context for creating translation units.
 
 It provides two options:
@@ -9403,320 +10415,233 @@ export function clang_getCursorUnaryOperatorKind(cursor: { _type: 'CXCursor' }):
   return addon.clang_getCursorUnaryOperatorKind(cursor);
 }
 
-/**
- * Retrieve the character data associated with the given string.
-
-The returned data is a reference and not owned by the user. This data
-is only valid while the `CXString` is valid. This function is similar
-to `std::string::c_str()`.
- * @param string - CXString
- * @returns const char *
- */
-export function clang_getCString(string: { _type: 'CXString' }): string {
-  return addon.clang_getCString(string);
-}
-
-/**
- * Free the given string.
- * @param string - CXString
- */
-export function clang_disposeString(string: { _type: 'CXString' }): void {
-  addon.clang_disposeString(string);
-}
-
-/**
- * Free the given string set.
- * @param set - CXStringSet *
- */
-export function clang_disposeStringSet(set: { _ptr: unknown }): void {
-  addon.clang_disposeStringSet(set);
-}
-
-/**
- * Retrieve a NULL (invalid) source location.
- * @returns CXSourceLocation
- */
-export function clang_getNullLocation(): { _type: 'CXSourceLocation' } {
-  return addon.clang_getNullLocation();
-}
-
-/**
- * Determine whether two source locations, which must refer into
-the same translation unit, refer to exactly the same point in the source
-code.
-
-\returns non-zero if the source locations refer to the same location, zero
-if they refer to different locations.
- * @param loc1 - CXSourceLocation
- * @param loc2 - CXSourceLocation
- * @returns unsigned int
- */
-export function clang_equalLocations(loc1: { _type: 'CXSourceLocation' }, loc2: { _type: 'CXSourceLocation' }): number {
-  return addon.clang_equalLocations(loc1, loc2);
-}
-
-/**
- * Determine for two source locations if the first comes
-strictly before the second one in the source code.
-
-\returns non-zero if the first source location comes
-strictly before the second one, zero otherwise.
- * @param loc1 - CXSourceLocation
- * @param loc2 - CXSourceLocation
- * @returns unsigned int
- */
-export function clang_isBeforeInTranslationUnit(loc1: { _type: 'CXSourceLocation' }, loc2: { _type: 'CXSourceLocation' }): number {
-  return addon.clang_isBeforeInTranslationUnit(loc1, loc2);
-}
-
-/**
- * Returns non-zero if the given source location is in a system header.
- * @param location - CXSourceLocation
- * @returns int
- */
-export function clang_Location_isInSystemHeader(location: { _type: 'CXSourceLocation' }): number {
-  return addon.clang_Location_isInSystemHeader(location);
-}
-
-/**
- * Returns non-zero if the given source location is in the main file of
-the corresponding translation unit.
- * @param location - CXSourceLocation
- * @returns int
- */
-export function clang_Location_isFromMainFile(location: { _type: 'CXSourceLocation' }): number {
-  return addon.clang_Location_isFromMainFile(location);
-}
-
-/**
- * Retrieve a NULL (invalid) source range.
- * @returns CXSourceRange
- */
-export function clang_getNullRange(): { _type: 'CXSourceRange' } {
-  return addon.clang_getNullRange();
-}
-
-/**
- * Retrieve a source range given the beginning and ending source
-locations.
- * @param begin - CXSourceLocation
- * @param end - CXSourceLocation
- * @returns CXSourceRange
- */
-export function clang_getRange(begin: { _type: 'CXSourceLocation' }, end: { _type: 'CXSourceLocation' }): { _type: 'CXSourceRange' } {
-  return addon.clang_getRange(begin, end);
-}
-
-/**
- * Determine whether two ranges are equivalent.
-
-\returns non-zero if the ranges are the same, zero if they differ.
- * @param range1 - CXSourceRange
- * @param range2 - CXSourceRange
- * @returns unsigned int
- */
-export function clang_equalRanges(range1: { _type: 'CXSourceRange' }, range2: { _type: 'CXSourceRange' }): number {
-  return addon.clang_equalRanges(range1, range2);
-}
-
-/**
- * Returns non-zero if \p range is null.
- * @param range - CXSourceRange
- * @returns int
- */
-export function clang_Range_isNull(range: { _type: 'CXSourceRange' }): number {
-  return addon.clang_Range_isNull(range);
-}
-
-/**
- * Retrieve the file, line, column, and offset represented by
-the given source location.
-
-If the location refers into a macro expansion, retrieves the
-location of the macro expansion.
-
-\param location the location within a source file that will be decomposed
-into its parts.
-
-\param file [out] if non-NULL, will be set to the file to which the given
-source location points.
-
-\param line [out] if non-NULL, will be set to the line to which the given
-source location points.
-
-\param column [out] if non-NULL, will be set to the column to which the given
-source location points.
-
-\param offset [out] if non-NULL, will be set to the offset into the
-buffer to which the given source location points.
- * @param location - CXSourceLocation
- * @param file - CXFile *
- * @param line - unsigned int *
- * @param column - unsigned int *
- * @param offset - unsigned int *
- */
-export function clang_getExpansionLocation(location: { _type: 'CXSourceLocation' }, file: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }, offset: { _ptr: unknown }): void {
-  addon.clang_getExpansionLocation(location, file, line, column, offset);
-}
-
-/**
- * Retrieve the file, line and column represented by the given source
-location, as specified in a # line directive.
-
-Example: given the following source code in a file somefile.c
-
-\code
-#123 "dummy.c" 1
-
-static int func(void)
-{
-return 0;
-}
-\endcode
-
-the location information returned by this function would be
-
-File: dummy.c Line: 124 Column: 12
-
-whereas clang_getExpansionLocation would have returned
-
-File: somefile.c Line: 3 Column: 12
-
-\param location the location within a source file that will be decomposed
-into its parts.
-
-\param filename [out] if non-NULL, will be set to the filename of the
-source location. Note that filenames returned will be for "virtual" files,
-which don't necessarily exist on the machine running clang - e.g. when
-parsing preprocessed output obtained from a different environment. If
-a non-NULL value is passed in, remember to dispose of the returned value
-using \c clang_disposeString() once you've finished with it. For an invalid
-source location, an empty string is returned.
-
-\param line [out] if non-NULL, will be set to the line number of the
-source location. For an invalid source location, zero is returned.
-
-\param column [out] if non-NULL, will be set to the column number of the
-source location. For an invalid source location, zero is returned.
- * @param location - CXSourceLocation
- * @param filename - CXString *
- * @param line - unsigned int *
- * @param column - unsigned int *
- */
-export function clang_getPresumedLocation(location: { _type: 'CXSourceLocation' }, filename: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }): void {
-  addon.clang_getPresumedLocation(location, filename, line, column);
-}
-
-/**
- * Legacy API to retrieve the file, line, column, and offset represented
-by the given source location.
-
-This interface has been replaced by the newer interface
-#clang_getExpansionLocation(). See that interface's documentation for
-details.
- * @param location - CXSourceLocation
- * @param file - CXFile *
- * @param line - unsigned int *
- * @param column - unsigned int *
- * @param offset - unsigned int *
- */
-export function clang_getInstantiationLocation(location: { _type: 'CXSourceLocation' }, file: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }, offset: { _ptr: unknown }): void {
-  addon.clang_getInstantiationLocation(location, file, line, column, offset);
-}
-
-/**
- * Retrieve the file, line, column, and offset represented by
-the given source location.
-
-If the location refers into a macro instantiation, return where the
-location was originally spelled in the source file.
-
-\param location the location within a source file that will be decomposed
-into its parts.
-
-\param file [out] if non-NULL, will be set to the file to which the given
-source location points.
-
-\param line [out] if non-NULL, will be set to the line to which the given
-source location points.
-
-\param column [out] if non-NULL, will be set to the column to which the given
-source location points.
-
-\param offset [out] if non-NULL, will be set to the offset into the
-buffer to which the given source location points.
- * @param location - CXSourceLocation
- * @param file - CXFile *
- * @param line - unsigned int *
- * @param column - unsigned int *
- * @param offset - unsigned int *
- */
-export function clang_getSpellingLocation(location: { _type: 'CXSourceLocation' }, file: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }, offset: { _ptr: unknown }): void {
-  addon.clang_getSpellingLocation(location, file, line, column, offset);
-}
-
-/**
- * Retrieve the file, line, column, and offset represented by
-the given source location.
-
-If the location refers into a macro expansion, return where the macro was
-expanded or where the macro argument was written, if the location points at
-a macro argument.
-
-\param location the location within a source file that will be decomposed
-into its parts.
-
-\param file [out] if non-NULL, will be set to the file to which the given
-source location points.
-
-\param line [out] if non-NULL, will be set to the line to which the given
-source location points.
-
-\param column [out] if non-NULL, will be set to the column to which the given
-source location points.
-
-\param offset [out] if non-NULL, will be set to the offset into the
-buffer to which the given source location points.
- * @param location - CXSourceLocation
- * @param file - CXFile *
- * @param line - unsigned int *
- * @param column - unsigned int *
- * @param offset - unsigned int *
- */
-export function clang_getFileLocation(location: { _type: 'CXSourceLocation' }, file: { _ptr: unknown }, line: { _ptr: unknown }, column: { _ptr: unknown }, offset: { _ptr: unknown }): void {
-  addon.clang_getFileLocation(location, file, line, column, offset);
-}
-
-/**
- * Retrieve a source location representing the first character within a
-source range.
- * @param range - CXSourceRange
- * @returns CXSourceLocation
- */
-export function clang_getRangeStart(range: { _type: 'CXSourceRange' }): { _type: 'CXSourceLocation' } {
-  return addon.clang_getRangeStart(range);
-}
-
-/**
- * Retrieve a source location representing the last character within a
-source range.
- * @param range - CXSourceRange
- * @returns CXSourceLocation
- */
-export function clang_getRangeEnd(range: { _type: 'CXSourceRange' }): { _type: 'CXSourceLocation' } {
-  return addon.clang_getRangeEnd(range);
-}
-
-/**
- * Destroy the given \c CXSourceRangeList.
- * @param ranges - CXSourceRangeList *
- */
-export function clang_disposeSourceRangeList(ranges: { _ptr: unknown }): void {
-  addon.clang_disposeSourceRangeList(ranges);
-}
-
 
 // Struct helper functions
+/**
+ * Create a new CXString instance
+ * A character string.
+
+The \c CXString type is used to return strings from the interface when
+the ownership of that string might differ from one call to the next.
+Use \c clang_getCString() to retrieve the string data and, once finished
+with the string data, call \c clang_disposeString() to free the string.
+ */
+export function createCXString(init?: CXStringInit): CXString {
+  return addon.create_CXString(init);
+}
+
+/**
+ * Get data field from CXString
+ */
+export function getCXString_data(struct: CXString): unknown {
+  return addon.get_CXString_field(struct, 'data');
+}
+
+/**
+ * Get private_flags field from CXString
+ */
+export function getCXString_private_flags(struct: CXString): number {
+  return addon.get_CXString_field(struct, 'private_flags');
+}
+
+/**
+ * Get all fields from CXString as an object
+ */
+export function getCXStringFields(struct: CXString): CXStringInit {
+  return {
+    data: addon.get_CXString_field(struct, 'data'),
+    private_flags: addon.get_CXString_field(struct, 'private_flags'),
+  };
+}
+
+export function createCXStringSet(init?: CXStringSetInit): CXStringSet {
+  return addon.create_CXStringSet(init);
+}
+
+/**
+ * Get Strings field from CXStringSet
+ */
+export function getCXStringSet_Strings(struct: CXStringSet): { _ptr: unknown } {
+  return addon.get_CXStringSet_field(struct, 'Strings');
+}
+
+/**
+ * Get Count field from CXStringSet
+ */
+export function getCXStringSet_Count(struct: CXStringSet): number {
+  return addon.get_CXStringSet_field(struct, 'Count');
+}
+
+/**
+ * Get all fields from CXStringSet as an object
+ */
+export function getCXStringSetFields(struct: CXStringSet): CXStringSetInit {
+  return {
+    Strings: addon.get_CXStringSet_field(struct, 'Strings'),
+    Count: addon.get_CXStringSet_field(struct, 'Count'),
+  };
+}
+
+export function createCXVirtualFileOverlayImpl(init?: CXVirtualFileOverlayImplInit): CXVirtualFileOverlayImpl {
+  return addon.create_CXVirtualFileOverlayImpl(init);
+}
+
+/**
+ * Get all fields from CXVirtualFileOverlayImpl as an object
+ */
+export function getCXVirtualFileOverlayImplFields(struct: CXVirtualFileOverlayImpl): CXVirtualFileOverlayImplInit {
+  return {
+  };
+}
+
+export function createCXModuleMapDescriptorImpl(init?: CXModuleMapDescriptorImplInit): CXModuleMapDescriptorImpl {
+  return addon.create_CXModuleMapDescriptorImpl(init);
+}
+
+/**
+ * Get all fields from CXModuleMapDescriptorImpl as an object
+ */
+export function getCXModuleMapDescriptorImplFields(struct: CXModuleMapDescriptorImpl): CXModuleMapDescriptorImplInit {
+  return {
+  };
+}
+
+/**
+ * Create a new CXFileUniqueID instance
+ * Uniquely identifies a CXFile, that refers to the same underlying file,
+across an indexing session.
+ */
+export function createCXFileUniqueID(init?: CXFileUniqueIDInit): CXFileUniqueID {
+  return addon.create_CXFileUniqueID(init);
+}
+
+/**
+ * Get data field from CXFileUniqueID
+ */
+export function getCXFileUniqueID_data(struct: CXFileUniqueID): unknown[] {
+  return addon.get_CXFileUniqueID_field(struct, 'data');
+}
+
+/**
+ * Get all fields from CXFileUniqueID as an object
+ */
+export function getCXFileUniqueIDFields(struct: CXFileUniqueID): CXFileUniqueIDInit {
+  return {
+    data: addon.get_CXFileUniqueID_field(struct, 'data'),
+  };
+}
+
+/**
+ * Create a new CXSourceLocation instance
+ * Identifies a specific source location within a translation
+unit.
+
+Use clang_getExpansionLocation() or clang_getSpellingLocation()
+to map a source location to a particular file, line, and column.
+ */
+export function createCXSourceLocation(init?: CXSourceLocationInit): CXSourceLocation {
+  return addon.create_CXSourceLocation(init);
+}
+
+/**
+ * Get ptr_data field from CXSourceLocation
+ */
+export function getCXSourceLocation_ptr_data(struct: CXSourceLocation): unknown[] {
+  return addon.get_CXSourceLocation_field(struct, 'ptr_data');
+}
+
+/**
+ * Get int_data field from CXSourceLocation
+ */
+export function getCXSourceLocation_int_data(struct: CXSourceLocation): number {
+  return addon.get_CXSourceLocation_field(struct, 'int_data');
+}
+
+/**
+ * Get all fields from CXSourceLocation as an object
+ */
+export function getCXSourceLocationFields(struct: CXSourceLocation): CXSourceLocationInit {
+  return {
+    ptr_data: addon.get_CXSourceLocation_field(struct, 'ptr_data'),
+    int_data: addon.get_CXSourceLocation_field(struct, 'int_data'),
+  };
+}
+
+/**
+ * Create a new CXSourceRange instance
+ * Identifies a half-open character range in the source code.
+
+Use clang_getRangeStart() and clang_getRangeEnd() to retrieve the
+starting and end locations from a source range, respectively.
+ */
+export function createCXSourceRange(init?: CXSourceRangeInit): CXSourceRange {
+  return addon.create_CXSourceRange(init);
+}
+
+/**
+ * Get ptr_data field from CXSourceRange
+ */
+export function getCXSourceRange_ptr_data(struct: CXSourceRange): unknown[] {
+  return addon.get_CXSourceRange_field(struct, 'ptr_data');
+}
+
+/**
+ * Get begin_int_data field from CXSourceRange
+ */
+export function getCXSourceRange_begin_int_data(struct: CXSourceRange): number {
+  return addon.get_CXSourceRange_field(struct, 'begin_int_data');
+}
+
+/**
+ * Get end_int_data field from CXSourceRange
+ */
+export function getCXSourceRange_end_int_data(struct: CXSourceRange): number {
+  return addon.get_CXSourceRange_field(struct, 'end_int_data');
+}
+
+/**
+ * Get all fields from CXSourceRange as an object
+ */
+export function getCXSourceRangeFields(struct: CXSourceRange): CXSourceRangeInit {
+  return {
+    ptr_data: addon.get_CXSourceRange_field(struct, 'ptr_data'),
+    begin_int_data: addon.get_CXSourceRange_field(struct, 'begin_int_data'),
+    end_int_data: addon.get_CXSourceRange_field(struct, 'end_int_data'),
+  };
+}
+
+/**
+ * Create a new CXSourceRangeList instance
+ * Identifies an array of ranges.
+ */
+export function createCXSourceRangeList(init?: CXSourceRangeListInit): CXSourceRangeList {
+  return addon.create_CXSourceRangeList(init);
+}
+
+/**
+ * Get count field from CXSourceRangeList
+ */
+export function getCXSourceRangeList_count(struct: CXSourceRangeList): number {
+  return addon.get_CXSourceRangeList_field(struct, 'count');
+}
+
+/**
+ * Get ranges field from CXSourceRangeList
+ */
+export function getCXSourceRangeList_ranges(struct: CXSourceRangeList): { _ptr: unknown } {
+  return addon.get_CXSourceRangeList_field(struct, 'ranges');
+}
+
+/**
+ * Get all fields from CXSourceRangeList as an object
+ */
+export function getCXSourceRangeListFields(struct: CXSourceRangeList): CXSourceRangeListInit {
+  return {
+    count: addon.get_CXSourceRangeList_field(struct, 'count'),
+    ranges: addon.get_CXSourceRangeList_field(struct, 'ranges'),
+  };
+}
+
 export function createCXTargetInfoImpl(init?: CXTargetInfoImplInit): CXTargetInfoImpl {
   return addon.create_CXTargetInfoImpl(init);
 }
@@ -11157,181 +12082,5 @@ export function getIndexerCallbacksFields(struct: IndexerCallbacks): IndexerCall
     startedTranslationUnit: addon.get_IndexerCallbacks_field(struct, 'startedTranslationUnit'),
     indexDeclaration: addon.get_IndexerCallbacks_field(struct, 'indexDeclaration'),
     indexEntityReference: addon.get_IndexerCallbacks_field(struct, 'indexEntityReference'),
-  };
-}
-
-/**
- * Create a new CXString instance
- * A character string.
-
-The \c CXString type is used to return strings from the interface when
-the ownership of that string might differ from one call to the next.
-Use \c clang_getCString() to retrieve the string data and, once finished
-with the string data, call \c clang_disposeString() to free the string.
- */
-export function createCXString(init?: CXStringInit): CXString {
-  return addon.create_CXString(init);
-}
-
-/**
- * Get data field from CXString
- */
-export function getCXString_data(struct: CXString): unknown {
-  return addon.get_CXString_field(struct, 'data');
-}
-
-/**
- * Get private_flags field from CXString
- */
-export function getCXString_private_flags(struct: CXString): number {
-  return addon.get_CXString_field(struct, 'private_flags');
-}
-
-/**
- * Get all fields from CXString as an object
- */
-export function getCXStringFields(struct: CXString): CXStringInit {
-  return {
-    data: addon.get_CXString_field(struct, 'data'),
-    private_flags: addon.get_CXString_field(struct, 'private_flags'),
-  };
-}
-
-export function createCXStringSet(init?: CXStringSetInit): CXStringSet {
-  return addon.create_CXStringSet(init);
-}
-
-/**
- * Get Strings field from CXStringSet
- */
-export function getCXStringSet_Strings(struct: CXStringSet): { _ptr: unknown } {
-  return addon.get_CXStringSet_field(struct, 'Strings');
-}
-
-/**
- * Get Count field from CXStringSet
- */
-export function getCXStringSet_Count(struct: CXStringSet): number {
-  return addon.get_CXStringSet_field(struct, 'Count');
-}
-
-/**
- * Get all fields from CXStringSet as an object
- */
-export function getCXStringSetFields(struct: CXStringSet): CXStringSetInit {
-  return {
-    Strings: addon.get_CXStringSet_field(struct, 'Strings'),
-    Count: addon.get_CXStringSet_field(struct, 'Count'),
-  };
-}
-
-/**
- * Create a new CXSourceLocation instance
- * Identifies a specific source location within a translation
-unit.
-
-Use clang_getExpansionLocation() or clang_getSpellingLocation()
-to map a source location to a particular file, line, and column.
- */
-export function createCXSourceLocation(init?: CXSourceLocationInit): CXSourceLocation {
-  return addon.create_CXSourceLocation(init);
-}
-
-/**
- * Get ptr_data field from CXSourceLocation
- */
-export function getCXSourceLocation_ptr_data(struct: CXSourceLocation): unknown[] {
-  return addon.get_CXSourceLocation_field(struct, 'ptr_data');
-}
-
-/**
- * Get int_data field from CXSourceLocation
- */
-export function getCXSourceLocation_int_data(struct: CXSourceLocation): number {
-  return addon.get_CXSourceLocation_field(struct, 'int_data');
-}
-
-/**
- * Get all fields from CXSourceLocation as an object
- */
-export function getCXSourceLocationFields(struct: CXSourceLocation): CXSourceLocationInit {
-  return {
-    ptr_data: addon.get_CXSourceLocation_field(struct, 'ptr_data'),
-    int_data: addon.get_CXSourceLocation_field(struct, 'int_data'),
-  };
-}
-
-/**
- * Create a new CXSourceRange instance
- * Identifies a half-open character range in the source code.
-
-Use clang_getRangeStart() and clang_getRangeEnd() to retrieve the
-starting and end locations from a source range, respectively.
- */
-export function createCXSourceRange(init?: CXSourceRangeInit): CXSourceRange {
-  return addon.create_CXSourceRange(init);
-}
-
-/**
- * Get ptr_data field from CXSourceRange
- */
-export function getCXSourceRange_ptr_data(struct: CXSourceRange): unknown[] {
-  return addon.get_CXSourceRange_field(struct, 'ptr_data');
-}
-
-/**
- * Get begin_int_data field from CXSourceRange
- */
-export function getCXSourceRange_begin_int_data(struct: CXSourceRange): number {
-  return addon.get_CXSourceRange_field(struct, 'begin_int_data');
-}
-
-/**
- * Get end_int_data field from CXSourceRange
- */
-export function getCXSourceRange_end_int_data(struct: CXSourceRange): number {
-  return addon.get_CXSourceRange_field(struct, 'end_int_data');
-}
-
-/**
- * Get all fields from CXSourceRange as an object
- */
-export function getCXSourceRangeFields(struct: CXSourceRange): CXSourceRangeInit {
-  return {
-    ptr_data: addon.get_CXSourceRange_field(struct, 'ptr_data'),
-    begin_int_data: addon.get_CXSourceRange_field(struct, 'begin_int_data'),
-    end_int_data: addon.get_CXSourceRange_field(struct, 'end_int_data'),
-  };
-}
-
-/**
- * Create a new CXSourceRangeList instance
- * Identifies an array of ranges.
- */
-export function createCXSourceRangeList(init?: CXSourceRangeListInit): CXSourceRangeList {
-  return addon.create_CXSourceRangeList(init);
-}
-
-/**
- * Get count field from CXSourceRangeList
- */
-export function getCXSourceRangeList_count(struct: CXSourceRangeList): number {
-  return addon.get_CXSourceRangeList_field(struct, 'count');
-}
-
-/**
- * Get ranges field from CXSourceRangeList
- */
-export function getCXSourceRangeList_ranges(struct: CXSourceRangeList): { _ptr: unknown } {
-  return addon.get_CXSourceRangeList_field(struct, 'ranges');
-}
-
-/**
- * Get all fields from CXSourceRangeList as an object
- */
-export function getCXSourceRangeListFields(struct: CXSourceRangeList): CXSourceRangeListInit {
-  return {
-    count: addon.get_CXSourceRangeList_field(struct, 'count'),
-    ranges: addon.get_CXSourceRangeList_field(struct, 'ranges'),
   };
 }
