@@ -17,35 +17,20 @@ Generate low-level Node.js bindings from C/C++/Objective-C/Objective-C++ header 
 
 ## Usage
 
-### As a Library
-
-```typescript
-import { generateBindings } from 'codegen';
-
-await generateBindings('/path/to/header.h', {
-  outputDir: './my-binding',
-  packageName: 'my-binding',
-  libraryName: 'mylib',
-  includePaths: ['/usr/include'],
-  libraryPaths: ['/usr/lib'],
-  libraries: ['mylib']
-});
-```
-
-### As a CLI Tool
+### CLI Usage
 
 ```bash
 # Generate bindings for a simple C library
-codegen -n mylib -o ./mylib-binding /usr/include/mylib.h
+node --experimental-strip-types packages/codegen/bin/cli.ts -n mylib -o ./mylib-binding /usr/include/mylib.h
 
 # Generate bindings for libclang
-codegen -n clang-bindings -l clang \
+node --experimental-strip-types packages/codegen/bin/cli.ts -n clang-bindings -l clang \
   -I /opt/homebrew/opt/llvm/include \
   -L /opt/homebrew/opt/llvm/lib \
   /opt/homebrew/opt/llvm/include/clang-c/Index.h
 
 # Generate bindings for an Objective-C framework
-codegen -n myframework -F CoreFoundation \
+node --experimental-strip-types packages/codegen/bin/cli.ts -n myframework -F CoreFoundation \
   --framework-path /System/Library/Frameworks \
   /path/to/header.h
 ```
@@ -106,6 +91,7 @@ const myStruct = mylib.createMyStruct({
 const field1Value = mylib.getMyStruct_field1(myStruct);
 ```
 
-## Self-Hosting Capability
+## Notes
 
-This codegen can generate bindings for libclang, which means it can theoretically be used to regenerate the node-clang bindings that h-parser depends on, creating a self-hosting toolchain.
+- This package is a CLI, not a library. Programmatic APIs are internal (`packages/codegen/lib`).
+- Node 24+ with `--experimental-strip-types` is required to run TypeScript directly.

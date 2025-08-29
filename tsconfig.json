@@ -20,6 +20,12 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    "baseUrl": ".",
+    "paths": {
+      "node-clang-raw": [
+        "packages/codegen/typings/node-clang-raw.d.ts"
+      ]
+    },
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -48,6 +54,7 @@
     "**/build",
     "**/*.spec.ts",
     "**/*.test.ts",
+    "packages/node-clang-raw/**/*.ts",
     "**/coverage",
     "**/.turbo",
     "**/tmp",

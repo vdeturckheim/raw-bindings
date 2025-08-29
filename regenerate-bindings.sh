@@ -58,7 +58,7 @@ print_step "Using temporary directory: $TEMP_DIR"
 
 ## Run codegen to generate new bindings using Node 24 TS stripping
 ## Note: Index.h includes the other headers, so we only need to parse that one
-node --experimental-strip-types packages/codegen/cli.ts \
+node --experimental-strip-types packages/codegen/bin/cli.ts \
     -n node-clang-raw \
     -v 0.0.1 \
     -l clang \

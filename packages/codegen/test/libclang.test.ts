@@ -4,7 +4,7 @@ import { cpSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { generateBindings } from '../generator.ts';
+import { generateBindings } from '../lib/generator.ts';
 
 describe('LibClang Bindings', () => {
   let tempDir: string;

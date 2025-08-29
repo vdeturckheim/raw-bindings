@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { generateBindings } from '../generator.ts';
+import { generateBindings } from '../lib/generator.ts';
 
 describe('MathLib Bindings', () => {
   let tempDir: string;
@@ -27,9 +27,9 @@ describe('MathLib Bindings', () => {
 
     try {
       // Copy mathlib source files to temp dir
-      const fixturesDir = join(import.meta.dirname, 'fixtures');
-      cpSync(join(fixturesDir, 'mathlib.h'), join(tempDir, 'mathlib.h'));
-      cpSync(join(fixturesDir, 'mathlib.cpp'), join(tempDir, 'mathlib.cpp'));
+      const testdataDir = join(import.meta.dirname, 'testdata');
+      cpSync(join(testdataDir, 'mathlib.h'), join(tempDir, 'mathlib.h'));
+      cpSync(join(testdataDir, 'mathlib.cpp'), join(tempDir, 'mathlib.cpp'));
 
       // Generate bindings
       console.log('  📝 Generating bindings...');
@@ -50,9 +50,7 @@ describe('MathLib Bindings', () => {
 
       // Update CMakeLists.txt to include mathlib.cpp
       const cmakeFile = join(outputDir, 'CMakeLists.txt');
-      let cmakeContent = await import('node:fs').then((fs) =>
-        fs.readFileSync(cmakeFile, 'utf-8'),
-      );
+      let cmakeContent = readFileSync(cmakeFile, 'utf-8');
 
       // Add mathlib.h include directory
       cmakeContent = cmakeContent.replace(
@@ -60,9 +58,7 @@ describe('MathLib Bindings', () => {
         'file(GLOB SOURCE_FILES "src/*.cpp" "src/*.cc")\ninclude_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)',
       );
 
-      await import('node:fs').then((fs) =>
-        fs.writeFileSync(cmakeFile, cmakeContent),
-      );
+      writeFileSync(cmakeFile, cmakeContent);
 
       // Install dependencies
       console.log('  📦 Installing dependencies...');

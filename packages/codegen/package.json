@@ -3,16 +3,16 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "description": "codegen of addon from parsed headers",
-  "main": "index.ts",
+  "description": "CLI to generate Node.js addons from C/C++ headers",
   "engines": {
     "node": ">=24.3.0"
   },
   "bin": {
-    "codegen": "./cli.ts"
+    "codegen": "./bin/cli.ts"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --experimental-strip-types --test",
+    "test:cov": "node --experimental-strip-types --test --coverage"
   },
   "dependencies": {},
   "devDependencies": {
