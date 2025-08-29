@@ -8,7 +8,9 @@
     "lint": "biome lint .",
     "check": "biome check .",
     "fix": "biome check --write . ",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test --workspaces",
+    "test:cov": "npm run test:cov --workspaces"
   },
   "repository": {
     "type": "git",
@@ -21,7 +23,8 @@
   },
   "homepage": "https://github.com/vdeturckheim/raw-bindings#readme",
   "workspaces": [
-    "packages/binding-gen"
+    "packages/codegen",
+    "packages/node-clang-raw"
   ],
   "engines": {
     "node": ">=24.3.0"
