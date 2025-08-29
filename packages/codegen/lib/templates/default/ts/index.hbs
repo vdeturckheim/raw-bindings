@@ -1,0 +1,10 @@
+import nodeGypBuild from 'node-gyp-build';
+
+// Load the native addon
+const addon = nodeGypBuild(import.meta.dirname) as any;
+
+type AddonHandle = any;
+
+{{> structs }}
+
+{{> functions }}

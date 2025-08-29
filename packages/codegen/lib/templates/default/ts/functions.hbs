@@ -1,0 +1,27 @@
+// Function exports
+
+{{#each functions}}
+{{#if documentation}}
+/**
+ * {{documentation.summary}}
+ */
+{{/if}}
+export function {{name}}(
+{{#each params}}
+  {{name}}: {{{tsType type}}}{{#unless @last}},{{/unless}}
+{{/each}}
+): {{{tsType returnType}}} {
+  {{#each params}}
+  {{#if isStruct}}
+  const _{{name}} = ({{name}} instanceof {{structName}} ? {{name}}.ptr : {{name}});
+  {{/if}}
+  {{/each}}
+  {{#if returnsStruct}}
+  return {{returnStructName}}.from(addon.{{name}}({{#each params}}{{#if isStruct}}_{{name}}{{else}}{{name}}{{/if}}{{#unless @last}}, {{/unless}}{{/each}}));
+  {{else}}
+  return addon.{{name}}({{#each params}}{{#if isStruct}}_{{name}}{{else}}{{name}}{{/if}}{{#unless @last}}, {{/unless}}{{/each}});
+  {{/if}}
+}
+
+{{/each}}
+

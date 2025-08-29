@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { resolve } from 'node:path';
+import { resolve, basename } from 'node:path';
 import { parseArgs } from 'node:util';
-import { generateBindings } from '../lib/generator.ts';
-import type { GeneratorOptions } from '../types.ts';
+import { parseHeader } from '../lib/h-parser/index.ts';
+import { buildIR } from '../lib/ir/builder.ts';
+import { generateProjectFromIR } from '../lib/newgen/generate.ts';
 
 // Parse command-line arguments
 const { values, positionals } = parseArgs({
@@ -65,9 +66,9 @@ const { values, positionals } = parseArgs({
 
 function showHelp() {
   console.log(`
-Usage: codegen [options] <header-file> [additional-header-files...]
+Usage: codegen [options] <header-file>
 
-Generate Node.js bindings from C/C++/Objective-C header files
+Generate Node.js bindings from C/C++ header files (template-based)
 
 Options:
   -h, --help              Show this help message
@@ -86,14 +87,8 @@ Examples:
   # Generate bindings for a simple C library
   codegen -n mylib -o ./mylib-binding /usr/include/mylib.h
 
-  # Generate bindings for libclang with multiple headers
-  codegen -n clang-bindings -l clang -I /opt/homebrew/opt/llvm/include -L /opt/homebrew/opt/llvm/lib \\
-    /opt/homebrew/opt/llvm/include/clang-c/Index.h \\
-    /opt/homebrew/opt/llvm/include/clang-c/CXString.h \\
-    /opt/homebrew/opt/llvm/include/clang-c/CXSourceLocation.h
-
-  # Generate bindings for an Objective-C framework
-  codegen -n myframework -F CoreFoundation --framework-path /System/Library/Frameworks /path/to/header.h
+  # Generate bindings for a simple C library
+  codegen -n mylib -o ./mylib-binding /usr/include/mylib.h
 `);
 }
 
@@ -103,33 +98,31 @@ async function main() {
     process.exit(values.help ? 0 : 1);
   }
 
-  const headerPaths = positionals.map(path => resolve(path as string));
+  const headerPath = resolve(positionals[0] as string);
 
   if (!values.name) {
     console.error('Error: Package name is required (use -n or --name)');
     process.exit(1);
   }
 
-  const options: GeneratorOptions = {
-    outputDir: resolve(values.output as string),
-    packageName: values.name as string,
-    packageVersion: values.version as string,
-    libraryName: values.library as string,
-    includePaths: (values.include as string[]) || [],
-    libraryPaths: (values['library-path'] as string[]) || [],
-    libraries: values.library ? [values.library as string] : [],
-    frameworks: (values.framework as string[]) || [],
-    frameworkPaths: (values['framework-path'] as string[]) || [],
-    defines: (values.define as string[]) || [],
-    headerIncludePath: values['header-include'] as string,
-  };
+  const outputDir = resolve(values.output as string);
+  const includePaths = (values.include as string[]) || [];
+  const headerInclude = (values['header-include'] as string) || basename(headerPath);
 
-  try {
-    await generateBindings(headerPaths, options);
-  } catch (error) {
-    console.error('Error generating bindings:', error);
-    process.exit(1);
-  }
+  const ast = parseHeader(headerPath, {
+    language: 'c',
+    includeDocumentation: true,
+    detailedProcessing: true,
+    includePaths,
+  });
+  const ir = buildIR(ast, { moduleName: values.name as string });
+  await generateProjectFromIR(ir, {
+    outputDir,
+    packageName: values.name as string,
+    packageVersion: (values.version as string) || '0.0.1',
+    libraryName: (values.library as string) || (values.name as string),
+    includes: [headerInclude],
+  });
 }
 
 main().catch(console.error);

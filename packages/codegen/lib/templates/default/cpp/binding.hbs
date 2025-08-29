@@ -1,0 +1,103 @@
+// Auto-generated binding (template-based)
+#include <napi.h>
+#include <string>
+#include <vector>
+#include <memory>
+#include <cstring>
+
+// Include target headers
+{{#each includes}}
+#include "{{this}}"
+{{/each}}
+
+// Helper to wrap pointers as JS objects
+static Napi::Object wrapPointer(Napi::Env env, void* ptr, const std::string& typeName) {
+  Napi::Object obj = Napi::Object::New(env);
+  obj.Set("_ptr", Napi::External<void>::New(env, ptr));
+  obj.Set("_type", Napi::String::New(env, typeName));
+  return obj;
+}
+
+// Helper to unwrap pointer from JS object
+static void* unwrapPointer(Napi::Object obj) {
+  if (!obj.Has("_ptr")) return nullptr;
+  return obj.Get("_ptr").As<Napi::External<void>>().Data();
+}
+
+// Wrap owned pointer with finalizer
+template <typename T>
+static Napi::Object wrapOwnedPointer(Napi::Env env, T* ptr, const std::string& typeName) {
+  auto ext = Napi::External<T>::New(env, ptr, [](Napi::Env, T* p) { delete p; });
+  Napi::Object obj = Napi::Object::New(env);
+  obj.Set("_ptr", ext);
+  obj.Set("_type", Napi::String::New(env, typeName));
+  return obj;
+}
+
+// Struct wrappers
+{{#each structs}}
+// create {{name}}
+static Napi::Value Create_{{name}}(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  {{cType}}* ptr = new {{cType}}();
+  if (info.Length() > 0 && info[0].IsObject()) {
+    Napi::Object obj = info[0].As<Napi::Object>();
+    {{#each fields}}
+    if (obj.Has("{{name}}")) {
+      {{{fieldSetLine}}}
+    }
+    {{/each}}
+  }
+  return wrapOwnedPointer(env, ptr, "{{name}}");
+}
+
+// get field of {{name}}
+static Napi::Value Get_{{name}}_Field(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
+    Napi::TypeError::New(env, "Expected struct object and field name").ThrowAsJavaScriptException();
+    return env.Undefined();
+  }
+  {{cType}}* ptr = static_cast<{{cType}}*>(unwrapPointer(info[0].As<Napi::Object>()));
+  std::string fieldName = info[1].As<Napi::String>().Utf8Value();
+  {{#each fields}}
+  if (fieldName == "{{name}}") {
+    return {{{fieldGetLine}}};
+  }
+  {{/each}}
+  return env.Undefined();
+}
+
+{{/each}}
+
+// Function wrappers
+{{#each functions}}
+static Napi::Value {{wrapperName}}(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  {{#each paramLines}}
+  {{{this}}}
+  {{/each}}
+  {{#if callLine}}
+  {{{callLine}}}
+  {{/if}}
+  {{{returnLine}}}
+}
+{{/each}}
+
+// Module init
+static Napi::Object Init(Napi::Env env, Napi::Object exports) {
+  // Struct exports
+  {{#each structs}}
+  exports.Set("create_{{name}}", Napi::Function::New(env, Create_{{name}}));
+  exports.Set("get_{{name}}_field", Napi::Function::New(env, Get_{{name}}_Field));
+  {{/each}}
+
+  // Function exports
+  {{#each functions}}
+  exports.Set("{{name}}", Napi::Function::New(env, {{wrapperName}}));
+  {{/each}}
+
+  return exports;
+}
+
+NODE_API_MODULE(binding, Init)

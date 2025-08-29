@@ -1,0 +1,42 @@
+// Struct type definitions and class wrappers
+
+{{#each structs}}
+{{#if documentation}}
+/**
+ * {{documentation.summary}}
+ */
+{{/if}}
+export interface {{name}}Init {
+{{#each fields}}
+  {{name}}?: {{{tsType type}}};
+{{/each}}
+}
+
+export class {{name}} {
+  private readonly _handle: AddonHandle;
+  constructor(init?: {{name}}Init) {
+    this._handle = addon.create_{{name}}(init);
+  }
+  static from(handle: AddonHandle): {{name}} {
+    const o = Object.create({{name}}.prototype) as {{name}};
+    (o as any)._handle = handle;
+    return o;
+  }
+  get ptr(): AddonHandle { return this._handle; }
+
+{{#each fields}}
+  get {{sanitize name}}(): {{{tsType type}}} {
+    return addon.get_{{../name}}_field(this._handle, '{{name}}');
+  }
+{{/each}}
+
+  toObject(): {{name}}Init {
+    return {
+{{#each fields}}
+      {{name}}: this.{{sanitize name}},
+{{/each}}
+    };
+  }
+}
+
+{{/each}}

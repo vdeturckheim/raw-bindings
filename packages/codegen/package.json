@@ -14,7 +14,9 @@
     "test": "node --experimental-strip-types --test",
     "test:cov": "node --experimental-strip-types --test --coverage"
   },
-  "dependencies": {},
+  "dependencies": {
+    "handlebars": "^4.7.8"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0"
   },

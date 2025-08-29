@@ -1,0 +1,26 @@
+{
+  "name": "{{packageName}}",
+  "version": "{{packageVersion}}",
+  "description": "Generated bindings for {{libraryName}}",
+  "type": "module",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "install": "cmake-js compile",
+    "build": "cmake-js build",
+    "build:debug": "cmake-js build --debug",
+    "rebuild": "cmake-js rebuild",
+    "clean": "cmake-js clean",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "cmake-js": "^7.3.1",
+    "node-addon-api": "^8.5.0",
+    "node-gyp-build": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}
+
